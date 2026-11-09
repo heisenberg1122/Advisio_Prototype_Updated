@@ -1,8 +1,11 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, CircleHelp, XCircle } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { PhoneFilters } from "@/components/ui/PhoneFilters";
+import { EmptyNote } from "@/components/ui/advisio";
+import { RoleBand } from "@/components/dashboards/RoleScreenParts";
+import "./system-admin.css";
 
 type Event = {
   id: string;
@@ -45,8 +48,7 @@ const words = (value: string) =>
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/[_.]/g, " ")
     .toLowerCase();
-const inputStyle =
-  "rounded-lg border border-slate-300 bg-transparent px-3 py-2 dark:border-slate-600";
+const inputStyle = "sa-filter-input";
 const badgeStyle =
   "inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium";
 const neutralBadgeStyle =
@@ -230,17 +232,31 @@ export function AuditTrail() {
     }
   };
   return (
-    <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-[#101b2b] sm:p-6">
-      <div className="workspace-page-header">
-        <h1 className="text-2xl font-bold">Audit trail</h1>
-        <p className="mt-1 text-slate-500 dark:text-slate-400">
-          Recorded changes and security summaries · Philippine Time. Default
-          range: last 30 days.
-        </p>
-      </div>
+    <section className="rs">
+      <RoleBand
+        eyebrow="System administration"
+        title="Audit trail"
+        titleId="sa-audit-title"
+        meta="Recorded changes and security summaries · Philippine Time. Default range: last 30 days."
+        counts={
+          query.data
+            ? [
+                { label: "On this page", value: query.data.events.length },
+                {
+                  label: "Failures",
+                  value: query.data.events.filter((event) => event.outcome === "FAILURE").length,
+                  tone: query.data.events.some((event) => event.outcome === "FAILURE") ? "waiting" : undefined,
+                },
+              ]
+            : undefined
+        }
+        countsLabel="Audit summary"
+        primary={{ label: exporting ? "Exporting…" : "Export CSV (max 1,000)", phoneLabel: exporting ? "Exporting…" : "Export", icon: "ti-download", disabled: exporting, onClick: () => void exportCsv() }}
+        secondary={[{ label: "Refresh", icon: "ti-refresh", disabled: query.isFetching, onClick: () => void query.refetch() }]}
+      />
       <form
         ref={filterForm}
-        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+        className="rs-filter-card phone-filter-section"
         onSubmit={(event) => {
           event.preventDefault();
           const values: Record<string, string> = {};
@@ -263,7 +279,7 @@ export function AuditTrail() {
           title="Filter audit events"
           onApply={() => filterForm.current?.requestSubmit()}
         >
-        <label className="grid gap-1 text-sm">
+        <label className="sa-filter-label">
           Category
           <select
             data-tour="audit-filters"
@@ -284,7 +300,7 @@ export function AuditTrail() {
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-sm">
+        <label className="sa-filter-label">
           Action
           <select
             className={inputStyle}
@@ -311,7 +327,7 @@ export function AuditTrail() {
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-sm">
+        <label className="sa-filter-label">
           Outcome
           <select
             className={inputStyle}
@@ -324,7 +340,7 @@ export function AuditTrail() {
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-sm">
+        <label className="sa-filter-label">
           Event type
           <input
             className={inputStyle}
@@ -335,7 +351,7 @@ export function AuditTrail() {
             maxLength={100}
           />
         </label>
-        <label className="grid gap-1 text-sm">
+        <label className="sa-filter-label">
           Actor ID
           <input
             className={inputStyle}
@@ -344,7 +360,7 @@ export function AuditTrail() {
             placeholder="Account UUID"
           />
         </label>
-        <label className="grid gap-1 text-sm">
+        <label className="sa-filter-label">
           Project ID
           <input
             className={inputStyle}
@@ -353,7 +369,7 @@ export function AuditTrail() {
             placeholder="Research UUID"
           />
         </label>
-        <label className="grid gap-1 text-sm">
+        <label className="sa-filter-label">
           From (PHT)
           <input
             type="date"
@@ -362,7 +378,7 @@ export function AuditTrail() {
             onChange={(e) => update("from", e.target.value)}
           />
         </label>
-        <label className="grid gap-1 text-sm">
+        <label className="sa-filter-label">
           Through (PHT)
           <input
             type="date"
@@ -372,27 +388,9 @@ export function AuditTrail() {
           />
         </label>
         </PhoneFilters>
-        <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-4">
-          <button className={inputStyle} type="submit">
-            Apply filters
-          </button>
-          <button
-            className={inputStyle}
-            type="button"
-            onClick={() => void query.refetch()}
-            disabled={query.isFetching}
-          >
-            Refresh
-          </button>
-          <button
-            className={inputStyle}
-            type="button"
-            disabled={exporting}
-            onClick={() => void exportCsv()}
-          >
-            {exporting ? "Exporting…" : "Export CSV (max 1,000)"}
-          </button>
-        </div>
+        <button className="rs-primary" style={{ justifyContent: "center", minHeight: 38 }} type="submit">
+          Apply filters
+        </button>
       </form>
       {exportError && (
         <p role="alert" className="text-red-600">
@@ -400,113 +398,57 @@ export function AuditTrail() {
         </p>
       )}
       {query.data && (
-        <p className="rounded-lg bg-slate-100 p-3 text-sm dark:bg-slate-900">
-          Security aggregation:{" "}
-          {query.data.security.configured
-            ? query.data.security.mode
-            : "not configured"}
-          . Pending summaries: {query.data.security.pending}. Overflowed
-          dimension increments: {query.data.security.overflow}. Dropped
-          observations: {query.data.security.droppedObservations}. Oldest
-          pending: {query.data.security.oldestPendingSeconds}s.{" "}
-          {query.data.security.lastFlushAt &&
-            `Last worker pass: ${stamp(query.data.security.lastFlushAt)}.`}{" "}
-          Pair, source, and target summaries overlap; do not add their counts
-          together.
-        </p>
+        <details className="rs-details">
+          <summary>
+            Security aggregation: {query.data.security.configured ? query.data.security.mode : "not configured"}
+          </summary>
+          <p>
+            Pending summaries: {query.data.security.pending}. Overflowed dimension increments: {query.data.security.overflow}. Dropped observations: {query.data.security.droppedObservations}. Oldest pending: {query.data.security.oldestPendingSeconds}s.{" "}
+            {query.data.security.lastFlushAt && `Last worker pass: ${stamp(query.data.security.lastFlushAt)}.`} Pair, source, and target summaries overlap; do not add their counts together.
+          </p>
+        </details>
       )}
-      {query.isPending && <p role="status">Loading audit trail…</p>}
+      {query.isPending && <p role="status" className="rs-note">Loading audit trail…</p>}
       {query.isError && (
-        <p role="alert">
+        <p role="alert" className="rh-notice">
           Could not load audit history. Check UUIDs and dates (maximum range:
           366 days), then retry.
         </p>
       )}
       {query.data && (
-        <>
-          <div className="overflow-x-auto">
-            <table data-phone-title="1" className="w-full text-left text-sm">
-              <caption className="sr-only">
-                Audit events in Philippine Time
-              </caption>
-              <thead>
-                <tr>
-                  {[
-                    "Recorded (PHT)",
-                    "Event",
-                    "Actor / roles",
-                    "Outcome",
-                    "",
-                  ].map((heading) => (
-                    <th key={heading} className="border-b p-3">
-                      {heading}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {query.data.events.map((event) => (
-                  <tr key={event.id}>
-                    <td className="border-b p-3 whitespace-nowrap">
-                      {stamp(event.createdAt)}
-                    </td>
-                    <td className="border-b p-3">
-                      <span className="capitalize">
-                        {words(
-                          event.eventType ||
-                            `${event.entityType}.${event.action}`,
-                        )}
-                      </span>
-                      <p className="text-xs text-slate-500">
-                        {event.category}
-                        {event.contractVersion === 0 ? " · legacy record" : ""}
-                      </p>
-                      <div className="mt-2">
-                        <ActionBadge action={event.action} />
-                      </div>
-                      {typeof event.summaryCount === "number" && (
-                        <p className="text-xs">
-                          {event.summaryCount} observations
-                          {event.firstOccurredAt && event.lastOccurredAt
-                            ? ` · ${stamp(event.firstOccurredAt)} – ${stamp(event.lastOccurredAt)}`
-                            : ""}
-                        </p>
-                      )}
-                    </td>
-                    <td className="max-w-56 break-all border-b p-3">
-                      {event.actorReference || "System / unauthenticated"}
-                      <p className="text-xs text-slate-500">
-                        {event.actorRoles.join(", ") || "Role not recorded"}
-                      </p>
-                    </td>
-                    <td className="border-b p-3">
-                      <OutcomeBadge outcome={event.outcome} />
-                    </td>
-                    <td className="border-b p-3">
-                      <button
-                        type="button"
-                        className={inputStyle}
-                        data-guide="sa-audit-details"
-                        onClick={() => setSelected(event.id)}
-                        aria-label={`View details for ${event.eventType || event.entityType} at ${stamp(event.createdAt)}`}
-                      >
-                        Details
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!query.data.events.length && (
-              <p className="py-8 text-center">
-                No recorded events match these filters.
-              </p>
-            )}
-          </div>
-          <nav className="flex justify-between" aria-label="Audit pagination">
+        <div className="rs-table" data-phone-rows="1" data-phone-summary="0,3" style={{ "--rs-cols": "132px minmax(0,1.7fr) minmax(0,1fr) 110px 84px" } as CSSProperties}>
+          <div className="rs-row rs-row--head"><span>Recorded (PHT)</span><span>Event</span><span>Actor / roles</span><span>Outcome</span><span /></div>
+          {query.data.events.map((event) => (
+            <div key={event.id} className="rs-row rs-row--hover">
+              <span className="rs-note rs-wide">{stamp(event.createdAt)}</span>
+              <span className="rs-text rs-wide">
+                <strong className="capitalize">{words(event.eventType || `${event.entityType}.${event.action}`)}</strong>
+                <small>{event.category}{event.contractVersion === 0 ? " · legacy record" : ""}</small>
+                <span style={{ display: "block", marginTop: 5 }}><ActionBadge action={event.action} /></span>
+                {typeof event.summaryCount === "number" && (
+                  <small>
+                    {event.summaryCount} observations
+                    {event.firstOccurredAt && event.lastOccurredAt ? ` · ${stamp(event.firstOccurredAt)} – ${stamp(event.lastOccurredAt)}` : ""}
+                  </small>
+                )}
+              </span>
+              <span className="rs-text rs-wide">
+                <strong data-weight="normal" style={{ wordBreak: "break-all" }}>{event.actorReference || "System / unauthenticated"}</strong>
+                <small>{event.actorRoles.join(", ") || "Role not recorded"}</small>
+              </span>
+              <span><OutcomeBadge outcome={event.outcome} /></span>
+              <div className="rs-actions">
+                <button type="button" className="rh-secondary" data-guide="sa-audit-details" onClick={() => setSelected(event.id)} aria-label={`View details for ${event.eventType || event.entityType} at ${stamp(event.createdAt)}`}>
+                  Details
+                </button>
+              </div>
+            </div>
+          ))}
+          {!query.data.events.length && <EmptyNote layout="row" icon="ti-history" title="No recorded events match these filters" />}
+          <nav className="sa-pager" aria-label="Audit pagination">
             <button
               type="button"
-              className={inputStyle}
+              className="rh-secondary"
               disabled={!previous.length}
               onClick={() => {
                 setCursor(previous.at(-1));
@@ -517,7 +459,7 @@ export function AuditTrail() {
             </button>
             <button
               type="button"
-              className={inputStyle}
+              className="rh-secondary"
               disabled={!query.data.nextCursor}
               onClick={() => {
                 setPrevious((pages) => [...pages, cursor]);
@@ -527,7 +469,7 @@ export function AuditTrail() {
               Next
             </button>
           </nav>
-        </>
+        </div>
       )}
       {selected && (
         <EventDetail id={selected} close={() => setSelected(null)} />

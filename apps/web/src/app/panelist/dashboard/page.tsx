@@ -383,7 +383,7 @@ function PanelistDashboardContent() {
 
       <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
         {toast && (
-          <div className="fixed top-5 right-5 z-55 bg-[#1b4264] border border-white/10 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3">
+          <div className="fixed top-5 right-5 z-55 bg-[var(--color-primary)] border border-white/10 text-[var(--college-on-primary)] px-4 py-3 rounded-lg shadow-xl flex items-center gap-3">
             <i className="ti ti-circle-check text-[#ffa400] text-lg" />
             <span className="text-[12px] font-bold">{toast}</span>
           </div>
@@ -399,12 +399,12 @@ function PanelistDashboardContent() {
             <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm font-extrabold uppercase tracking-wider text-rose-600">
+                  <p className="text-sm font-semibold uppercase tracking-wider text-rose-600">
                     Availability response
                   </p>
                   <h2
                     id="decline-defense-title"
-                    className="mt-1 text-xl font-extrabold text-[#102f49]"
+                    className="mt-1 text-xl font-semibold text-[var(--color-text-primary)]"
                   >
                     Cannot attend this schedule?
                   </h2>
@@ -429,7 +429,7 @@ function PanelistDashboardContent() {
                   onChange={(event) => setDeclineReason(event.target.value)}
                   rows={4}
                   placeholder="Explain why you are unavailable…"
-                  className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-base font-normal"
+                  className="mt-1.5 w-full resize-none rounded-xl border border-[var(--color-border)] p-3 text-base font-normal"
                 />
               </label>
               <label className="mt-4 block text-sm font-bold text-slate-700">
@@ -441,14 +441,14 @@ function PanelistDashboardContent() {
                   onChange={(event) =>
                     setSuggestedAvailability(event.target.value)
                   }
-                  className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base font-normal"
+                  className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] p-3 text-base font-normal"
                 />
               </label>
               <div className="mt-5 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setRespondingInvitation(null)}
-                  className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600"
+                  className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold text-slate-600"
                 >
                   Keep invitation
                 </button>
@@ -458,7 +458,7 @@ function PanelistDashboardContent() {
                     respondToInvitation(respondingInvitation, "DECLINED")
                   }
                   disabled={invitationSaving || !declineReason.trim()}
-                  className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50"
+                  className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   Decline and notify professor
                 </button>
@@ -1178,11 +1178,11 @@ function PanelistDashboardContent() {
                       <section className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-500/10">
                         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                           <div>
-                            <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
                               <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />{" "}
                               Live defense · session verified
                             </div>
-                            <h2 className="mt-2 text-xl font-extrabold text-[#102f49] dark:text-white">
+                            <h2 className="mt-2 text-xl font-semibold text-[var(--color-text-primary)]">
                               {liveSession.research.title}
                             </h2>
                             <p className="mt-1 text-base text-slate-600 dark:text-slate-300">
@@ -1207,7 +1207,7 @@ function PanelistDashboardContent() {
                       ) : liveSession.evaluations?.[0]?.status === "LOCKED" ? (
                         <section className="rounded-2xl border border-emerald-200 bg-[var(--color-surface)] p-8 text-center">
                           <i className="ti ti-lock-check text-5xl text-emerald-600" />
-                          <h3 data-guide="panelist-evaluation-locked" data-panelist-evaluation-state="locked" className="mt-3 text-xl font-extrabold text-[var(--color-text-primary)]">
+                          <h3 data-guide="panelist-evaluation-locked" data-panelist-evaluation-state="locked" className="mt-3 text-xl font-semibold text-[var(--color-text-primary)]">
                             Final evaluation locked
                           </h3>
                           <p className="mt-2 text-base text-[var(--color-text-secondary)]">
@@ -1243,7 +1243,7 @@ function PanelistDashboardContent() {
                         <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
                           <div className="flex items-start justify-between gap-4">
                             <div>
-                              <h3 className="text-lg font-extrabold text-[#1b4264]">
+                              <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
                                 {activeTemplate.name}
                               </h3>
                               <p className="mt-1 text-base text-slate-500">
@@ -1256,7 +1256,7 @@ function PanelistDashboardContent() {
                               Draft · v{activeTemplate.version}
                             </Tag>
                           </div>
-                          <div className="mt-6 overflow-hidden rounded-xl border border-slate-200">
+                          <div className="mt-6 overflow-hidden rounded-xl border border-[var(--color-border)]">
                             {activeTemplate.criteria.map(
                               (criterion: any, index: number) => (
                                 <div
@@ -1266,7 +1266,7 @@ function PanelistDashboardContent() {
                                   <div>
                                     <label
                                       htmlFor={`score-${criterion.id}`}
-                                      className="font-extrabold text-[var(--color-text-primary)]"
+                                      className="font-semibold text-[var(--color-text-primary)]"
                                     >
                                       {index + 1}. {criterion.criterion}
                                     </label>
@@ -1316,7 +1316,7 @@ function PanelistDashboardContent() {
                                         }));
                                         setEvaluationDirty(true);
                                       }}
-                                      className="mt-2 h-12 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-lg font-extrabold text-[var(--color-text-primary)] outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
+                                      className="mt-2 h-12 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-lg font-semibold text-[var(--color-text-primary)] outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
                                     />
                                   </div>
                                 </div>
@@ -1365,12 +1365,12 @@ function PanelistDashboardContent() {
                               {evaluationError}
                             </div>
                           )}
-                          <div className="mt-5 flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                          <div className="mt-5 flex flex-col-reverse gap-3 border-t border-[var(--color-border)] pt-5 sm:flex-row sm:justify-end">
                             <button
                               data-guide="panelist-save-draft"
                               onClick={() => handleSaveEvaluation(false)}
                               disabled={isSavingEvaluation}
-                              className="h-11 rounded-xl border border-slate-300 px-5 text-sm font-extrabold text-[#173f63] disabled:opacity-50"
+                              className="h-11 rounded-xl border border-[var(--color-border)] px-5 text-sm font-semibold text-[var(--color-text-primary)] disabled:opacity-50"
                             >
                               Save draft
                             </button>
@@ -1385,7 +1385,7 @@ function PanelistDashboardContent() {
                               }}
                               disabled={isSavingEvaluation}
                               data-guide="panelist-final-evaluation"
-                              className="submission-action h-11 rounded-xl bg-[#f6a800] px-5 text-sm font-extrabold text-[#102f49] disabled:opacity-50"
+                              className="submission-action h-11 rounded-xl bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--college-on-primary)] disabled:opacity-50"
                             >
                               <i className="ti ti-lock-check mr-2" />
                               Submit final & lock
@@ -1527,7 +1527,7 @@ function PanelistDashboardContent() {
               ),
               history: (
                 <div className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-6">
-                  <h3 className="font-extrabold text-[#1b4264] text-lg">
+                  <h3 className="font-semibold text-[var(--color-text-primary)] text-lg">
                     Defense Archives
                   </h3>
                   <p className="text-base text-slate-400 font-bold">
@@ -1541,11 +1541,11 @@ function PanelistDashboardContent() {
                       return (
                         <div
                           key={session.id}
-                          className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-[12.5px] shadow-sm dark:border-white/10 dark:bg-white/5"
+                          className="rounded-xl border border-[var(--color-border)] bg-slate-50 p-4 text-[12.5px] shadow-sm dark:border-white/10 dark:bg-white/5"
                         >
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <strong className="block text-[#1b4264] dark:text-white">
+                              <strong className="block text-[var(--color-text-primary)]">
                                 {session.research.title}
                               </strong>
                               <span data-guide="panelist-release-status" className="mt-1 block text-xs text-slate-500 dark:text-slate-400">

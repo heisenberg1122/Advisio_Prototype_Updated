@@ -116,7 +116,7 @@ export function AdviserProgressWorkspace({
 
   return (
     <div className="adviser-overview mx-auto flex w-full max-w-[1360px] flex-col gap-6">
-      <section className="adviser-overview__hero" aria-labelledby="adviser-progress-title">
+      <section className="adviser-overview__hero phone-slim-hero" aria-labelledby="adviser-progress-title">
         {seal && <img className="adviser-overview__seal" src={seal} alt="" aria-hidden="true" draggable={false} />}
         <header className="adviser-overview__hero-heading">
           <div>
@@ -134,7 +134,7 @@ export function AdviserProgressWorkspace({
           </dl>
         </header>
         <div className="adviser-overview__hero-actions">
-          <button type="button" className="adviser-overview__hero-primary" onClick={() => onNavigate("advisees")}>
+          <button type="button" className="adviser-overview__hero-primary" data-phone-label="Advisees" onClick={() => onNavigate("advisees")}>
             <i className="ti ti-users" aria-hidden="true" /> My advisees
           </button>
           <button type="button" className="adviser-overview__hero-secondary" onClick={() => onNavigate("group-chats")}>

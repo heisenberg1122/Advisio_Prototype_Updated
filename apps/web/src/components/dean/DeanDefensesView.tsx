@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
-import { ClipboardList, ArrowUpRight, RotateCcw } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { Modal } from "@/components/ui/Modal";
 import { useDashboardWorkspace } from "@/providers/dashboard-workspace-provider";
@@ -11,8 +11,6 @@ import type {
 } from "@research-management/shared/src/dean-monitoring";
 import {
   actionClass,
-  panelClass,
-  filtersClass,
   inputClass,
   useDeanFilters,
   DefaultYear,
@@ -20,11 +18,22 @@ import {
   ScopeFilters,
   Pagination,
   QueryState,
-  SummaryCards,
   readable,
   dateTime,
 } from "./DeanMonitoringShared";
 import { PhoneFilters } from "@/components/ui/PhoneFilters";
+import { DateTile, EmptyNote, StatusDot, type StatusTone } from "@/components/ui/advisio";
+import { FilterChips, RoleBand, plural } from "@/components/dashboards/RoleScreenParts";
+
+const manila = (value: string | null, options: Intl.DateTimeFormatOptions) =>
+  value ? new Intl.DateTimeFormat("en-PH", { ...options, timeZone: "Asia/Manila" }).format(new Date(value)) : "—";
+
+function defenseTone(status: string, attention: string[], decision?: string | null): StatusTone {
+  if (decision || status === "COMPLETED") return "done";
+  if (status === "ONGOING") return "live";
+  if (status === "CANCELLED") return "neutral";
+  return attention.length ? "waiting" : "brand";
+}
 
 export function DeanDefensesView() {
   const { query, update, reset, identity, user } = useDeanFilters("defenses");
@@ -81,32 +90,46 @@ export function DeanDefensesView() {
     );
   };
   return (
-    <main className="workspace-page mx-auto flex max-w-[1360px] flex-col gap-5 p-4 text-[var(--color-text-primary)] sm:p-6 lg:p-8">
+    <main className="workspace-page rs mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8">
       <DefaultYear
         scope={data?.scope}
         selected={query.academicYearId}
         set={update}
       />
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--color-primary)]">
-            <ClipboardList size={16} />
-            Dean’s Office
-          </div>
-          <h1 className="text-2xl font-extrabold sm:text-3xl">
-            Defense Oversight
-          </h1>
-          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-            {data?.scope.college.name || user?.college?.name} · Schedules,
-            readiness, and released outcomes.
-          </p>
-        </div>
-        <button onClick={() => dataQuery.refetch()} className={actionClass}>
-          <RotateCcw size={15} />
-          Refresh
-        </button>
-      </header>
-      <section aria-label="Defense filters" className={`${filtersClass} phone-filter-section`}>
+      <RoleBand
+        eyebrow="Research oversight"
+        title="Defenses"
+        titleId="dean-defenses-title"
+        meta={
+          data
+            ? `${plural(data.cards.awaitingPanel, "defense is", "defenses are")} waiting on panel confirmation · ${data.scope.college.name}`
+            : "Schedules, readiness, and released outcomes."
+        }
+        counts={
+          data && !dataQuery.isError
+            ? [
+                { label: "Upcoming", value: data.cards.upcoming },
+                { label: "Awaiting panel", value: data.cards.awaitingPanel, tone: data.cards.awaitingPanel ? "waiting" : undefined },
+                { label: "Reschedule", value: data.cards.rescheduling },
+                { label: "Result to release", value: data.cards.awaitingRelease },
+              ]
+            : undefined
+        }
+        countsLabel="Defense summary"
+        secondary={[{ label: "Refresh", icon: "ti-refresh", onClick: () => void dataQuery.refetch() }]}
+      />
+      <FilterChips
+        label="Defense views"
+        value={query.view || "upcoming"}
+        onChange={(view) => update({ view })}
+        options={[
+          { value: "upcoming", label: "Upcoming" },
+          { value: "attention", label: "Needs attention" },
+          { value: "completed", label: "Completed" },
+          { value: "cancelled", label: "Cancelled lookup" },
+        ]}
+      />
+      <section aria-label="Defense filters" className="rs-filter-card phone-filter-section">
         <PhoneFilters guide="de-monitor-search" title="Filter defenses">
         <ScopeFilters
           scope={data?.scope}
@@ -151,125 +174,34 @@ export function DeanDefensesView() {
         retry={() => dataQuery.refetch()}
       />
       {data && !dataQuery.isError && (
-        <>
-          <SummaryCards
-            items={[
-              { label: "Upcoming defenses", value: data.cards.upcoming },
-              {
-                label: "Awaiting panel confirmation",
-                value: data.cards.awaitingPanel,
-              },
-              { label: "Needs rescheduling", value: data.cards.rescheduling },
-              {
-                label: "Awaiting result release",
-                value: data.cards.awaitingRelease,
-              },
-            ]}
-          />
-          <p className="text-xs text-[var(--color-text-secondary)]">
-            Counts use the selected filters and may overlap. All times are
-            Asia/Manila. Updated {dateTime(data.generatedAt)}.
-          </p>
-          <section
-            className={`${panelClass} overflow-hidden`}
-            aria-label="College defenses"
-          >
-            <div
-              className="flex flex-wrap gap-2 border-b border-[var(--color-border)] p-3"
-              aria-label="Defense views"
-            >
-              {[
-                ["upcoming", "Upcoming"],
-                ["attention", "Needs Attention"],
-                ["completed", "Completed"],
-                ["cancelled", "Cancelled lookup"],
-              ].map(([view, label]) => (
-                <button
-                  key={view}
-                  aria-pressed={(query.view || "upcoming") === view}
-                  onClick={() => update({ view })}
-                  className={`${actionClass} ${(query.view || "upcoming") === view ? "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]" : ""}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="overflow-x-auto">
-              <table data-phone-title="1" data-phone-summary="4" className="w-full min-w-[900px] text-left text-sm">
-                <thead className="bg-[var(--color-surface-muted)] text-xs text-[var(--color-text-secondary)]">
-                  <tr>
-                    {[
-                      "Schedule",
-                      "Project / group",
-                      "Program / stage",
-                      "Required panel",
-                      "Status / attention",
-                      "Details",
-                    ].map((h) => (
-                      <th scope="col" key={h} className="px-4 py-3">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--color-border)]">
-                  {data.rows.map((row) => (
-                    <tr key={row.id}>
-                      <td className="px-4 py-4 align-top">
-                        {dateTime(row.scheduledStart)}
-                        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                          {row.venue || "Venue not recorded"}
+        <div className={user?.roles.includes("PANELIST") ? "rh-grid" : "rs"}>
+          <section className="rs-table" aria-label="College defenses">
+            {data.rows.length ? (
+              <ul className="rh-rows" style={{ margin: 0, padding: "0 18px" }}>
+                {data.rows.map((row) => (
+                  <li key={row.id}>
+                    <div className="rh-row">
+                      <DateTile top={manila(row.scheduledStart, { month: "short" })} bottom={manila(row.scheduledStart, { day: "numeric" })} />
+                      <div className="rh-text">
+                        <h3>{row.title}</h3>
+                        <p>
+                          {manila(row.scheduledStart, { hour: "numeric", minute: "2-digit" })} · {row.venue || "Venue not recorded"} · {row.groupName || "Group not recorded"} · {row.program} · {row.stage}
                         </p>
-                      </td>
-                      <td className="max-w-xs px-4 py-4 align-top">
-                        <p className="font-bold">{row.title}</p>
-                        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                          {row.groupName || "Group not recorded"}
-                        </p>
-                      </td>
-                      <td className="px-4 py-4 align-top">
-                        <p className="font-bold">{row.program}</p>
-                        <p className="mt-1 text-xs">{row.stage}</p>
-                      </td>
-                      <td className="px-4 py-4 align-top">
-                        {row.panelAccepted}/{row.panelRequired} confirmed
-                      </td>
-                      <td className="max-w-xs px-4 py-4 align-top">
-                        <span className="font-semibold">
-                          {readable(row.status)}
-                        </span>
-                        {row.attention.map((a) => (
-                          <p
-                            key={a}
-                            className="mt-1 text-xs text-amber-700 dark:text-amber-300"
-                          >
-                            {a}
-                          </p>
-                        ))}
-                        {row.decision && (
-                          <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
-                            {readable(row.decision)}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-4 py-4 align-top">
-                        <button
-                          className={actionClass}
-                          onClick={() => setSelected(row.id)}
-                        >
-                          View details
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {!data.rows.length && (
-                <p className="p-10 text-center text-sm text-[var(--color-text-secondary)]">
-                  No defenses match this view and its filters.
-                </p>
-              )}
-            </div>
+                        {row.attention.map((item) => <span key={item} className="rs-why" data-tone="waiting">{item}</span>)}
+                        {row.decision && <span className="rs-why" data-tone="done">{readable(row.decision)}</span>}
+                      </div>
+                      <span className="rs-text" style={{ flex: "none", textAlign: "right" }}>
+                        <StatusDot tone={defenseTone(row.status, row.attention, row.decision)}>{readable(row.status)}</StatusDot>
+                        <small>Panel {row.panelAccepted}/{row.panelRequired} confirmed</small>
+                      </span>
+                      <button type="button" className="rh-secondary" aria-label={`View details for ${row.title}`} onClick={() => setSelected(row.id)}>Details</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyNote layout="row" icon="ti-gavel" title="No defenses in this view" text="Try another view or change your filters." />
+            )}
             <Pagination
               page={data.page}
               pageSize={data.pageSize}
@@ -278,50 +210,45 @@ export function DeanDefensesView() {
             />
           </section>
           {user?.roles.includes("PANELIST") && (
-            <section className={`${panelClass} p-5`}>
-              <h2 className="text-lg font-extrabold">My Panel Assignments</h2>
-              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                Your assignments in this college, using the selected filters.
-                Evaluation opens in your Panelist workspace.
-              </p>
-              <div className="mt-4 max-h-80 space-y-3 overflow-auto">
-                {data.myAssignments.map((row) => (
-                  <div
-                    key={row.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"
-                  >
-                    <div>
-                      <p className="font-bold">{row.title}</p>
-                      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                        {dateTime(row.scheduledStart)} ·{" "}
-                        {readable(row.myAssignment!.status)}
-                      </p>
-                    </div>
-                    {row.myAssignment!.status !== "DECLINED" && (
-                      <button
-                        disabled={opening || isSwitching}
-                        className={actionClass}
-                        onClick={() => panelAction(row)}
-                      >
-                        {row.myAssignment!.canEvaluate
-                          ? "Open Evaluation"
-                          : row.myAssignment!.status === "ACCEPTED"
-                            ? "View Defense"
-                            : "Review invitation"}
-                        <ArrowUpRight size={15} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {!data.myAssignments.length && (
-                  <p className="text-sm text-[var(--color-text-secondary)]">
-                    No panel assignments match the selected filters.
-                  </p>
-                )}
+            <section className="rh-panel" aria-labelledby="dean-panel-assignments">
+              <div className="rh-head">
+                <h2 id="dean-panel-assignments">My panel assignments</h2>
+                {data.myAssignments.length > 0 && <span className="rh-pill">{data.myAssignments.length}</span>}
               </div>
+              <p className="rh-lede">Evaluation opens in your Panelist workspace.</p>
+              {data.myAssignments.length ? (
+                <ul className="rh-rows">
+                  {data.myAssignments.map((row) => (
+                    <li key={row.id}>
+                      <div className="rh-row" style={{ flexWrap: "wrap" }}>
+                        <DateTile top={manila(row.scheduledStart, { month: "short" })} bottom={manila(row.scheduledStart, { day: "numeric" })} />
+                        <div className="rh-text">
+                          <h3>{row.title}</h3>
+                          <p>{manila(row.scheduledStart, { hour: "numeric", minute: "2-digit" })} · {readable(row.myAssignment!.status)}</p>
+                        </div>
+                        {row.myAssignment!.status !== "DECLINED" && (
+                          <button type="button" disabled={opening || isSwitching} className="rh-secondary" onClick={() => panelAction(row)}>
+                            {row.myAssignment!.canEvaluate
+                              ? "Open Evaluation"
+                              : row.myAssignment!.status === "ACCEPTED"
+                                ? "View Defense"
+                                : "Review invitation"}
+                            <ArrowUpRight size={15} />
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="rh-space"><EmptyNote layout="row" icon="ti-gavel" title="No panel assignments" text="Assignments matching the filters appear here." /></div>
+              )}
             </section>
           )}
-        </>
+        </div>
+      )}
+      {data && !dataQuery.isError && (
+        <p className="rs-note">Counts use the selected filters and may overlap. All times are Asia/Manila. Updated {dateTime(data.generatedAt)}.</p>
       )}
       {(actionError || switchError) && (
         <p role="alert" className="text-sm text-rose-600">

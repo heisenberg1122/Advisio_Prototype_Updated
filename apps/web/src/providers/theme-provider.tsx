@@ -5,6 +5,7 @@ import {
   ColorThemePreference,
   CollegeThemeKey,
   CollegeThemeMetadata,
+  HeadingFontPreference,
   resolveCollegeTheme,
   resolvePreferredCollegeTheme,
 } from '@/lib/college-themes';
@@ -17,9 +18,11 @@ interface ThemeContextType {
   collegeTheme: CollegeThemeMetadata;
   assignedCollegeTheme: CollegeThemeMetadata;
   colorThemePreference: ColorThemePreference;
+  headingFontPreference: HeadingFontPreference;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
   setColorThemePreference: (preference: ColorThemePreference) => void;
+  setHeadingFontPreference: (preference: HeadingFontPreference) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -33,11 +36,14 @@ interface ThemeProviderProps {
   roles?: readonly string[] | null;
   appearancePreference?: string | null;
   colorThemePreference?: string | null;
+  headingFontPreference?: string | null;
 }
 
 const getThemeStorageKey = (userId: string) => `advisio_theme:${userId}`;
 const getColorThemeStorageKey = (userId: string) =>
   `advisio_color-theme:${userId}`;
+const getHeadingFontStorageKey = (userId: string) =>
+  `advisio_heading-font:${userId}`;
 
 function isTheme(value: string | null): value is Theme {
   return value === 'dark' || value === 'light' || value === 'system';
@@ -46,7 +52,19 @@ function isTheme(value: string | null): value is Theme {
 function isColorThemePreference(
   value: string | null,
 ): value is ColorThemePreference {
-  return value === 'DEFAULT_ADVISIO' || value === 'COLLEGE_PROGRAM';
+  return value === 'DEFAULT_ADVISIO' || value === 'COLLEGE_PROGRAM' || value === 'COLLEGE_SOFT';
+}
+
+function isHeadingFontPreference(
+  value: string | null | undefined,
+): value is HeadingFontPreference {
+  return value === 'STANDARD' || value === 'SERIF';
+}
+
+function storedActiveHeadingFont(): HeadingFontPreference {
+  if (typeof window === 'undefined' || !localStorage.getItem('advisio_token')) return 'STANDARD';
+  const stored = localStorage.getItem('advisio_heading-font:active');
+  return isHeadingFontPreference(stored) ? stored : 'STANDARD';
 }
 
 function storedActiveTheme(): Theme {
@@ -78,10 +96,13 @@ export function ThemeProvider({
   roles = [],
   appearancePreference = null,
   colorThemePreference: serverColorThemePreference = null,
+  headingFontPreference: serverHeadingFontPreference = null,
 }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<Theme>(storedActiveTheme);
   const [colorThemePreference, setColorThemePreferenceState] =
     useState<ColorThemePreference>(storedActiveColorThemePreference);
+  const [headingFontPreference, setHeadingFontPreferenceState] =
+    useState<HeadingFontPreference>(storedActiveHeadingFont);
   const [systemIsDark, setSystemIsDark] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches,
   );
@@ -189,6 +210,19 @@ export function ThemeProvider({
     localStorage.setItem('advisio_color-theme:active', resolvedPreference);
   }, [isSystemAdministrator, serverColorThemePreference, userId]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || !userId) return;
+    const stored = localStorage.getItem(getHeadingFontStorageKey(userId));
+    const resolved = isHeadingFontPreference(serverHeadingFontPreference)
+      ? serverHeadingFontPreference
+      : isHeadingFontPreference(stored)
+        ? stored
+        : 'STANDARD';
+    setHeadingFontPreferenceState(resolved);
+    localStorage.setItem(getHeadingFontStorageKey(userId), resolved);
+    localStorage.setItem('advisio_heading-font:active', resolved);
+  }, [serverHeadingFontPreference, userId]);
+
   const isDark = theme === 'dark' || (theme === 'system' && systemIsDark);
 
   // Override only the rendered appearance on auth routes. Keep account state and
@@ -200,12 +234,22 @@ export function ThemeProvider({
     root.classList.toggle('dark', Boolean(pageIsDark));
     root.dataset.collegeTheme = useDefaultAppearance ? 'default' : collegeTheme.key;
     root.dataset.appearance = useDefaultAppearance ? 'light' : theme;
+    if (!useDefaultAppearance && colorThemePreference === 'COLLEGE_SOFT' && collegeTheme.key !== 'default') {
+      root.dataset.colorTone = 'soft';
+    } else {
+      delete root.dataset.colorTone;
+    }
+    if (!useDefaultAppearance && headingFontPreference === 'SERIF') {
+      root.dataset.headingFont = 'serif';
+    } else {
+      delete root.dataset.headingFont;
+    }
     root.style.colorScheme = pageIsDark ? 'dark' : 'light';
 
     if (userId) {
       localStorage.setItem('advisio_college-theme:active', collegeTheme.key);
     }
-  }, [collegeTheme.key, isDark, theme, userId, useDefaultAppearance]);
+  }, [collegeTheme.key, colorThemePreference, headingFontPreference, isDark, theme, userId, useDefaultAppearance]);
 
   const saveTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
@@ -253,6 +297,22 @@ export function ThemeProvider({
     }
   };
 
+  const setHeadingFontPreference = (newPreference: HeadingFontPreference) => {
+    const previousPreference = headingFontPreference;
+    setHeadingFontPreferenceState(newPreference);
+    if (typeof window !== 'undefined' && userId) {
+      localStorage.setItem(getHeadingFontStorageKey(userId), newPreference);
+      localStorage.setItem('advisio_heading-font:active', newPreference);
+      void apiClient.patch('/api/auth/me/appearance', {
+        headingFontPreference: newPreference,
+      }).catch(() => {
+        setHeadingFontPreferenceState(previousPreference);
+        localStorage.setItem(getHeadingFontStorageKey(userId), previousPreference);
+        localStorage.setItem('advisio_heading-font:active', previousPreference);
+      });
+    }
+  };
+
   return (
     <ThemeContext.Provider
       value={{
@@ -261,6 +321,8 @@ export function ThemeProvider({
         collegeTheme,
         assignedCollegeTheme,
         colorThemePreference,
+        headingFontPreference,
+        setHeadingFontPreference,
         toggleTheme,
         setTheme,
         setColorThemePreference,

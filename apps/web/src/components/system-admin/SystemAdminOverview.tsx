@@ -1,21 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Building2,
-  CheckCircle2,
-  Clock3,
-  FileText,
-  RefreshCw,
-  ShieldCheck,
-  UserRoundCheck,
-  Users,
-} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { RefreshCw } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import { GoogleDriveIntegration } from "./GoogleDriveIntegration";
+import { useAuth } from "@/hooks/use-auth";
+import { EmptyNote } from "@/components/ui/advisio";
+import { ProgressTrack } from "@/components/dashboards/RoleHomeParts";
+import { RoleBand } from "@/components/dashboards/RoleScreenParts";
 import "./system-admin-overview.css";
 
 function useEntrance<T extends HTMLElement>() {
@@ -108,10 +101,9 @@ type Overview = {
   }[];
 };
 
-const panel =
-  "rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-white/10 dark:bg-[#101b2b]";
-const muted = "text-slate-500 dark:text-slate-400";
-const ink = "text-[#0B3A53] dark:text-[#D6B85A]";
+const panel = "rh-panel";
+const muted = "text-[var(--color-text-secondary)]";
+const ink = "text-[var(--color-primary)] dark:text-[var(--color-text-primary)]";
 const number = (value: number) => value.toLocaleString("en-PH");
 const stamp = (value: string) =>
   new Intl.DateTimeFormat("en-PH", {
@@ -162,39 +154,23 @@ function LoadError({ retry }: { retry: () => void }) {
 function ActivityList({ events }: { events: Overview["activity"] }) {
   if (!events.length)
     return (
-      <div
-        className={`flex min-h-40 flex-col items-center justify-center gap-2 text-center ${muted}`}
-      >
-        <ShieldCheck size={24} />
-        <p className="text-base font-semibold">
-          No administrative events recorded yet
-        </p>
-        <p className="max-w-sm text-base">
-          Recorded account and institutional changes will appear here.
-        </p>
+      <div className="rh-space">
+        <EmptyNote layout="row" icon="ti-shield-check" title="No administrative events recorded yet" text="Recorded account and institutional changes will appear here." />
       </div>
     );
   return (
-    <ol className="divide-y divide-slate-100 dark:divide-white/5">
+    <ol className="rh-rows">
       {events.map((event) => (
-        <li key={event.id} className="flex items-start gap-3 py-4">
-          <span
-            className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#0B3A53]/5 dark:bg-white/5 ${ink}`}
-          >
-            <ShieldCheck size={16} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-base font-semibold capitalize">
-              {words(event.entityType)} · {words(event.action)}
-            </p>
-            <p className={`mt-1 break-words text-base ${muted}`}>{event.actor}</p>
+        <li key={event.id}>
+          <div className="rh-row">
+            <span className="rh-icon" aria-hidden="true"><i className="ti ti-shield-check" /></span>
+            <div className="rh-text">
+              <h3 className="capitalize">{words(event.entityType)} · {words(event.action)}</h3>
+              <p>
+                {event.actor} · <time dateTime={event.createdAt}>{stamp(event.createdAt)}</time>
+              </p>
+            </div>
           </div>
-          <time
-            dateTime={event.createdAt}
-            className={`mt-1 shrink-0 text-right text-xs ${muted}`}
-          >
-            {stamp(event.createdAt)}
-          </time>
         </li>
       ))}
     </ol>
@@ -206,9 +182,9 @@ export function AdminAuditActivity() {
   if (query.isPending) return <DashboardSkeleton />;
   if (!query.data) return <LoadError retry={() => void query.refetch()} />;
   return (
-    <section className={`${panel} p-6`}>
+    <section className={panel}>
       <div className="workspace-page-header">
-        <h1 className="text-2xl font-bold">Administrative audit events</h1>
+        <h1 className="text-xl font-semibold">Administrative audit events</h1>
         <p className={`mt-1 text-base ${muted}`}>
           The six latest recorded account and institutional changes. Times are in
           Philippine Time.
@@ -233,26 +209,16 @@ function RegistrationChart({ data }: { data: Overview["registrations"] }) {
   return (
     <section
       ref={ref}
-      className={`${panel} min-w-0 p-5 sm:p-6`}
+      className={panel}
       aria-labelledby="registrations-heading"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 id="registrations-heading" className="text-lg font-bold">
-            Account registrations
-          </h2>
-          <p className={`mt-1 text-base ${muted}`}>
-            New accounts per day · Philippine Time
-          </p>
-        </div>
-        <span
-          className={`rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-semibold dark:bg-white/5 ${muted}`}
-        >
-          Last 30 days
-        </span>
+      <div className="rh-head">
+        <h2 id="registrations-heading">Account registrations</h2>
+        <span className="rh-pill" style={{ marginLeft: "auto" }}>Last 30 days</span>
       </div>
-      <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="text-3xl font-bold tracking-tight">
+      <p className="rh-lede">New accounts per day · Philippine Time</p>
+      <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="text-[30px] font-semibold leading-tight tracking-tight">
           <CountUp value={data.total} />
         </span>
         <span className={`text-xs ${muted}`}>new accounts</span>
@@ -358,7 +324,7 @@ function RegistrationChart({ data }: { data: Overview["registrations"] }) {
         </p>
       )}
       <details
-        className={`mt-3 border-t border-slate-100 pt-3 text-xs dark:border-white/5 ${muted}`}
+        className={`mt-3 border-t border-[var(--color-border)] pt-3 text-xs ${muted}`}
       >
         <summary className="w-fit cursor-pointer font-medium">
           View daily values
@@ -391,259 +357,89 @@ function RegistrationChart({ data }: { data: Overview["registrations"] }) {
 
 export function SystemAdminOverview() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const query = useOverview();
   if (query.isPending) return <DashboardSkeleton />;
   if (!query.data) return <LoadError retry={() => void query.refetch()} />;
   const data = query.data;
-  const largestCollege = Math.max(
-    1,
-    ...data.colleges.map((college) => college.projects),
-  );
-  const metrics = [
-    {
-      label: "Total accounts",
-      value: data.metrics.totalAccounts,
-      note: "Across all account statuses",
-      icon: Users,
-      href: "/system-admin/dashboard?tab=users",
-    },
-    {
-      label: "Pending approvals",
-      value: data.metrics.pendingAccounts,
-      note: "Accounts awaiting verification",
-      icon: UserRoundCheck,
-      href: "/system-admin/dashboard?tab=users&status=PENDING",
-      attention: data.metrics.pendingAccounts > 0,
-    },
-    {
-      label: "Active colleges",
-      value: data.metrics.activeColleges,
-      note: "Enabled in the academic registry",
-      icon: Building2,
-      href: "/system-admin/dashboard?tab=onboarding",
-    },
-    {
-      label: "Registered projects",
-      value: data.metrics.registeredProjects,
-      note: "All colleges · all project statuses",
-      icon: FileText,
-    },
-  ];
+  const pending = data.metrics.pendingAccounts;
+  const largestCollege = Math.max(1, ...data.colleges.map((college) => college.projects));
+  const reviewAccounts = () => navigate("/system-admin/dashboard?tab=users&status=PENDING");
   return (
-    <>
-      <header className="workspace-page-header workspace-dashboard-welcome flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p
-            className={`mb-2 text-sm font-bold uppercase tracking-[0.18em] ${ink}`}
-          >
-            Advisio administration
-          </p>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            System overview
-          </h1>
-          <p className={`mt-2 text-base ${muted}`}>
-            Institutional adoption, account access, and administrative activity.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className={`text-xs ${muted}`}>
-            Updated {stamp(data.generatedAt)} PHT
-          </span>
-          <button
-            type="button"
-            aria-label="Refresh overview"
-            disabled={query.isFetching}
-            onClick={() => void query.refetch()}
-            className={`${panel} p-2.5 transition-colors hover:bg-slate-50 disabled:opacity-50 dark:hover:bg-white/5`}
-          >
-            <RefreshCw size={16} />
-          </button>
-        </div>
-      </header>
-      {query.isError && (
-        <p
-          role="alert"
-          className="rounded-xl bg-amber-50 p-3 text-base text-amber-800 dark:bg-amber-500/10 dark:text-amber-200"
-        >
-          Refresh failed. Showing the last successfully loaded overview.
-        </p>
-      )}
-      <div className="phone-metric-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => {
-          const content = (
-            <>
-              <div className="flex items-center justify-between">
-                <span
-                  className={`grid h-10 w-10 place-items-center rounded-xl ${metric.attention ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300" : `bg-[#0B3A53]/5 dark:bg-white/5 ${ink}`}`}
-                >
-                  <metric.icon size={19} />
-                </span>
-                {metric.href && (
-                  <ArrowUpRight size={16} className="text-slate-400" />
-                )}
+    <div className="rs">
+      <RoleBand
+        eyebrow="System administration"
+        title={`Good day, ${user?.firstName?.trim() || "Administrator"}`}
+        titleId="system-admin-title"
+        home
+        meta={`${pending ? `${number(pending)} ${pending === 1 ? "account awaits" : "accounts await"} approval` : "Account approvals are up to date"} · updated ${stamp(data.generatedAt)} PHT`}
+        counts={[
+          { label: "Accounts", value: number(data.metrics.totalAccounts), onClick: () => navigate("/system-admin/dashboard?tab=users") },
+          { label: "To approve", value: number(pending), tone: pending ? "waiting" : undefined, onClick: reviewAccounts },
+          { label: "Colleges", value: number(data.metrics.activeColleges), onClick: () => navigate("/system-admin/dashboard?tab=onboarding") },
+          { label: "Projects", value: number(data.metrics.registeredProjects) },
+        ]}
+        countsLabel="System summary"
+        primary={pending ? { label: "Review accounts", icon: "ti-arrow-right", onClick: reviewAccounts } : undefined}
+        secondary={[{ label: "Refresh", icon: "ti-refresh", disabled: query.isFetching, onClick: () => void query.refetch() }]}
+      />
+      {query.isError && <p role="alert" className="rh-notice">Refresh failed. Showing the last successfully loaded overview.</p>}
+      <div className="rh-grid">
+        <section className="rh-panel" aria-labelledby="attention-heading">
+          <div className="rh-head">
+            <h2 id="attention-heading">Needs attention</h2>
+            {pending > 0 && <span className="rh-pill" data-tone="waiting">{number(pending)}</span>}
+          </div>
+          {pending > 0 ? (
+            <div className="rh-lead">
+              <div className="rh-text">
+                <span className="rh-tag"><i className="ti ti-user-check" aria-hidden="true" /> Account approvals</span>
+                <h3>{number(pending)} {pending === 1 ? "account" : "accounts"} awaiting approval</h3>
+                <p>Verify institutional details before granting access to Advisio.</p>
               </div>
-              <p className={`mt-5 text-base font-medium ${muted}`}>
-                {metric.label}
-              </p>
-              <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums">
-                <CountUp value={metric.value} />
-              </p>
-              <p className={`mt-3 text-base ${muted}`}>{metric.note}</p>
-            </>
-          );
-          return metric.href ? (
-            <Link
-              key={metric.label}
-              to={metric.href}
-              className={`${panel} p-5 transition-colors hover:border-[var(--color-border-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A227]`}
-            >
-              {content}
-            </Link>
+              <button type="button" className="rh-cta" onClick={reviewAccounts}>Review accounts <i className="ti ti-arrow-right" aria-hidden="true" /></button>
+            </div>
           ) : (
-            <div key={metric.label} className={`${panel} p-5`}>
-              {content}
+            <div className="rh-space">
+              <EmptyNote layout="row" tone="ok" icon="ti-circle-check" title="Account approvals are up to date" text="There are no pending account requests to review." />
             </div>
-          );
-        })}
+          )}
+          <div className="rh-rows">
+            <GoogleDriveIntegration row onManage={() => navigate("/system-admin/dashboard?tab=integrations")} />
+          </div>
+        </section>
+        <section className="rh-panel" aria-labelledby="activity-heading">
+          <div className="rh-head">
+            <h2 id="activity-heading">Recent activity</h2>
+            <button type="button" className="au-link" onClick={() => navigate("/system-admin/dashboard?tab=logs")}>View events <i className="ti ti-arrow-right" aria-hidden="true" /></button>
+          </div>
+          <ActivityList events={data.activity} />
+        </section>
       </div>
-      <div className="grid gap-5 xl:grid-cols-[1.55fr_1fr]">
+      <div className="rh-grid rh-grid--even">
         <RegistrationChart data={data.registrations} />
-        <section
-          className={`${panel} min-w-0 p-5 sm:p-6`}
-          aria-labelledby="colleges-heading"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 id="colleges-heading" className="text-lg font-bold">
-                Research projects by college
-              </h2>
-              <p className={`mt-1 text-base ${muted}`}>
-                Institutional distribution · all time
-              </p>
-            </div>
-            <Building2 size={17} className={ink} />
-          </div>
-          <div className="mt-7 max-h-64 space-y-5 overflow-y-auto pr-1">
-            {data.colleges.length ? (
-              data.colleges.map((college) => (
-                <div key={college.id}>
-                  <div className="mb-2 flex items-baseline justify-between gap-3">
-                    <span
-                      title={college.name}
-                      className="text-xs font-semibold"
-                    >
-                      {college.code}
-                      <span className={`ml-2 font-normal ${muted}`}>
-                        {college.name}
-                      </span>
-                    </span>
-                    <span className="text-xs font-bold tabular-nums">
-                      {number(college.projects)}
-                    </span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/5">
-                    <div
-                      className="h-full rounded-full bg-[#C9A227] motion-safe:transition-[width] motion-safe:duration-300"
-                      style={{
-                        width: `${(college.projects / largestCollege) * 100}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className={`py-12 text-center text-base ${muted}`}>
-                No colleges configured yet.
-              </p>
-            )}
-          </div>
-          <p
-            className={`mt-5 border-t border-slate-100 pt-3 text-base dark:border-white/5 ${muted}`}
-          >
-            Includes every project status and active or inactive colleges.
-          </p>
+        <section className="rh-panel" aria-labelledby="colleges-heading">
+          <div className="rh-head"><h2 id="colleges-heading">Projects by college</h2></div>
+          {data.colleges.length ? (
+            <>
+              <p className="rh-lede">Every project status, active and inactive colleges, all time.</p>
+              <ul className="rh-stages" style={{ maxHeight: 280, overflowY: "auto", paddingRight: 4 }}>
+                {data.colleges.map((college) => (
+                  <li key={college.id}>
+                    <p className="rh-stage-line" title={college.name}>
+                      <span><b>{college.code}</b> {college.name}</span>
+                      <b>{number(college.projects)}</b>
+                    </p>
+                    <ProgressTrack value={(college.projects / largestCollege) * 100} />
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <div className="rh-space"><EmptyNote layout="row" icon="ti-building" title="No colleges configured yet" /></div>
+          )}
         </section>
       </div>
-      <div className="grid items-start gap-5 xl:grid-cols-[1fr_1.55fr]">
-        <section
-          className={`${panel} p-5 sm:p-6`}
-          aria-labelledby="attention-heading"
-        >
-          <div className="flex items-center justify-between">
-            <h2 id="attention-heading" className="text-lg font-bold">
-              Needs attention
-            </h2>
-            <Clock3 size={17} className={ink} />
-          </div>
-          <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50/70 p-4 dark:border-white/5 dark:bg-white/[0.02]">
-            <div className="flex items-start gap-3">
-              {data.metrics.pendingAccounts ? (
-                <UserRoundCheck
-                  size={18}
-                  className="mt-0.5 shrink-0 text-amber-600"
-                />
-              ) : (
-                <CheckCircle2
-                  size={18}
-                  className="mt-0.5 shrink-0 text-emerald-600"
-                />
-              )}
-              <div>
-                <p className="text-base font-semibold">
-                  {data.metrics.pendingAccounts
-                    ? `${number(data.metrics.pendingAccounts)} accounts awaiting approval`
-                    : "Account approvals are up to date"}
-                </p>
-                <p className={`mt-1 text-base leading-5 ${muted}`}>
-                  {data.metrics.pendingAccounts
-                    ? "Verify institutional details before granting access to Advisio."
-                    : "There are no pending account requests to review."}
-                </p>
-                {data.metrics.pendingAccounts > 0 && (
-                  <Link
-                    to="/system-admin/dashboard?tab=users&status=PENDING"
-                    className={`mt-3 inline-flex items-center gap-1.5 text-sm font-bold ${ink}`}
-                  >
-                    Review accounts <ArrowRight size={13} />
-                  </Link>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="mt-5">
-            <GoogleDriveIntegration
-              compact
-              onManage={() =>
-                navigate("/system-admin/dashboard?tab=integrations")
-              }
-            />
-          </div>
-        </section>
-        <section
-          className={`${panel} p-5 sm:p-6`}
-          aria-labelledby="activity-heading"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 id="activity-heading" className="text-lg font-bold">
-                Recent administrative activity
-              </h2>
-              <p className={`mt-1 text-base ${muted}`}>
-                Latest recorded changes · Philippine Time
-              </p>
-            </div>
-            <Link
-              to="/system-admin/dashboard?tab=logs"
-              className={`shrink-0 text-sm font-semibold ${ink}`}
-            >
-              View events <ArrowRight size={13} className="ml-1 inline" />
-            </Link>
-          </div>
-          <div className="mt-3">
-            <ActivityList events={data.activity} />
-          </div>
-        </section>
-      </div>
-    </>
+    </div>
   );
 }

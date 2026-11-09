@@ -4,8 +4,6 @@ import { WorkflowTopicActions } from "@/components/professor/WorkflowTopicAction
 import "./professor-workflow.css";
 import "./professor-defense.css";
 import "./professor-projects-submissions.css";
-import "./professor-progress.css";
-import "./professor-overview.css";
 import { buildMilestoneMove } from "@/lib/workflow-order";
 import { AdviserApprovalBadge, AdviserTaskReview, needsAdviserApproval } from "@/components/workflow/AdviserTaskReview";
 import React, { useState, Suspense, useEffect, useRef } from "react";
@@ -24,8 +22,10 @@ import {
   formatTaskDeadline,
   resolveWorkflowDeadline,
 } from "@/lib/workflow-deadlines";
-import { DashboardQuickActions } from "@/components/dashboards/DashboardQuickActions";
-import { getAcademicIdentity } from "@/lib/academic-identity";
+import { CoordinatorHome } from "@/components/dashboards/professor/CoordinatorHome";
+import { CoordinatorProgress, CoordinatorProjectDetail, CoordinatorProjects } from "@/components/dashboards/professor/CoordinatorScreens";
+import { EmptyNote, StatusDot } from "@/components/ui/advisio";
+import { FilterChips, RoleBand, SearchField } from "@/components/dashboards/RoleScreenParts";
 import {
   DashboardSkeleton,
   ListRowsSkeleton,
@@ -155,6 +155,7 @@ function ProfessorDashboardContent() {
   const defenseLoadError = defenseEventError || defenseManagementError;
   const eligibleDefenseGroups = eligibleDefenseData?.projects || [];
   const defenseCandidates = defenseCandidateData?.users || [];
+  const [announcementSource, setAnnouncementSource] = useState("ALL");
   const [showDefenseForm, setShowDefenseForm] = useState(false);
   const [showDeanRequestForm, setShowDeanRequestForm] = useState(false);
   const [packetSession, setPacketSession] = useState<any | null>(null);
@@ -1259,6 +1260,11 @@ function ProfessorDashboardContent() {
     router.push(`/professor/dashboard?tab=${tab}`);
   };
 
+  const visibleAnnouncements = announcements.filter((item: any) =>
+    announcementSource === "ALL" ||
+    (announcementSource === "PROFESSOR" ? item.source !== "DEAN" && item.source !== "SYSTEM_ADMIN" : item.source === announcementSource),
+  );
+
   const titleProposalMilestones = milestones.filter(
     (milestone) => milestone.milestoneType === "TITLE_PROPOSAL" && milestone.scope !== "Archived",
   );
@@ -1913,10 +1919,6 @@ function ProfessorDashboardContent() {
       <TablePageSkeleton />
     );
   }
-
-  const overviewSeal = activeTab === "overview"
-    ? getAcademicIdentity({ college: user?.college, program: user?.program })?.logoSrc
-    : undefined;
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
@@ -3419,269 +3421,6 @@ function ProfessorDashboardContent() {
         </div>
       )}
 
-      {selectedProject && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="project-detail-title"
-        >
-          <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-bold uppercase tracking-wider text-[#d98d00]">
-                  Research project
-                </p>
-                <h2
-                  id="project-detail-title"
-                  className="mt-1 text-xl font-extrabold text-[#102f49]"
-                >
-                  {selectedProject.title}
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedProject(null)}
-                aria-label="Close project details"
-                className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-[#173f63]"
-              >
-                <i className="ti ti-x text-xl" />
-              </button>
-            </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-base text-slate-500">Status</p>
-                <p className="mt-1 font-bold text-[#102f49]">
-                  {selectedProject.status}
-                </p>
-              </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-base text-slate-500">Current stage</p>
-                <p className="mt-1 font-bold text-[#102f49]">
-                  {selectedProject.currentStage?.name || "Not started"}
-                </p>
-              </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-base text-slate-500">Progress</p>
-                <p className="mt-1 font-bold text-[#102f49]">
-                  {selectedProject.progress}%
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 rounded-xl border border-slate-200 p-4">
-              <p className="text-sm font-bold uppercase tracking-wide text-slate-500">
-                Project description
-              </p>
-              <p className="mt-2 whitespace-pre-wrap text-base leading-6 text-slate-600">
-                {selectedProject.abstract ||
-                  "No project description has been added yet."}
-              </p>
-            </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-base text-slate-500">Research type</p>
-                <p className="mt-1 font-bold text-[#102f49]">
-                  {selectedProject.researchType?.name || "Not specified"}
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-base text-slate-500">Program</p>
-                <p className="mt-1 font-bold text-[#102f49]">
-                  {selectedProject.program?.code ||
-                    selectedProject.program?.name ||
-                    "Not specified"}
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-base text-slate-500">Academic year</p>
-                <p className="mt-1 font-bold text-[#102f49]">
-                  {selectedProject.academicYear?.name || "Not specified"}
-                </p>
-              </div>
-            </div>
-            <h3 className="mt-6 font-extrabold text-[#102f49]">Adviser</h3>
-            <div className="mt-3 rounded-xl border border-slate-200 p-4">
-              {selectedProject.adviser ? (
-                <div>
-                  <p className="font-bold text-[#102f49]">
-                    {selectedProject.adviser.firstName}{" "}
-                    {selectedProject.adviser.lastName}
-                  </p>
-                  <p className="mt-1 text-base text-slate-500">
-                    {selectedProject.adviser.email}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-base text-slate-500">
-                  No adviser has been assigned yet.
-                </p>
-              )}
-            </div>
-            <h3 className="mt-6 font-extrabold text-[#102f49]">
-              Researchers ({selectedProject.researchers.length})
-            </h3>
-            <div className="mt-3 space-y-2">
-              {selectedProject.researchers.length ? (
-                selectedProject.researchers.map((member: any) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 p-3"
-                  >
-                    <div>
-                      <p className="font-bold text-[#102f49]">
-                        {member.user.firstName} {member.user.lastName}
-                      </p>
-                      <p className="text-base text-slate-500">
-                        {member.user.email}
-                      </p>
-                    </div>
-                    <Tag
-                      variant={
-                        member.projectRole === "LEADER" ? "info" : "success"
-                      }
-                    >
-                      {member.projectRole}
-                    </Tag>
-                  </div>
-                ))
-              ) : (
-                <p className="rounded-xl bg-slate-50 p-4 text-base text-slate-500">
-                  No researchers have been assigned.
-                </p>
-              )}
-            </div>
-            <h3 className="mt-6 font-extrabold text-[#102f49]">
-              Workflow stages
-            </h3>
-            <div className="mt-3 space-y-2">
-              {selectedProject.workflowStages.map((stage: any) => {
-                const progress = selectedProject.milestoneProgress?.find(
-                  (item: any) => item.id === stage.id,
-                );
-                const adviserMilestone = progress?.adviserMilestone;
-                return (
-                  <div
-                    key={stage.id}
-                    className="rounded-xl border border-slate-200 p-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-[#102f49]">
-                          {stage.sequence}. {stage.name}
-                        </p>
-                        {stage.milestoneType === "ADVISER_SELECTION" && (
-                          <p className="mt-1 text-xs font-bold uppercase tracking-wide text-[#C58A18]">
-                            Adviser Milestone
-                          </p>
-                        )}
-                      </div>
-                      <span className="text-xs text-slate-500">
-                        {formatMilestoneTarget(stage)}
-                      </span>
-                    </div>
-                    {stage.milestoneType === "ADVISER_SELECTION" && (
-                      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-xs text-slate-600">
-                        <Tag
-                          variant={
-                            adviserMilestone?.status === "APPROVED"
-                              ? "success"
-                              : adviserMilestone?.status === "DECLINED"
-                                ? "warn"
-                                : "info"
-                          }
-                        >
-                          {(adviserMilestone?.status || "NOT_STARTED").replace(
-                            /_/g,
-                            " ",
-                          )}
-                        </Tag>
-                        {adviserMilestone?.adviser && (
-                          <span>
-                            {adviserMilestone.adviser.firstName}{" "}
-                            {adviserMilestone.adviser.lastName}
-                          </span>
-                        )}
-                        {adviserMilestone?.acceptedAt && (
-                          <span>
-                            Accepted{" "}
-                            {new Date(
-                              adviserMilestone.acceptedAt,
-                            ).toLocaleString()}
-                          </span>
-                        )}
-                        {!adviserMilestone?.acceptedAt &&
-                          adviserMilestone?.requestedAt && (
-                            <span>
-                              Requested{" "}
-                              {new Date(
-                                adviserMilestone.requestedAt,
-                              ).toLocaleString()}
-                            </span>
-                          )}
-                        {adviserMilestone?.status === "DECLINED" &&
-                          adviserMilestone?.respondedAt && (
-                            <span>
-                              Responded{" "}
-                              {new Date(
-                                adviserMilestone.respondedAt,
-                              ).toLocaleString()}
-                            </span>
-                          )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <h3 className="mt-6 font-extrabold text-[#102f49]">
-              Task submissions
-            </h3>
-            <div className="mt-3 space-y-2">
-              {selectedProject.taskSubmissions?.length ? (
-                selectedProject.taskSubmissions.map((submission: any) => (
-                  <div
-                    key={submission.id}
-                    className="rounded-xl border border-slate-200 p-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-bold text-[#102f49]">
-                          {submission.task?.title}
-                        </p>
-                        <p className="text-base text-slate-500">
-                          {submission.document?.title} ·{" "}
-                          {submission.status.replace(/_/g, " ")}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          openSubmissionReview({
-                            ...submission,
-                            projectId: selectedProject.id,
-                            projectTitle: selectedProject.title,
-                            currentStage: selectedProject.currentStage,
-                            members: selectedProject.members,
-                          });
-                          setSelectedProject(null);
-                          handleTabChange("submissions");
-                        }}
-                        className="rounded-lg bg-[#173f63] px-3 py-1.5 text-sm font-extrabold text-white"
-                      >
-                        Review
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="rounded-xl bg-slate-50 p-4 text-base text-slate-500">
-                  No task submissions yet.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* MAIN CONTAINER */}
       <div
         className={`workspace-page flex w-full flex-1 flex-col space-y-6 ${(activeTab === "messages" || (activeTab === "submissions" && selectedSubmission)) ? "max-w-none p-3 sm:p-4" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}
@@ -3690,269 +3429,31 @@ function ProfessorDashboardContent() {
           const tabContent: Record<string, React.ReactNode> = {
             messages: <FacultyGroupChats triggerToast={triggerToast} />,
             overview: (
-              <div className="professor-overview">
-                <section className="professor-overview__hero" aria-labelledby="coordinator-home-title">
-                  {overviewSeal && (
-                    <img src={overviewSeal} className="professor-overview__seal" alt="" aria-hidden="true" draggable={false} />
-                  )}
-                  <p className="professor-overview__eyebrow">Research Coordination</p>
-                  <h1 id="coordinator-home-title">Good day, {user?.firstName?.trim() || "Professor"}</h1>
-                  <p className="professor-overview__intro">Coordinate research groups, manage milestones, and review student submissions.</p>
-                  <div className="professor-overview__hero-actions">
-                    <button type="button" onClick={() => handleTabChange("builder")} className="professor-overview__primary">
-                      <i className="ti ti-plus" aria-hidden="true" /> Create Milestone
-                    </button>
-                    <button type="button" onClick={() => handleTabChange("monitoring")}>
-                      <i className="ti ti-folders" aria-hidden="true" /> Monitor Groups
-                    </button>
-                    <button type="button" onClick={() => handleTabChange("submissions")}>
-                      <i className="ti ti-file-text" aria-hidden="true" /> Submissions
-                    </button>
-                  </div>
-                </section>
-
-                {(projectsError || workflowsError) && (
-                  <div className="professor-overview__notice" role="status">
-                    <span>Some overview data couldn’t load.</span>
-                    <button type="button" className="professor-overview__link" onClick={() => {
-                      if (projectsError) void refetchResearch();
-                      if (workflowsError) void refetchWorkflows();
-                    }}>Try again</button>
-                  </div>
-                )}
-
-                <section className="professor-overview__metrics" aria-label="Coordination metrics">
-                  {[
-                    {
-                      label: "Students Monitored",
-                      value: studentsCount,
-                      suffix: "active",
-                      icon: "ti-users",
-                      tone: "brand",
-                      unavailable: Boolean(projectsError && !researchData),
-                      tab: "monitoring",
-                    },
-                    {
-                      label: "Active Research Projects",
-                      value: projects.length,
-                      suffix: "cohorts",
-                      icon: "ti-folders",
-                      tone: "brand",
-                      unavailable: Boolean(projectsError && !researchData),
-                      tab: "monitoring",
-                    },
-                    {
-                      label: "Research Milestones",
-                      value: milestones.length,
-                      suffix: "milestones",
-                      icon: "ti-flag",
-                      tone: "ready",
-                      unavailable: Boolean(workflowsError && !workflowData),
-                      tab: "builder",
-                    },
-                    {
-                      label: "Pending Reviews",
-                      value: needsReviewCount,
-                      suffix: "pending",
-                      icon: "ti-inbox",
-                      tone: "pending",
-                      unavailable: Boolean(projectsError && !researchData),
-                      tab: "submissions",
-                    },
-                  ].map((item) => (
-                    <button
-                      key={item.label}
-                      type="button"
-                      onClick={() => handleTabChange(item.tab)}
-                      className="professor-overview__metric"
-                    >
-                      <span className="professor-overview__icon" data-tone={item.tone} aria-hidden="true">
-                        <i className={`ti ${item.icon}`} />
-                      </span>
-                      <span className="professor-overview__metric-copy">
-                        <span className="professor-overview__metric-label">{item.label}</span>
-                        <strong>{item.unavailable ? "—" : item.value}</strong>
-                        <small>{item.unavailable ? "Unavailable" : item.suffix}</small>
-                      </span>
-                      <i className="ti ti-chevron-right professor-overview__metric-arrow" aria-hidden="true" />
-                    </button>
-                  ))}
-                </section>
-
-                <div className="professor-overview__shortcuts">
-                  <DashboardQuickActions
-                    actions={[
-                      { label: "Review submissions", icon: "ti-inbox", tab: "submissions" },
-                      { label: "View research projects", icon: "ti-users", tab: "monitoring" },
-                      { label: "Track progress", icon: "ti-chart-line", tab: "tracking" },
-                      { label: "Build workflow", icon: "ti-adjustments", tab: "builder" },
-                    ]}
-                    onAction={handleTabChange}
-                  />
-                </div>
-
-                <section className="professor-overview__panel" aria-labelledby="coordinator-updates-title">
-                  <div className="professor-overview__panel-heading">
-                    <div>
-                      <h2 id="coordinator-updates-title">
-                        College and system updates
-                      </h2>
-                      <p>
-                        Official notices are labeled by source so you can
-                        quickly distinguish department and system messages.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleTabChange("announcements")}
-                      className="professor-overview__link"
-                    >
-                      View all <i className="ti ti-chevron-right" aria-hidden="true" />
-                    </button>
-                  </div>
-                  <div className="professor-overview__updates">
-                    {announcements.slice(0, 3).map((announcement) => (
-                      <article
-                        key={announcement.id}
-                        className="professor-overview__update"
-                      >
-                        <div className="professor-overview__source">
-                          <span
-                            className="professor-overview__source-dot"
-                            data-source={announcement.source}
-                            aria-hidden="true"
-                          />
-                          <span>
-                            {announcement.source === "SYSTEM_ADMIN"
-                              ? "System Admin"
-                              : announcement.source === "DEAN"
-                                ? "Dean / Admin"
-                                : "Professor"}
-                          </span>
-                        </div>
-                        <h3>{announcement.title}</h3>
-                        <p className="line-clamp-2">{announcement.message}</p>
-                      </article>
-                    ))}
-                    {!announcements.length && (
-                      <div className="professor-overview__empty professor-overview__updates-empty" role="status">
-                        <p>{announcementsError ? "Updates couldn’t load." : announcementsLoading ? "Loading updates…" : "No current announcements."}</p>
-                        {announcementsError && <button type="button" className="professor-overview__link" onClick={() => void refetchAnnouncements()}>Try again</button>}
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                {/* Progress & Attention Grid */}
-                <section className="professor-overview__split" aria-label="Research progress and submissions">
-                  <article className="professor-overview__panel" aria-labelledby="coordinator-monitoring-title">
-                    <div className="professor-overview__panel-heading">
-                      <div>
-                        <h2 id="coordinator-monitoring-title">
-                          Research Monitoring Overview
-                        </h2>
-                        <p>
-                          Follow the progress of your active research groups.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleTabChange("tracking")}
-                        className="professor-overview__link"
-                      >
-                        View all <i className="ti ti-chevron-right" aria-hidden="true" />
-                      </button>
-                    </div>
-                    <div className="space-y-3">
-                      {projects.length ? (
-                        projects.slice(0, 4).map((p) => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => handleTabChange("tracking")}
-                            className="professor-overview__row professor-overview__progress-row"
-                          >
-                            <span className="professor-overview__row-heading">
-                              <span>{p.group}</span>
-                              <strong>{p.progress}%</strong>
-                            </span>
-                            <span className="professor-overview__progress-track" aria-hidden="true">
-                              <span
-                                style={{ width: `${p.progress}%` }}
-                              />
-                            </span>
-                          </button>
-                        ))
-                      ) : (
-                        <div className="professor-overview__empty">
-                          <span className="professor-overview__icon" aria-hidden="true"><i className="ti ti-users-group" /></span>
-                          <h3>{projectsError ? "Research groups couldn’t load" : "No active groups yet"}</h3>
-                          {!projectsError && <p>Research groups will appear here once registered.</p>}
-                        </div>
-                      )}
-                    </div>
-                  </article>
-
-                  <article className="professor-overview__panel" aria-labelledby="coordinator-attention-title">
-                    <div className="professor-overview__panel-heading">
-                      <div>
-                        <h2 id="coordinator-attention-title">
-                          Needs your attention
-                        </h2>
-                        <p>
-                          Recent student work waiting for instructor review.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleTabChange("submissions")}
-                        className="professor-overview__link"
-                      >
-                        View queue <i className="ti ti-chevron-right" aria-hidden="true" />
-                      </button>
-                    </div>
-                    <div className="space-y-2.5">
-                      {submissions
-                        .filter((item) =>
-                          ["SUBMITTED", "UNDER_REVIEW"].includes(item.status),
-                        )
-                        .slice(0, 3)
-                        .map((item) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => {
-                              openSubmissionReview(item);
-                              handleTabChange("submissions");
-                            }}
-                            className="professor-overview__row professor-overview__submission"
-                          >
-                            <span className="min-w-0">
-                              <strong>
-                                {item.task?.title}
-                              </strong>
-                              <small>
-                                {item.projectTitle}
-                              </small>
-                            </span>
-                            <span className="professor-overview__review">
-                              Review <i className="ti ti-chevron-right" aria-hidden="true" />
-                            </span>
-                          </button>
-                        ))}
-                      {needsReviewCount === 0 && (
-                        <div className="professor-overview__empty">
-                          <span className="professor-overview__icon" data-tone={projectsError ? "pending" : "ready"} aria-hidden="true">
-                            <i className={projectsError ? "ti ti-alert-circle" : "ti ti-circle-check"} />
-                          </span>
-                          <h3>{projectsError ? "Submissions couldn’t load" : "You’re all caught up"}</h3>
-                          {!projectsError && <p>New submissions will appear here.</p>}
-                        </div>
-                      )}
-                    </div>
-                  </article>
-                </section>
-              </div>
+              <CoordinatorHome
+                firstName={user?.firstName}
+                studentsCount={studentsCount}
+                projects={projects}
+                milestoneCount={milestones.length}
+                submissions={scopedSubmissions}
+                needsReviewCount={needsReviewCount}
+                defenseEvents={defenseEvents}
+                defenseUnavailable={Boolean(defenseLoadError)}
+                announcements={announcements}
+                announcementsLoading={announcementsLoading}
+                announcementsError={Boolean(announcementsError)}
+                projectsError={Boolean(projectsError && !researchData)}
+                workflowsError={Boolean(workflowsError && !workflowData)}
+                onOpenTab={handleTabChange}
+                onReview={(item) => {
+                  openSubmissionReview(item);
+                  handleTabChange("submissions");
+                }}
+                onRetryAnnouncements={() => void refetchAnnouncements()}
+                onRetryOverview={() => {
+                  if (projectsError) void refetchResearch();
+                  if (workflowsError) void refetchWorkflows();
+                }}
+              />
             ),
             "overview-legacy": (
               <>
@@ -4073,277 +3574,157 @@ function ProfessorDashboardContent() {
               </>
             ),
             announcements: (
-              <div className="mx-auto grid w-full max-w-[1440px] gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-                <section className="workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
-                        Announcement feed
-                      </p>
-                      <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">
-                        Official updates
-                      </h2>
-                      <p className="mt-1 text-base text-slate-500">
-                        Global announcements and notices for your college
-                        department.
-                      </p>
-                    </div>
-                    <div className="hidden flex-wrap gap-3 text-xs font-bold text-slate-500 sm:flex">
-                      <span>
-                        <i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-blue-500" />
-                        Dean / Admin
-                      </span>
-                      <span>
-                        <i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-violet-500" />
-                        System Admin
-                      </span>
-                      <span>
-                        <i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                        Professor
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-5 space-y-3">
-                    {announcements.map((announcement) => (
-                      <article
-                        key={announcement.id}
-                        className="rounded-2xl border border-slate-200 p-4"
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className={`h-3 w-3 rounded-full ${announcement.source === "SYSTEM_ADMIN" ? "bg-violet-500" : announcement.source === "DEAN" ? "bg-blue-500" : "bg-emerald-500"}`}
-                          />
-                          <span className="text-xs font-extrabold uppercase tracking-wide text-slate-500">
-                            {announcement.source === "SYSTEM_ADMIN"
-                              ? "System Administrator"
-                              : announcement.source === "DEAN"
-                                ? "Dean / College Admin"
-                                : "Professor"}
-                          </span>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-xs font-extrabold ${announcement.severity === "CRITICAL" ? "bg-rose-100 text-rose-700" : announcement.severity === "WARNING" ? "bg-amber-100 text-amber-800" : "bg-blue-50 text-blue-700"}`}
-                          >
-                            {announcement.severity}
-                          </span>
-                          {announcement.audienceCollege ? (
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
-                              {announcement.audienceCollege.code}
-                            </span>
-                          ) : (
-                            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700">
-                              All colleges
-                            </span>
-                          )}
+              <div className="rs mx-auto w-full max-w-[1360px]">
+                <RoleBand
+                  eyebrow="Home"
+                  title="Announcements"
+                  titleId="coordinator-announcements-title"
+                  meta="Official updates for your college, and notices you publish to your workflows."
+                  counts={[
+                    { label: "Current", value: announcements.length },
+                    { label: "Critical", value: announcements.filter((item) => item.severity === "CRITICAL").length, tone: announcements.some((item) => item.severity === "CRITICAL") ? "waiting" : undefined },
+                  ]}
+                  countsLabel="Announcement summary"
+                />
+                <div className="rh-grid">
+                  <div className="rh-col">
+                    <FilterChips
+                      label="Filter announcements by source"
+                      value={announcementSource}
+                      onChange={setAnnouncementSource}
+                      options={[
+                        { value: "ALL", label: "All", count: announcements.length },
+                        { value: "DEAN", label: "Dean / Admin", count: announcements.filter((item) => item.source === "DEAN").length },
+                        { value: "SYSTEM_ADMIN", label: "System Admin", count: announcements.filter((item) => item.source === "SYSTEM_ADMIN").length },
+                        { value: "PROFESSOR", label: "Professor", count: announcements.filter((item) => item.source !== "DEAN" && item.source !== "SYSTEM_ADMIN").length },
+                      ]}
+                    />
+                    <section className="rh-panel" style={{ paddingBlock: 6 }} aria-label="Official updates">
+                      {visibleAnnouncements.length ? (
+                        <ul className="rs-feed">
+                          {visibleAnnouncements.map((announcement) => (
+                            <li key={announcement.id}>
+                              <div className="rs-feed-top">
+                                <i data-source={announcement.source} aria-hidden="true" />
+                                {announcement.source === "SYSTEM_ADMIN" ? "System Administrator" : announcement.source === "DEAN" ? "Dean / College Admin" : "Professor"}
+                                <span className="rh-pill" data-tone={announcement.severity === "CRITICAL" ? "attention" : announcement.severity === "WARNING" ? "waiting" : undefined}>
+                                  {announcement.severity === "CRITICAL" ? "Critical" : announcement.severity === "WARNING" ? "Important" : "Information"}
+                                </span>
+                                <span className="rh-pill">{announcement.audienceCollege ? announcement.audienceCollege.code : "All colleges"}</span>
+                              </div>
+                              <h3>{announcement.title}</h3>
+                              <p>{announcement.message}</p>
+                              <small>
+                                {announcement.creator.firstName} {announcement.creator.lastName} · {new Date(announcement.publishedAt).toLocaleString()}
+                              </small>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div style={{ padding: "12px 0" }}>
+                          <EmptyNote layout="row" icon="ti-speakerphone" title="No current announcements" text="New college and system notices will appear here." />
                         </div>
-                        <h3 className="mt-3 text-lg font-extrabold text-[#102f49]">
-                          {announcement.title}
-                        </h3>
-                        <p className="mt-1 whitespace-pre-wrap text-base leading-6 text-slate-600">
-                          {announcement.message}
-                        </p>
-                        <p className="mt-3 text-base text-slate-400">
-                          {announcement.creator.firstName}{" "}
-                          {announcement.creator.lastName} ·{" "}
-                          {new Date(announcement.publishedAt).toLocaleString()}
-                        </p>
-                      </article>
-                    ))}
-                    {!announcements.length && (
-                      <div className="rounded-2xl border border-dashed border-slate-300 py-14 text-center">
-                        <i className="ti ti-speakerphone text-3xl text-slate-300" />
-                        <p className="mt-2 font-bold text-[#102f49]">
-                          No current announcements
-                        </p>
-                        <p className="text-base text-slate-500">
-                          New college and system notices will appear here.
-                        </p>
-                      </div>
-                    )}
+                      )}
+                    </section>
                   </div>
-                </section>
-                <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
-                  <p className="text-sm font-extrabold uppercase tracking-wider text-emerald-700">
-                    Your selected workflow
-                  </p>
-                  <h2 className="mt-1 text-lg font-extrabold text-[#102f49]">
-                    Post an announcement
-                  </h2>
-                  <p className="mt-1 text-base leading-5 text-slate-500">
-                    This will notify active participants in the selected workflow.
-                  </p>
-                  <form
-                    onSubmit={publishCollegeAnnouncement}
-                    className="mt-5 space-y-4"
-                  >
-                    <label className="block text-sm font-bold text-slate-700">Workflow
-                      <select required value={selectedWorkflowId} onChange={(event) => selectWorkflow(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base font-normal">
-                        <option value="">Choose a published workflow</option>
-                        {(workflowData?.workflows || []).filter((workflow: any) => workflow.status === "PUBLISHED").map((workflow: any) => <option key={workflow.id} value={workflow.id}>{workflow.name}</option>)}
-                      </select>
-                    </label>
-                    <label className="block text-sm font-bold text-slate-700">
-                      Title
-                      <input
-                        required
-                        minLength={3}
-                        maxLength={200}
-                        value={announcementTitle}
-                        onChange={(event) =>
-                          setAnnouncementTitle(event.target.value)
-                        }
-                        placeholder="e.g. Capstone consultation schedule"
-                        className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base font-normal"
-                      />
-                    </label>
-                    <label className="block text-sm font-bold text-slate-700">
-                      Message
-                      <textarea
-                        required
-                        minLength={10}
-                        maxLength={5000}
-                        rows={6}
-                        value={announcementMessage}
-                        onChange={(event) =>
-                          setAnnouncementMessage(event.target.value)
-                        }
-                        placeholder="Write the announcement details…"
-                        className="mt-1.5 w-full resize-y rounded-xl border border-slate-300 p-3 text-base font-normal leading-6"
-                      />
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="text-sm font-bold text-slate-700">
-                        Category
-                        <select
-                          value={announcementCategory}
-                          onChange={(event) =>
-                            setAnnouncementCategory(event.target.value)
-                          }
-                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base font-normal"
-                        >
-                          <option value="GENERAL">General</option>
-                          <option value="UPDATE">Update</option>
-                          <option value="DEADLINE">Deadline</option>
+                  <section className="rh-panel" style={{ height: "fit-content" }} aria-labelledby="coordinator-post-title">
+                    <div className="rh-head"><h2 id="coordinator-post-title">Publish to a workflow</h2></div>
+                    <p className="rh-lede">This will notify active participants in the selected workflow.</p>
+                    <form onSubmit={publishCollegeAnnouncement} className="rs-form">
+                      <label>
+                        Workflow
+                        <select required value={selectedWorkflowId} onChange={(event) => selectWorkflow(event.target.value)}>
+                          <option value="">Choose a published workflow</option>
+                          {(workflowData?.workflows || []).filter((workflow: any) => workflow.status === "PUBLISHED").map((workflow: any) => <option key={workflow.id} value={workflow.id}>{workflow.name}</option>)}
                         </select>
                       </label>
-                      <label className="text-sm font-bold text-slate-700">
-                        Priority
-                        <select
-                          value={announcementSeverity}
-                          onChange={(event) =>
-                            setAnnouncementSeverity(event.target.value)
-                          }
-                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base font-normal"
-                        >
-                          <option value="INFO">Information</option>
-                          <option value="WARNING">Important</option>
-                          <option value="CRITICAL">Critical</option>
-                        </select>
+                      <label>
+                        Title
+                        <input required minLength={3} maxLength={200} value={announcementTitle} onChange={(event) => setAnnouncementTitle(event.target.value)} placeholder="e.g. Capstone consultation schedule" />
                       </label>
-                    </div>
-                    <label className="block text-sm font-bold text-slate-700">
-                      Expires{" "}
-                      <span className="font-normal text-slate-400">
-                        (optional)
-                      </span>
-                      <input
-                        type="datetime-local"
-                        value={announcementExpiresAt}
-                        onChange={(event) =>
-                          setAnnouncementExpiresAt(event.target.value)
-                        }
-                        className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base font-normal"
-                      />
-                    </label>
-                    <button
-                      disabled={
-                        announcementPublishing ||
-                        !selectedWorkflowId ||
-                        !announcementTitle.trim() ||
-                        announcementMessage.trim().length < 10
-                      }
-                      className="w-full rounded-xl bg-[#173f63] px-4 py-3 text-sm font-extrabold text-white disabled:opacity-50"
-                    >
-                      <i className="ti ti-send mr-2" />
-                      {announcementPublishing
-                        ? "Publishing…"
-                        : "Publish to workflow"}
-                    </button>
-                  </form>
-                </aside>
+                      <label>
+                        Message
+                        <textarea required minLength={10} maxLength={5000} rows={5} value={announcementMessage} onChange={(event) => setAnnouncementMessage(event.target.value)} placeholder="Write the announcement details…" />
+                      </label>
+                      <div className="rs-form-two">
+                        <label>
+                          Category
+                          <select value={announcementCategory} onChange={(event) => setAnnouncementCategory(event.target.value)}>
+                            <option value="GENERAL">General</option>
+                            <option value="UPDATE">Update</option>
+                            <option value="DEADLINE">Deadline</option>
+                          </select>
+                        </label>
+                        <label>
+                          Priority
+                          <select value={announcementSeverity} onChange={(event) => setAnnouncementSeverity(event.target.value)}>
+                            <option value="INFO">Information</option>
+                            <option value="WARNING">Important</option>
+                            <option value="CRITICAL">Critical</option>
+                          </select>
+                        </label>
+                      </div>
+                      <label>
+                        Expires (optional)
+                        <input type="datetime-local" value={announcementExpiresAt} onChange={(event) => setAnnouncementExpiresAt(event.target.value)} />
+                      </label>
+                      <button
+                        className="rh-cta"
+                        disabled={announcementPublishing || !selectedWorkflowId || !announcementTitle.trim() || announcementMessage.trim().length < 10}
+                      >
+                        <i className="ti ti-send" aria-hidden="true" />
+                        {announcementPublishing ? "Publishing…" : "Publish to workflow"}
+                      </button>
+                    </form>
+                  </section>
+                </div>
               </div>
             ),
             defense: (
-              <div data-tour="defense-records" className="coordinator-defense mx-auto flex w-full max-w-[1440px] flex-col gap-5">
-                <section className="cdf-header workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
-                        Defense coordination
-                      </p>
-                      <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">
-                        Defense Management
-                      </h2>
-                      <p className="mt-1 text-base text-slate-500">
-                        Schedule defenses and manage the panel.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowDeanRequestForm(true)}
-                        disabled={!signatureGroups.length}
-                        className="rounded-xl border border-[#173f63] bg-white px-5 py-3 text-sm font-extrabold text-[#173f63] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <i className="ti ti-mail-forward mr-2" />
-                        Request Dean signature
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          resetDefenseForm();
-                          setShowDefenseForm(true);
-                        }}
-                        data-guide="co-defense-create"
-                        disabled={!eligibleDefenseGroups.length}
-                        className="rounded-xl bg-[#f6a800] px-5 py-3 text-sm font-extrabold text-[#102f49] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <i className="ti ti-calendar-plus mr-2" />
-                        Create defense event
-                      </button>
-                    </div>
-                  </div>
-                  {!eligibleDefenseGroups.length && (
-                    <div className="cdf-guidance" role="note" aria-label="Requirements for scheduling a defense cycle">
-                      <span className="cdf-guidance-label">
-                        <Info size={15} aria-hidden="true" />
-                        Before scheduling
-                      </span>
-                      <ol>
-                        <li>
-                          <span aria-hidden="true">1</span>
-                          Approve eligibility
-                        </li>
-                        <li>
-                          <span aria-hidden="true">2</span>
-                          Get the Dean’s signed letter
-                        </li>
-                      </ol>
-                    </div>
-                  )}
-                </section>
+              <div data-tour="defense-records" className="coordinator-defense rs mx-auto w-full max-w-[1360px]">
+                <RoleBand
+                  eyebrow="Academic activities"
+                  title="Defense management"
+                  titleId="coordinator-defense-title"
+                  meta="Schedule defenses and manage the panel."
+                  counts={[
+                    { label: "Awaiting replies", value: defenseSessions.filter((item) => item.status === "PENDING_ACKNOWLEDGEMENT").length },
+                    { label: "Needs action", value: defenseSessions.filter((item) => item.status === "NEEDS_RESCHEDULING").length, tone: defenseSessions.some((item) => item.status === "NEEDS_RESCHEDULING") ? "waiting" : undefined },
+                    { label: "Confirmed", value: defenseSessions.filter((item) => item.status === "SCHEDULED").length },
+                  ]}
+                  countsLabel="Defense summary"
+                  primary={{
+                    label: "Create defense event",
+                    phoneLabel: "Create",
+                    icon: "ti-calendar-plus",
+                    guide: "co-defense-create",
+                    disabled: !eligibleDefenseGroups.length,
+                    onClick: () => {
+                      resetDefenseForm();
+                      setShowDefenseForm(true);
+                    },
+                  }}
+                  secondary={[{ label: "Request Dean signature", icon: "ti-mail-forward", disabled: !signatureGroups.length, onClick: () => setShowDeanRequestForm(true) }]}
+                />
+                {!eligibleDefenseGroups.length && (
+                  <p className="rh-callout" role="note" aria-label="Requirements for scheduling a defense cycle">
+                    <i className="ti ti-info-circle" aria-hidden="true" />
+                    <span><b>Before scheduling:</b> approve eligibility, then get the Dean’s signed letter.</span>
+                  </p>
+                )}
                 {liveDefense?.packet?.evaluationMode === "STRUCTURED" && <ConsolidatedEvaluations sessionId={liveDefense.id}/>}
                 {liveDefense && liveDefense.packet?.evaluationMode !== "STRUCTURED" && (
-                  <section className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
+                  <section className="rounded-[17px] border-2 border-emerald-200 bg-emerald-50 p-5">
                     <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
                       <div>
-                        <p className="text-sm font-extrabold uppercase tracking-wider text-emerald-700">
+                        <p className="text-sm font-semibold uppercase tracking-wider text-emerald-700">
                           <span className="mr-2 inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
                           Live defense control
                         </p>
-                        <h2 className="mt-2 text-xl font-extrabold text-[#102f49]">
+                        <h2 className="mt-2 text-xl font-semibold text-[var(--color-text-primary)]">
                           {liveDefense.research.title}
                         </h2>
-                        <p className="mt-1 text-base text-slate-600">
+                        <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                           {
                             (liveDefense.packet?.evaluationMode === "PDF"
                               ? liveDefense.pdfEvaluations || []
@@ -4363,14 +3744,14 @@ function ProfessorDashboardContent() {
                         </p>
                       </div>
                       <div>
-                        <label className="text-sm font-bold text-slate-600">
+                        <label className="text-sm font-bold text-[var(--color-text-secondary)]">
                           Official decision
                           <select
                             value={officialDecision}
                             onChange={(event) =>
                               setOfficialDecision(event.target.value)
                             }
-                            className="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3"
+                            className="mt-1 h-10 w-full rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface)] px-3"
                           >
                             <option value="APPROVED">Approved</option>
                             <option value="APPROVED_WITH_MINOR_REVISIONS">
@@ -4385,7 +3766,7 @@ function ProfessorDashboardContent() {
                         {(officialDecision ===
                           "APPROVED_WITH_MINOR_REVISIONS" ||
                           officialDecision === "MAJOR_REVISIONS_REQUIRED") && (
-                          <label className="mt-2 block text-sm font-bold text-slate-600">
+                          <label className="mt-2 block text-sm font-bold text-[var(--color-text-secondary)]">
                             Required manuscript revisions
                             <textarea
                               value={revisionInstructions}
@@ -4393,7 +3774,7 @@ function ProfessorDashboardContent() {
                                 setRevisionInstructions(event.target.value)
                               }
                               placeholder="Record the panel's required post-defense revisions."
-                              className="mt-1 min-h-24 w-full rounded-xl border border-slate-300 bg-white p-3 font-normal"
+                              className="mt-1 min-h-24 w-full rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 font-normal"
                             />
                           </label>
                         )}
@@ -4408,7 +3789,7 @@ function ProfessorDashboardContent() {
                                 "MAJOR_REVISIONS_REQUIRED") &&
                               revisionInstructions.trim().length < 10)
                           }
-                          className="mt-2 w-full rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50"
+                          className="mt-2 w-full rounded-[10px] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                         >
                           Release official result
                         </button>
@@ -4417,8 +3798,8 @@ function ProfessorDashboardContent() {
                   </section>
                 )}
                 {defenseLoadError && (
-                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-                    <p className="font-extrabold">
+                  <div className="rounded-[10px] border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+                    <p className="font-semibold">
                       <i className="ti ti-alert-circle mr-1.5" />
                       Defense status could not be loaded
                     </p>
@@ -4428,80 +3809,37 @@ function ProfessorDashboardContent() {
                     </p>
                   </div>
                 )}
-                <section className="cdf-stats grid gap-4 sm:grid-cols-3">
-                  {[
-                    {
-                      label: "Awaiting replies",
-                      value: defenseSessions.filter(
-                        (item) => item.status === "PENDING_ACKNOWLEDGEMENT",
-                      ).length,
-                      icon: "ti-clock",
-                      tone: "bg-blue-50 text-blue-700",
-                    },
-                    {
-                      label: "Needs action",
-                      value: defenseSessions.filter(
-                        (item) => item.status === "NEEDS_RESCHEDULING",
-                      ).length,
-                      icon: "ti-calendar-exclamation",
-                      tone: "bg-rose-50 text-rose-700",
-                    },
-                    {
-                      label: "Confirmed",
-                      value: defenseSessions.filter(
-                        (item) => item.status === "SCHEDULED",
-                      ).length,
-                      icon: "ti-calendar-check",
-                      tone: "bg-emerald-50 text-emerald-700",
-                    },
-                  ].map((item) => (
-                    <div
-                      key={item.label}
-                      className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4"
-                    >
-                      <span
-                        className={`grid h-12 w-12 place-items-center rounded-xl ${item.tone}`}
-                      >
-                        <i className={`ti ${item.icon} text-2xl`} />
-                      </span>
-                      <div>
-                        <p className="text-base text-slate-500">{item.label}</p>
-                        <p className="mt-0.5 text-xl font-extrabold text-[#102f49]">
-                          {item.value}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </section>
+                <div className="rh-grid">
+                <div className="rh-col">
                 {defenseEvents.map((defenseEvent: any) => (
                   <section
                     key={defenseEvent.id}
-                    className="cdf-event rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6"
+                    className="cdf-event rounded-[17px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm lg:p-6"
                   >
-                    <div className="cdf-event-heading flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-start md:justify-between">
+                    <div className="cdf-event-heading flex flex-col gap-3 border-b border-[var(--color-border)] pb-4 md:flex-row md:items-start md:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 data-guide="co-defense-event" className="text-lg font-extrabold text-[#102f49]">
+                          <h3 data-guide="co-defense-event" className="text-lg font-semibold text-[var(--color-text-primary)]">
                             {defenseEvent.code}
                           </h3>
-                          <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-extrabold text-blue-700">
+                          <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
                             {defenseEvent.defenseType.replace(/_/g, " ")}
                           </span>
                           <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${
+                            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                               defenseEvent.status === "READY"
                                 ? "bg-amber-100 text-amber-800"
                                 : defenseEvent.status === "ONGOING"
                                   ? "bg-blue-100 text-blue-800"
                                   : defenseEvent.status === "COMPLETED"
                                     ? "bg-emerald-100 text-emerald-800"
-                                    : "bg-slate-100 text-slate-700"
+                                    : "bg-[var(--color-surface-muted)] text-[var(--color-text-primary)]"
                             }`}
                           >
                             {defenseEvent.status.replace(/_/g, " ")}
                           </span>
                         </div>
-                        <p className="mt-1 text-base text-slate-600">
+                        <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                           <i className="ti ti-calendar-event mr-1.5" />
                           {new Date(
                             defenseEvent.scheduledStart,
@@ -4516,7 +3854,7 @@ function ProfessorDashboardContent() {
                           {defenseEvent.venue ? ` · ${defenseEvent.venue}` : ""}
                         </p>
                       </div>
-                      <div className="text-sm text-slate-500">
+                      <div className="text-sm text-[var(--color-text-secondary)]">
                         {defenseEvent.sessions.length} research{" "}
                         {defenseEvent.sessions.length === 1
                           ? "group"
@@ -4534,17 +3872,17 @@ function ProfessorDashboardContent() {
                         return (
                           <div
                             key={session.id}
-                            className="cdf-session-row flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 lg:flex-row lg:items-center lg:justify-between"
+                            className="cdf-session-row flex flex-col gap-3 rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 lg:flex-row lg:items-center lg:justify-between"
                           >
                             <div className="flex min-w-0 items-start gap-3">
-                              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#173f63] text-sm font-extrabold text-white">
+                              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--color-primary)] text-sm font-semibold text-white">
                                 {session.queuePosition}
                               </span>
                               <div className="min-w-0">
-                                <p className="truncate font-extrabold text-[#102f49]">
+                                <p className="truncate font-semibold text-[var(--color-text-primary)]">
                                   {session.research.title}
                                 </p>
-                                <p className="mt-0.5 text-base text-slate-500">
+                                <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
                                   {new Date(
                                     session.scheduledStart,
                                   ).toLocaleTimeString([], {
@@ -4565,7 +3903,7 @@ function ProfessorDashboardContent() {
                                     event: defenseEvent,
                                   })
                                 }
-                                className="rounded-lg border border-[#173f63] bg-white px-3 py-2 text-sm font-extrabold text-[#173f63]"
+                                className="rounded-lg border border-[var(--color-primary)] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)]"
                               >
                                 <i className="ti ti-users-group mr-1.5" />
                                 View status
@@ -4580,7 +3918,7 @@ function ProfessorDashboardContent() {
                                   type="button"
                                   disabled={defenseActionPending}
                                   onClick={() => deleteDefenseSession(session)}
-                                  className="rounded-xl border border-rose-300 px-3 py-2 text-sm font-bold text-rose-600 disabled:opacity-40"
+                                  className="rounded-[10px] border border-rose-300 px-3 py-2 text-sm font-bold text-rose-600 disabled:opacity-40"
                                 >
                                   Delete session
                                 </button>
@@ -4588,7 +3926,7 @@ function ProfessorDashboardContent() {
                               <button
                                 type="button"
                                 onClick={() => setPacketSession(session)}
-                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-extrabold text-[#173f63]"
+                                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)]"
                               >
                                 Defense documents
                               </button>
@@ -4606,7 +3944,7 @@ function ProfessorDashboardContent() {
                                         "PREPARE",
                                       )
                                     }
-                                    className="rounded-lg border border-[#f6a800] bg-amber-50 px-3 py-2 text-sm font-extrabold text-[#7a5200] disabled:opacity-50"
+                                    className="rounded-lg border border-[#f6a800] bg-amber-50 px-3 py-2 text-sm font-semibold text-[#7a5200] disabled:opacity-50"
                                   >
                                     Prepare next
                                   </button>
@@ -4622,7 +3960,7 @@ function ProfessorDashboardContent() {
                                       "CALL",
                                     )
                                   }
-                                  className="rounded-lg bg-[#173f63] px-3 py-2 text-sm font-extrabold text-white disabled:opacity-50"
+                                  className="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
                                 >
                                   Call group
                                 </button>
@@ -4647,21 +3985,21 @@ function ProfessorDashboardContent() {
                     return (
                       <article
                         key={session.id}
-                        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                        className="rounded-[17px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm"
                       >
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="text-lg font-extrabold text-[#102f49]">
+                              <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
                                 {session.research?.title}
                               </h3>
                               <span
-                                className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${session.status === "SCHEDULED" ? "bg-emerald-100 text-emerald-800" : session.status === "NEEDS_RESCHEDULING" ? "bg-rose-100 text-rose-800" : session.status === "LIVE" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}
+                                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${session.status === "SCHEDULED" ? "bg-emerald-100 text-emerald-800" : session.status === "NEEDS_RESCHEDULING" ? "bg-rose-100 text-rose-800" : session.status === "LIVE" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}
                               >
                                 {session.status.replace(/_/g, " ")}
                               </span>
                             </div>
-                            <p className="mt-2 text-base text-slate-600">
+                            <p className="mt-2 text-base text-[var(--color-text-secondary)]">
                               <i className="ti ti-calendar mr-1.5" />
                               {session.scheduledStart
                                 ? new Date(
@@ -4674,7 +4012,7 @@ function ProfessorDashboardContent() {
                                   ? " · Online"
                                   : ""}
                             </p>
-                            <p className="mt-1 text-base text-slate-500">
+                            <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                               {accepted} of {activeInvitations.length} invited
                               participants accepted
                             </p>
@@ -4683,7 +4021,7 @@ function ProfessorDashboardContent() {
                             <button
                               type="button"
                               onClick={() => setStatusSession({ session })}
-                              className="rounded-xl border border-[#173f63] bg-white px-4 py-2 text-sm font-extrabold text-[#173f63]"
+                              className="rounded-[10px] border border-[var(--color-primary)] bg-[var(--color-surface)] px-4 py-2 text-sm font-semibold text-[var(--color-text-primary)]"
                             >
                               <i className="ti ti-users-group mr-1.5" />
                               View status
@@ -4698,7 +4036,7 @@ function ProfessorDashboardContent() {
                                 type="button"
                                 disabled={defenseActionPending}
                                 onClick={() => deleteDefenseSession(session)}
-                                className="rounded-xl border border-rose-300 px-3 py-2 text-sm font-bold text-rose-600 disabled:opacity-40"
+                                className="rounded-[10px] border border-rose-300 px-3 py-2 text-sm font-bold text-rose-600 disabled:opacity-40"
                               >
                                 Delete session
                               </button>
@@ -4706,7 +4044,7 @@ function ProfessorDashboardContent() {
                             <button
                               type="button"
                               onClick={() => setPacketSession(session)}
-                              className="rounded-xl border border-[#f6a800] bg-amber-50 px-4 py-2 text-sm font-extrabold text-[#7a5200]"
+                              className="rounded-[10px] border border-[#f6a800] bg-amber-50 px-4 py-2 text-sm font-semibold text-[#7a5200]"
                             >
                               <i className="ti ti-files mr-1.5" />
                               Defense documents
@@ -4718,7 +4056,7 @@ function ProfessorDashboardContent() {
                               <button
                                 type="button"
                                 onClick={() => openRescheduleDefense(session)}
-                                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-[#173f63]"
+                                className="rounded-[10px] border border-[var(--color-border)] px-4 py-2 text-sm font-bold text-[var(--color-text-primary)]"
                               >
                                 <i className="ti ti-calendar-time mr-1.5" />
                                 Reschedule
@@ -4729,7 +4067,7 @@ function ProfessorDashboardContent() {
                                 type="button"
                                 onClick={() => startDefense(session.id)}
                                 disabled={defenseActionPending}
-                                className="rounded-xl bg-[#173f63] px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50"
+                                className="rounded-[10px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                               >
                                 <i className="ti ti-player-play mr-1.5" />
                                 Start live defense
@@ -4741,26 +4079,26 @@ function ProfessorDashboardContent() {
                           {activeInvitations.map((invitation: any) => (
                             <div
                               key={invitation.id}
-                              className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+                              className="rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3"
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div>
-                                  <p className="text-base font-bold text-[#102f49]">
+                                  <p className="text-base font-bold text-[var(--color-text-primary)]">
                                     {invitation.invitee.firstName}{" "}
                                     {invitation.invitee.lastName}
                                   </p>
-                                  <p className="text-base text-slate-500">
+                                  <p className="text-base text-[var(--color-text-secondary)]">
                                     {invitation.role.replace(/_/g, " ")}
                                   </p>
                                 </div>
                                 <span
-                                  className={`rounded-full px-2 py-1 text-xs font-extrabold ${invitation.status === "ACCEPTED" ? "bg-emerald-100 text-emerald-800" : invitation.status === "DECLINED" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}
+                                  className={`rounded-full px-2 py-1 text-xs font-semibold ${invitation.status === "ACCEPTED" ? "bg-emerald-100 text-emerald-800" : invitation.status === "DECLINED" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}
                                 >
                                   {invitation.status.replace(/_/g, " ")}
                                 </span>
                               </div>
                               {invitation.status === "DECLINED" && (
-                                <div className="mt-2 border-t border-slate-200 pt-2 text-xs text-slate-600">
+                                <div className="mt-2 border-t border-[var(--color-border)] pt-2 text-xs text-[var(--color-text-secondary)]">
                                   <p>
                                     <strong>Reason:</strong>{" "}
                                     {invitation.responseNote}
@@ -4785,7 +4123,7 @@ function ProfessorDashboardContent() {
                                       setReplacementInvitation(invitation);
                                       setReplacementUserId("");
                                     }}
-                                    className="mt-2 rounded-lg bg-white px-2.5 py-1.5 font-extrabold text-rose-700 shadow-sm"
+                                    className="mt-2 rounded-lg bg-[var(--color-surface)] px-2.5 py-1.5 font-semibold text-rose-700 shadow-sm"
                                   >
                                     Replace participant
                                   </button>
@@ -4800,14 +4138,14 @@ function ProfessorDashboardContent() {
                   {!defenseLoadError &&
                     !defenseEvents.length &&
                     !legacyDefenseSessions.length && (
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
-                        <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-blue-50 text-[#173f63]">
+                      <div className="rounded-[17px] border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-14 text-center">
+                        <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-blue-50 text-[var(--color-text-primary)]">
                           <i className="ti ti-presentation text-2xl" />
                         </span>
-                        <h3 className="mt-3 font-extrabold text-[#102f49]">
+                        <h3 className="mt-3 font-semibold text-[var(--color-text-primary)]">
                           No defense requests yet
                         </h3>
-                        <p className="mt-1 text-base text-slate-500">
+                        <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                           Eligible groups can be scheduled once all workflow
                           requirements are complete.
                         </p>
@@ -4815,8 +4153,10 @@ function ProfessorDashboardContent() {
                     )}
                 </section>
                 )}
-                <section className="cdf-eligibility rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                  <h3 className="text-lg font-extrabold">
+                </div>
+                <aside className="rh-col">
+                <section className="cdf-eligibility rounded-[17px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                  <h3 className="text-lg font-semibold">
                     Defense eligibility
                   </h3>
                   {!eligibilityGroups.length && (
@@ -4836,7 +4176,7 @@ function ProfessorDashboardContent() {
                     {eligibilityGroups.map((group: any) => (
                       <div
                         key={group.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-[var(--color-border)] p-3"
                       >
                         <div>
                           <strong>{group.groupName || group.title}</strong>
@@ -4866,7 +4206,7 @@ function ProfessorDashboardContent() {
                             type="button"
                             disabled={!group.canApprove || defenseActionPending}
                             onClick={() => approveDefenseGate(group)}
-                            className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
+                            className="rounded-[10px] bg-[var(--color-primary)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
                           >
                             Approve eligibility
                           </button>
@@ -4875,6 +4215,8 @@ function ProfessorDashboardContent() {
                     ))}
                   </div>
                 </section>
+                </aside>
+                </div>
                 <DefenseBadgeIssuance
                   sessions={defenseSessions}
                   canIssue={Boolean(
@@ -4900,23 +4242,23 @@ function ProfessorDashboardContent() {
                       onClick={resetDefenseForm}
                       className="flex-1 cursor-default"
                     />
-                    <aside className="ml-auto flex h-full w-full max-w-[560px] flex-col bg-white shadow-2xl">
-                      <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+                    <aside className="ml-auto flex h-full w-full max-w-[560px] flex-col bg-[var(--color-surface)] shadow-2xl">
+                      <div className="flex items-start justify-between border-b border-[var(--color-border)] px-6 py-5">
                         <div>
-                          <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
+                          <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
                             {reschedulingSession
                               ? "Updated invitation"
                               : "New defense event"}
                           </p>
                           <h2
                             id="defense-form-title"
-                            className="mt-1 text-xl font-extrabold text-[#102f49]"
+                            className="mt-1 text-xl font-semibold text-[var(--color-text-primary)]"
                           >
                             {reschedulingSession
                               ? "Reschedule defense"
                               : "Create defense event"}
                           </h2>
-                          <p className="mt-1 text-base text-slate-500">
+                          <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                             {reschedulingSession
                               ? "Changing the schedule asks every participant to confirm again."
                               : "Choose one or more ready groups. Their time slots are divided evenly across the event."}
@@ -4925,7 +4267,7 @@ function ProfessorDashboardContent() {
                         <button
                           type="button"
                           onClick={resetDefenseForm}
-                          className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-[#173f63]"
+                          className="grid h-10 w-10 place-items-center rounded-[10px] bg-[var(--color-surface-muted)] text-[var(--color-text-primary)]"
                         >
                           <i className="ti ti-x text-xl" />
                         </button>
@@ -4937,14 +4279,14 @@ function ProfessorDashboardContent() {
                         <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
                           {!reschedulingSession && (
                             <fieldset>
-                              <legend className="text-sm font-bold text-slate-700">
+                              <legend className="text-sm font-bold text-[var(--color-text-primary)]">
                                 Defense-ready research groups
                               </legend>
-                              <div className="mt-2 max-h-56 space-y-2 overflow-y-auto rounded-xl border border-slate-200 p-2">
+                              <div className="mt-2 max-h-56 space-y-2 overflow-y-auto rounded-[10px] border border-[var(--color-border)] p-2">
                                 {eligibleDefenseGroups.map((project) => (
                                   <label
                                     key={project.id}
-                                    className="flex cursor-pointer items-start gap-3 rounded-lg p-2 hover:bg-slate-50"
+                                    className="flex cursor-pointer items-start gap-3 rounded-lg p-2 hover:bg-[var(--color-surface-subtle)]"
                                   >
                                     <input
                                       type="checkbox"
@@ -4963,10 +4305,10 @@ function ProfessorDashboardContent() {
                                       className="mt-0.5 h-4 w-4 accent-[#f6a800]"
                                     />
                                     <span>
-                                      <span className="block text-sm font-bold text-[#102f49]">
+                                      <span className="block text-sm font-bold text-[var(--color-text-primary)]">
                                         {project.title}
                                       </span>
-                                      <span className="text-xs text-slate-500">
+                                      <span className="text-xs text-[var(--color-text-secondary)]">
                                         {project.program?.code || "Program"} ·{" "}
                                         {project.members?.length || 0} members
                                         {project.eligibility?.milestoneName &&
@@ -4976,20 +4318,20 @@ function ProfessorDashboardContent() {
                                   </label>
                                 ))}
                               </div>
-                              <p className="mt-1.5 text-base text-slate-500">
+                              <p className="mt-1.5 text-base text-[var(--color-text-secondary)]">
                                 {defenseProjectIds.length} selected
                               </p>
                             </fieldset>
                           )}
                           {!reschedulingSession && (
-                            <label className="block text-sm font-bold text-slate-700">
+                            <label className="block text-sm font-bold text-[var(--color-text-primary)]">
                               Defense type
                               <select
                                 value={defenseType}
                                 onChange={(event) =>
                                   setDefenseType(event.target.value)
                                 }
-                                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base"
+                                className="mt-1.5 w-full rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base"
                               >
                                 <option value="TITLE_DEFENSE">
                                   Title defense
@@ -5007,7 +4349,7 @@ function ProfessorDashboardContent() {
                             </label>
                           )}
                           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                            <label className="text-sm font-bold text-slate-700">
+                            <label className="text-sm font-bold text-[var(--color-text-primary)]">
                               Event date
                               <input
                                 required
@@ -5016,10 +4358,10 @@ function ProfessorDashboardContent() {
                                 onChange={(event) =>
                                   setDefenseDate(event.target.value)
                                 }
-                                className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base"
+                                className="mt-1.5 w-full rounded-[10px] border border-[var(--color-border)] p-3 text-base"
                               />
                             </label>
-                            <label className="text-sm font-bold text-slate-700">
+                            <label className="text-sm font-bold text-[var(--color-text-primary)]">
                               Event starts
                               <input
                                 required
@@ -5028,10 +4370,10 @@ function ProfessorDashboardContent() {
                                 onChange={(event) =>
                                   setDefenseStartTime(event.target.value)
                                 }
-                                className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base"
+                                className="mt-1.5 w-full rounded-[10px] border border-[var(--color-border)] p-3 text-base"
                               />
                             </label>
-                            <label className="text-sm font-bold text-slate-700">
+                            <label className="text-sm font-bold text-[var(--color-text-primary)]">
                               Event ends
                               <input
                                 required
@@ -5040,11 +4382,11 @@ function ProfessorDashboardContent() {
                                 onChange={(event) =>
                                   setDefenseEndTime(event.target.value)
                                 }
-                                className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base"
+                                className="mt-1.5 w-full rounded-[10px] border border-[var(--color-border)] p-3 text-base"
                               />
                             </label>
                           </div>
-                          <label className="block text-sm font-bold text-slate-700">
+                          <label className="block text-sm font-bold text-[var(--color-text-primary)]">
                             Venue
                             <input
                               value={defenseVenue}
@@ -5052,12 +4394,12 @@ function ProfessorDashboardContent() {
                                 setDefenseVenue(event.target.value)
                               }
                               placeholder="e.g. Research Room 204"
-                              className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base"
+                              className="mt-1.5 w-full rounded-[10px] border border-[var(--color-border)] p-3 text-base"
                             />
                           </label>
-                          <label className="block text-sm font-bold text-slate-700">
+                          <label className="block text-sm font-bold text-[var(--color-text-primary)]">
                             Meeting link{" "}
-                            <span className="font-normal text-slate-400">
+                            <span className="font-normal text-[var(--color-text-secondary)]">
                               (optional)
                             </span>
                             <input
@@ -5067,21 +4409,21 @@ function ProfessorDashboardContent() {
                                 setDefenseMeetingUrl(event.target.value)
                               }
                               placeholder="https://meet.google.com/..."
-                              className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base"
+                              className="mt-1.5 w-full rounded-[10px] border border-[var(--color-border)] p-3 text-base"
                             />
                           </label>
                           {!reschedulingSession && (
-                            <section className="space-y-4 border-t border-slate-200 pt-5">
+                            <section className="space-y-4 border-t border-[var(--color-border)] pt-5">
                               <div>
-                                <h3 className="font-extrabold text-[#102f49]">
+                                <h3 className="font-semibold text-[var(--color-text-primary)]">
                                   Defense panel
                                 </h3>
-                                <p className="text-base text-slate-500">
+                                <p className="text-base text-[var(--color-text-secondary)]">
                                   Every required participant must accept before
                                   confirmation.
                                 </p>
                               </div>
-                              <label className="block text-sm font-bold text-slate-700">
+                              <label className="block text-sm font-bold text-[var(--color-text-primary)]">
                                 Panel chair
                                 <select
                                   required
@@ -5089,7 +4431,7 @@ function ProfessorDashboardContent() {
                                   onChange={(event) =>
                                     setDefenseChairId(event.target.value)
                                   }
-                                  className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base"
+                                  className="mt-1.5 w-full rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base"
                                 >
                                   <option value="">Select chair</option>
                                   {defenseCandidates.map((person) => (
@@ -5100,14 +4442,14 @@ function ProfessorDashboardContent() {
                                 </select>
                               </label>
                               <fieldset>
-                                <legend className="text-sm font-bold text-slate-700">
+                                <legend className="text-sm font-bold text-[var(--color-text-primary)]">
                                   Panelists
                                 </legend>
-                                <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-xl border border-slate-200 p-2">
+                                <div className="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-[10px] border border-[var(--color-border)] p-2">
                                   {defenseCandidates.map((person) => (
                                     <label
                                       key={person.id}
-                                      className="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-slate-50"
+                                      className="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-[var(--color-surface-subtle)]"
                                     >
                                       <input
                                         type="checkbox"
@@ -5126,10 +4468,10 @@ function ProfessorDashboardContent() {
                                         className="h-4 w-4 accent-[#f6a800]"
                                       />
                                       <span>
-                                        <span className="block text-sm font-bold text-[#102f49]">
+                                        <span className="block text-sm font-bold text-[var(--color-text-primary)]">
                                           {person.firstName} {person.lastName}
                                         </span>
-                                        <span className="text-xs text-slate-500">
+                                        <span className="text-xs text-[var(--color-text-secondary)]">
                                           {person.roles.join(", ")}
                                         </span>
                                       </span>
@@ -5139,9 +4481,9 @@ function ProfessorDashboardContent() {
                               </fieldset>
                             </section>
                           )}
-                          <label className="block text-sm font-bold text-slate-700">
+                          <label className="block text-sm font-bold text-[var(--color-text-primary)]">
                             Notes{" "}
-                            <span className="font-normal text-slate-400">
+                            <span className="font-normal text-[var(--color-text-secondary)]">
                               (optional)
                             </span>
                             <textarea
@@ -5151,15 +4493,15 @@ function ProfessorDashboardContent() {
                               }
                               rows={4}
                               placeholder="Preparation instructions for the group and panel…"
-                              className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-base"
+                              className="mt-1.5 w-full resize-none rounded-[10px] border border-[var(--color-border)] p-3 text-base"
                             />
                           </label>
                         </div>
-                        <div className="flex justify-end gap-2 border-t border-slate-200 px-6 py-4">
+                        <div className="flex justify-end gap-2 border-t border-[var(--color-border)] px-6 py-4">
                           <button
                             type="button"
                             onClick={resetDefenseForm}
-                            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600"
+                            className="rounded-[10px] border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-secondary)]"
                           >
                             Cancel
                           </button>
@@ -5175,7 +4517,7 @@ function ProfessorDashboardContent() {
                                   !defenseChairId ||
                                   !defensePanelistIds.length))
                             }
-                            className="rounded-xl bg-[#f6a800] px-5 py-2.5 text-sm font-extrabold text-[#102f49] disabled:opacity-50"
+                            className="rounded-[10px] bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-[var(--college-on-primary)] disabled:opacity-50"
                           >
                             {defenseActionPending
                               ? "Sending…"
@@ -5195,29 +4537,29 @@ function ProfessorDashboardContent() {
                     aria-modal="true"
                     aria-labelledby="replace-panelist-title"
                   >
-                    <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-                      <p className="text-sm font-extrabold uppercase tracking-wider text-rose-600">
+                    <div className="w-full max-w-lg rounded-[17px] bg-[var(--color-surface)] p-6 shadow-2xl">
+                      <p className="text-sm font-semibold uppercase tracking-wider text-rose-600">
                         Unavailable participant
                       </p>
                       <h2
                         id="replace-panelist-title"
-                        className="mt-1 text-xl font-extrabold text-[#102f49]"
+                        className="mt-1 text-xl font-semibold text-[var(--color-text-primary)]"
                       >
                         Replace {replacementInvitation.invitee.firstName}{" "}
                         {replacementInvitation.invitee.lastName}
                       </h2>
-                      <p className="mt-1 text-base text-slate-500">
+                      <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                         The schedule stays unchanged, so participants who
                         already accepted will not need to reconfirm.
                       </p>
-                      <label className="mt-5 block text-sm font-bold text-slate-700">
+                      <label className="mt-5 block text-sm font-bold text-[var(--color-text-primary)]">
                         Replacement
                         <select
                           value={replacementUserId}
                           onChange={(event) =>
                             setReplacementUserId(event.target.value)
                           }
-                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base"
+                          className="mt-1.5 w-full rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base"
                         >
                           <option value="">Select participant</option>
                           {defenseCandidates
@@ -5240,7 +4582,7 @@ function ProfessorDashboardContent() {
                             setReplacementInvitation(null);
                             setReplacementUserId("");
                           }}
-                          className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600"
+                          className="rounded-[10px] border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-secondary)]"
                         >
                           Cancel
                         </button>
@@ -5248,7 +4590,7 @@ function ProfessorDashboardContent() {
                           type="button"
                           onClick={replaceDefenseParticipant}
                           disabled={!replacementUserId || defenseActionPending}
-                          className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50"
+                          className="rounded-[10px] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                         >
                           Send replacement invitation
                         </button>
@@ -5271,89 +4613,38 @@ function ProfessorDashboardContent() {
                 onReview={(status) => handleReviewTaskSubmission(selectedSubmission.id, status)}
               />
             ) : (
-              <div className="coordinator-submissions mx-auto flex w-full max-w-[1440px] flex-col gap-5">
-                <section className="csub-header workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
-                        Professor workspace
-                      </p>
-                      <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">
-                        Student submissions
-                      </h2>
-                      <p className="mt-1 text-base text-slate-500">
-                        Review submitted work and monitor requirement deadlines
-                        from one place.
-                      </p>
-                    </div>
-                    <div className="csub-search-filters grid gap-3 sm:grid-cols-2 lg:w-[620px]">
-                      <label className="text-sm font-bold uppercase tracking-wider text-slate-500">
-                        Workflow
-                        <select
-                          value={submissionWorkflowId}
-                          onChange={(event) =>
-                            updateSubmissionQuery({
-                              workflowId: event.target.value,
-                            })
-                          }
-                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-semibold normal-case tracking-normal text-[#102f49]"
-                        >
-                          <option value="ALL">All workflows</option>
-                          {workflows.map((workflow) => (
-                            <option key={workflow.id} value={workflow.id}>
-                              {workflow.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="text-sm font-bold uppercase tracking-wider text-slate-500">
-                        Search
-                        <span className="relative mt-1.5 block">
-                          <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                          <input
-                            value={submissionSearch}
-                            onChange={(event) =>
-                              setSubmissionSearch(event.target.value)
-                            }
-                            data-guide="co-submission-search"
-                            placeholder="Requirement or research group"
-                            data-tour="page-filter"
-                            className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-3 text-base font-normal normal-case tracking-normal outline-none focus:border-[#173f63]"
-                          />
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                  <div
-                    className="csub-tabs mt-5 flex w-fit rounded-xl bg-slate-100 p-1"
-                    role="tablist"
-                    aria-label="Submission workspace views"
-                  >
-                    <button
-                      type="button"
-                      role="tab"
-                      data-guide="co-review-queue"
-                      aria-selected={submissionView === "review"}
-                      onClick={() =>
-                        updateSubmissionQuery({ submissionView: null })
-                      }
-                      className={`rounded-lg px-4 py-2 text-sm font-extrabold transition ${submissionView === "review" ? "bg-white text-[#173f63] shadow-sm" : "text-slate-500"}`}
-                    >
-                      Review Queue
+              <div className="coordinator-submissions rs mx-auto w-full max-w-[1360px]">
+                <RoleBand
+                  eyebrow="Course workspace"
+                  title="Submissions"
+                  titleId="coordinator-submissions-title"
+                  meta={needsReviewCount ? `${needsReviewCount} ${needsReviewCount === 1 ? "submission waits" : "submissions wait"} for your review` : "Nothing is waiting for your review."}
+                  counts={[
+                    { label: "To review", value: needsReviewCount, tone: needsReviewCount ? "waiting" : undefined },
+                    { label: "In revision", value: scopedSubmissions.filter((item) => item.status === "REVISION_REQUIRED").length },
+                    { label: "Approved", value: scopedSubmissions.filter((item) => item.status === "APPROVED").length },
+                  ]}
+                  countsLabel="Submission summary"
+                />
+                <div className="rs-tools">
+                  <div className="au-seg" role="tablist" aria-label="Submission workspace views">
+                    <button type="button" role="tab" data-guide="co-review-queue" aria-selected={submissionView === "review"} aria-pressed={submissionView === "review"} onClick={() => updateSubmissionQuery({ submissionView: null })}>
+                      Review queue
                     </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={submissionView === "deadlines"}
-                      onClick={() =>
-                        updateSubmissionQuery({ submissionView: "deadlines" })
-                      }
-                      className={`rounded-lg px-4 py-2 text-sm font-extrabold transition ${submissionView === "deadlines" ? "bg-white text-[#173f63] shadow-sm" : "text-slate-500"}`}
-                    >
-                      Deadline Tracker
+                    <button type="button" role="tab" aria-selected={submissionView === "deadlines"} aria-pressed={submissionView === "deadlines"} onClick={() => updateSubmissionQuery({ submissionView: "deadlines" })}>
+                      Deadline tracker
                     </button>
                   </div>
-                </section>
+                  <div className="rs-tools-end">
+                    <SearchField value={submissionSearch} onChange={setSubmissionSearch} placeholder="Requirement or research group" guide="co-submission-search" />
+                    <select className="rs-select" aria-label="Workflow" value={submissionWorkflowId} onChange={(event) => updateSubmissionQuery({ workflowId: event.target.value })}>
+                      <option value="ALL">All workflows</option>
+                      {workflows.map((workflow) => (
+                        <option key={workflow.id} value={workflow.id}>{workflow.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 {submissionView === "deadlines" ? (
                   <WorkflowDeadlineTracker
                     rows={deadlineRows}
@@ -5371,493 +4662,162 @@ function ProfessorDashboardContent() {
                   />
                 ) : (
                   <>
-                    <section className="csub-queue-toolbar rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6" aria-label="Review queue filters">
-                      <div className="csub-queue-controls flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                        <h3 className="sr-only">Review queue</h3>
-                        <div className="csub-status-filters flex flex-wrap gap-2">
-                          {[
-                            {
-                              id: "NEEDS_REVIEW",
-                              label: `Needs review (${needsReviewCount})`,
-                            },
-                            {
-                              id: "REVISION_REQUIRED",
-                              label: "Revision requested",
-                            },
-                            { id: "APPROVED", label: "Approved" },
-                            { id: "ALL", label: "All" },
-                          ].map((filter) => (
-                            <button
-                              key={filter.id}
-                              type="button"
-                              onClick={() => setSubmissionFilter(filter.id)}
-                              className={`rounded-xl px-3.5 py-2 text-sm font-extrabold transition ${submissionFilter === filter.id ? "bg-[#173f63] text-white" : "border border-slate-200 bg-white text-slate-600 hover:border-[#f6a800]"}`}
-                            >
-                              {filter.label}
-                            </button>
-                          ))}
-                        </div>
-                        <label className="csub-sort text-sm font-bold text-slate-500">
-                          Sort by
-                          <select
-                            value={submissionSort}
-                            onChange={(event) =>
-                              setSubmissionSort(event.target.value)
-                            }
-                            className="ml-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-base font-bold text-slate-700"
-                          >
-                            <option value="OLDEST_REVIEW">
-                              Oldest awaiting review
-                            </option>
-                            <option value="NEWEST">Newest submitted</option>
-                            <option value="GROUP">Group / researcher A–Z</option>
-                            <option value="MILESTONE">Milestone order</option>
-                          </select>
-                        </label>
+                    <div className="rs-tools">
+                      <h3 className="sr-only">Review queue</h3>
+                      <FilterChips
+                        label="Filter by status"
+                        value={submissionFilter}
+                        onChange={setSubmissionFilter}
+                        options={[
+                          { value: "NEEDS_REVIEW", label: "Needs review", count: needsReviewCount },
+                          { value: "REVISION_REQUIRED", label: "Revision requested", count: scopedSubmissions.filter((item) => item.status === "REVISION_REQUIRED").length },
+                          { value: "APPROVED", label: "Approved", count: scopedSubmissions.filter((item) => item.status === "APPROVED").length },
+                          { value: "ALL", label: "All", count: scopedSubmissions.length },
+                        ]}
+                      />
+                      <div className="rs-tools-end">
+                        <select className="rs-select" aria-label="Sort submissions" value={submissionSort} onChange={(event) => setSubmissionSort(event.target.value)}>
+                          <option value="OLDEST_REVIEW">Oldest awaiting review</option>
+                          <option value="NEWEST">Newest submitted</option>
+                          <option value="GROUP">Group / researcher A–Z</option>
+                          <option value="MILESTONE">Milestone order</option>
+                        </select>
                       </div>
-                    </section>
-                    <section className="csub-table overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                      <div className="csub-columns hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_130px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-extrabold uppercase tracking-wide text-slate-500 md:grid">
-                        <span>Submission</span>
-                        <span>Group / Researcher</span>
-                        <span>Submitted</span>
-                        <span>Status</span>
-                      </div>
-                      <div className="divide-y divide-slate-100">
-                        {titleProposalQueries.some(query => query.isLoading) && <p role="status" className="px-5 py-4 text-sm text-slate-500">Loading title proposals…</p>}
-                        {titleProposalQueries.some(query => query.isError) && <p role="alert" className="px-5 py-4 text-sm text-red-600">Some title proposals could not be loaded. <button type="button" className="font-bold underline" onClick={() => { void Promise.all(titleProposalQueries.filter(query => query.isError).map(query => query.refetch())); }}>Try again</button></p>}
-                        {filteredSubmissions.map((submission) => (
-                          <button
-                            key={`${submission.submissionKind || "DOCUMENT"}:${submission.id}`}
-                            type="button"
-                            onClick={() => openSubmissionReview(submission)}
-                            className="csub-row grid w-full gap-3 px-5 py-4 text-left transition hover:bg-amber-50/40 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_130px] md:items-center md:gap-4"
-                          >
-                            <span className="min-w-0">
-                              <span className="block truncate font-extrabold text-[#102f49]">
-                                {submission.task?.title}
+                    </div>
+                    {titleProposalQueries.some(query => query.isLoading) && <p role="status" className="rs-note">Loading title proposals…</p>}
+                    {titleProposalQueries.some(query => query.isError) && <p role="alert" className="rs-note">Some title proposals could not be loaded. <button type="button" className="au-link" onClick={() => { void Promise.all(titleProposalQueries.filter(query => query.isError).map(query => query.refetch())); }}>Try again</button></p>}
+                    {filteredSubmissions.length ? (
+                      <section className="rs-table" style={{ "--rs-cols": "minmax(0,1.5fr) minmax(0,1.9fr) 100px 150px 92px" } as React.CSSProperties}>
+                        <div className="rs-row rs-row--head"><span>Submission</span><span>Group</span><span>Submitted</span><span>Status</span><span /></div>
+                        {filteredSubmissions.map((submission, index) => {
+                          const waiting = ["SUBMITTED", "UNDER_REVIEW"].includes(submission.status);
+                          return (
+                            <div key={`${submission.submissionKind || "DOCUMENT"}:${submission.id}`} className={`rs-row rs-row--hover${waiting && index === 0 && submissionSort === "OLDEST_REVIEW" ? " rs-row--tint" : ""}`}>
+                              <div className="rs-who">
+                                <span className="rh-icon" aria-hidden="true"><i className="ti ti-file-text" /></span>
+                                <span className="rs-text">
+                                  <strong>{submission.task?.title}</strong>
+                                  <small>
+                                    {submission.submissionKind === "TITLE_PROPOSAL" ? `${submission.titles.length} proposed titles` : submission.document?.title} · {submission.submittedByUser?.firstName} {submission.submittedByUser?.lastName}
+                                  </small>
+                                </span>
+                              </div>
+                              <span className="rs-text rs-wide">
+                                <strong data-weight="normal">{submission.projectTitle}</strong>
+                                {submission.submissionKind !== "TITLE_PROPOSAL" && <span style={{ display: "block", marginTop: 5 }}><AdviserApprovalBadge required={submission.adviserReviewRequired} submission={submission} /></span>}
                               </span>
-                              <span className="mt-1 block truncate text-sm text-slate-500">
-                                {submission.submissionKind === "TITLE_PROPOSAL" ? `${submission.titles.length} proposed titles` : submission.document?.title} ·{" "}
-                                {submission.submittedByUser?.firstName}{" "}
-                                {submission.submittedByUser?.lastName}
-                              </span>
-                            </span>
-                            <span className="min-w-0 text-sm font-semibold text-slate-700">
-                              <span className="block truncate">{submission.projectTitle}</span>
-                              {submission.submissionKind !== "TITLE_PROPOSAL" && <span className="mt-1.5 block"><AdviserApprovalBadge required={submission.adviserReviewRequired} submission={submission} /></span>}
-                            </span>
-                            <span className="csub-submitted text-sm text-slate-500">
-                              <span className="csub-mobile-label">Submitted </span>
-                              {new Date(
-                                submission.submittedAt,
-                              ).toLocaleDateString()}
-                            </span>
-                            <span
-                              className={`w-fit rounded-full px-2.5 py-1 text-xs font-extrabold ${submission.status === "APPROVED" ? "bg-emerald-100 text-emerald-800" : submission.status === "REVISION_REQUIRED" ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"}`}
-                            >
-                              {submission.status.replace(/_/g, " ")}
-                            </span>
-                          </button>
-                        ))}
-                        {!filteredSubmissions.length && !titleProposalQueries.some(query => query.isLoading || query.isError) && (
-                          <div className="flex min-h-72 flex-col items-center justify-center p-8 text-center">
-                            <span className="grid h-14 w-14 place-items-center rounded-full bg-slate-100 text-slate-500">
-                              <i className="ti ti-inbox text-2xl" />
-                            </span>
-                            <h3 className="mt-3 font-extrabold text-[#102f49]">
-                              No submissions in this view
-                            </h3>
-                            <p className="mt-1 text-base text-slate-500">
-                              Try another filter or check back after students
-                              submit work.
-                            </p>
-                          </div>
-                        )}
+                              <span className="rs-hide-small">{new Date(submission.submittedAt).toLocaleDateString()}</span>
+                              <StatusDot tone={submission.status === "APPROVED" ? "done" : submission.status === "REVISION_REQUIRED" ? "attention" : "waiting"}>
+                                {submission.status.replace(/_/g, " ").toLowerCase().replace(/^./, (letter: string) => letter.toUpperCase())}
+                              </StatusDot>
+                              <div className="rs-actions">
+                                <button type="button" className={waiting ? "rs-primary" : "rh-secondary"} aria-label={`${waiting ? "Review" : "Open"} ${submission.task?.title || "submission"}`} onClick={() => openSubmissionReview(submission)}>
+                                  {waiting ? "Review" : "Open"}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </section>
+                    ) : !titleProposalQueries.some(query => query.isLoading || query.isError) ? (
+                      <div className="rs-empty-card">
+                        <EmptyNote layout="row" icon="ti-inbox" title="No submissions in this view" text="Try another filter or check back after students submit work." />
                       </div>
-                    </section>
+                    ) : null}
                   </>
                 )}
               </div>
             ),
-            monitoring: (
-              <div className="coordinator-projects bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <div className="cproj-header workspace-page-header">
-                  <h3 className="font-extrabold text-[#1b4264] text-lg">
-                    Research Projects
-                  </h3>
-                  <p className="mt-1 text-base text-slate-500">
-                    Manage registered projects across your workflows.
-                  </p>
-                </div>
-                {projects.length > 0 && (
-                  <div className="cproj-search relative max-w-xl">
-                    <i className="ti ti-search pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="search"
-                      value={monitoringSearch}
-                      onChange={(event) =>
-                        setMonitoringSearch(event.target.value)
+            monitoring: selectedProject ? (
+              <CoordinatorProjectDetail
+                project={selectedProject}
+                onBack={() => setSelectedProject(null)}
+                onReview={(submission) => {
+                  openSubmissionReview({
+                    ...submission,
+                    projectId: selectedProject.id,
+                    projectTitle: selectedProject.title,
+                    currentStage: selectedProject.currentStage,
+                    members: selectedProject.members,
+                  });
+                  setSelectedProject(null);
+                  handleTabChange("submissions");
+                }}
+              />
+            ) : (
+              <CoordinatorProjects
+                projects={registeredProjects}
+                search={monitoringSearch}
+                setSearch={setMonitoringSearch}
+                loading={projectsLoading || workflowsLoading || enrollmentsLoading}
+                errored={Boolean(projectsError || workflowsError || enrollmentsError)}
+                skeleton={<div className="rs-table" style={{ padding: 16 }}><ListRowsSkeleton rows={5} avatars={false} /></div>}
+                hasDraftOnly={projects.length > 0}
+                canManageParticipants={Boolean(selectedWorkflowId)}
+                onManageParticipants={() => openWorkflowParticipants(selectedWorkflowId)}
+                onOpen={setSelectedProject}
+                onRemove={(project) => setMonitoringPendingRemoval({ kind: "project", id: project.id, name: project.title })}
+                onboarding={
+                  !projectsError && !workflowsError && !enrollmentsError ? (
+                    <ResearchProjectsOnboarding
+                      workflows={workflows.map((workflow) => ({
+                        id: workflow.id,
+                        name: workflow.name,
+                      }))}
+                      selectedWorkflowId={selectedWorkflowId}
+                      participantCount={selectedWorkflowParticipants.length}
+                      onSelectWorkflow={selectMonitoringWorkflow}
+                      onCreateWorkflow={() => {
+                        setCreatingWorkflow(true);
+                        router.push("/professor/dashboard?tab=builder");
+                      }}
+                      onOpenParticipants={() =>
+                        openWorkflowParticipants(selectedWorkflowId)
                       }
-                      placeholder="Search project, adviser, research type, or program…"
-                      data-tour="page-filter"
-                      data-guide="co-project-search"
-                      aria-label="Search research projects"
-                      className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-base text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#173f63] focus:ring-2 focus:ring-[#173f63]/10"
                     />
-                    {monitoringSearch && (
-                      <button
-                        type="button"
-                        onClick={() => setMonitoringSearch("")}
-                        aria-label="Clear search"
-                        className="absolute right-2.5 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                      >
-                        <i className="ti ti-x" />
-                      </button>
-                    )}
-                  </div>
-                )}
-                {(projectsError || workflowsError || enrollmentsError) && (
-                  <div
-                    role="alert"
-                    className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-                  >
-                    Dashboard data could not be loaded. Check the API connection
-                    and try again.
-                  </div>
-                )}
-                {legacyWorkflowUiEnabled ? (
-                  enrollmentsLoading ? (
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
-                      <ListRowsSkeleton rows={5} />
-                    </div>
-                  ) : (
-                    <div className="overflow-hidden rounded-xl border border-slate-200">
-                      {acceptedResearchers
-                        .filter((enrollment: any) => {
-                          const query = monitoringSearch.trim().toLowerCase();
-                          if (!query) return true;
-                          return [
-                            enrollment.user.firstName,
-                            enrollment.user.lastName,
-                            enrollment.user.universityId,
-                            enrollment.user.email,
-                            enrollment.workflow.name,
-                          ]
-                            .filter(Boolean)
-                            .some((value) =>
-                              String(value).toLowerCase().includes(query),
-                            );
-                        })
-                        .map((enrollment: any) => {
-                          const linkedProject = projects.find((project: any) =>
-                            project.researchers.some(
-                              (member: any) =>
-                                member.user?.id === enrollment.user.id,
-                            ),
-                          );
-                          return (
-                            <div
-                              key={enrollment.id}
-                              className="grid gap-3 border-b border-slate-100 p-4 last:border-b-0 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-center"
-                            >
-                              <div>
-                                <p className="font-bold text-[#173f63]">
-                                  {enrollment.user.firstName}{" "}
-                                  {enrollment.user.lastName}
-                                </p>
-                                <p className="text-base text-slate-500">
-                                  {enrollment.user.universityId ||
-                                    enrollment.user.email}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
-                                  Workflow
-                                </p>
-                                <p className="mt-1 text-base font-semibold text-slate-700">
-                                  {enrollment.workflow.name}
-                                </p>
-                              </div>
-                              <Tag variant={linkedProject ? "success" : "info"}>
-                                {linkedProject
-                                  ? "Project created"
-                                  : "No project yet"}
-                              </Tag>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setMonitoringPendingRemoval({
-                                    kind: "researcher",
-                                    id: enrollment.id,
-                                    name:
-                                      `${enrollment.user.firstName || ""} ${enrollment.user.lastName || ""}`.trim() ||
-                                      enrollment.user.email,
-                                    workflowName: enrollment.workflow.name,
-                                  })
-                                }
-                                className="inline-flex items-center justify-center rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50"
-                              >
-                                <i className="ti ti-trash mr-1.5" />
-                                Remove
-                              </button>
-                            </div>
-                          );
-                        })}
-                      {!acceptedResearchers.length && !enrollmentsError && (
-                        <div className="p-8 text-center">
-                          <p className="font-bold text-[#173f63]">
-                            No accepted researchers yet
-                          </p>
-                          <p className="mt-1 text-base text-slate-500">
-                            Researchers appear here after they accept a workflow
-                            invitation.
-                          </p>
-                        </div>
-                      )}
-                      {acceptedResearchers.length > 0 &&
-                        !acceptedResearchers.some((enrollment: any) => {
-                          const query = monitoringSearch.trim().toLowerCase();
-                          if (!query) return true;
-                          return [
-                            enrollment.user.firstName,
-                            enrollment.user.lastName,
-                            enrollment.user.universityId,
-                            enrollment.user.email,
-                            enrollment.workflow.name,
-                          ]
-                            .filter(Boolean)
-                            .some((value) =>
-                              String(value).toLowerCase().includes(query),
-                            );
-                        }) && (
-                          <div className="p-8 text-center text-sm text-slate-500">
-                            No researchers match “{monitoringSearch}”.
-                          </div>
-                        )}
-                    </div>
-                  )
-                ) : projectsLoading ||
-                  workflowsLoading ||
-                  enrollmentsLoading ? (
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <ListRowsSkeleton rows={5} avatars={false} />
-                  </div>
-                ) : (
-                  <div className="cproj-list flex flex-col gap-3.5 mt-2">
-                    {registeredProjects
-                      .filter((project: any) => {
-                        const query = monitoringSearch.trim().toLowerCase();
-                        if (!query) return true;
-                        return [
-                          project.title,
-                          project.adviser?.firstName,
-                          project.adviser?.lastName,
-                          project.adviser?.email,
-                          project.researchType?.name,
-                          project.program?.code,
-                          project.program?.name,
-                        ]
-                          .filter(Boolean)
-                          .some((value) =>
-                            String(value).toLowerCase().includes(query),
-                          );
-                      })
-                      .map((p) => (
-                        <div
-                          key={p.id}
-                          className="cproj-row p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-left text-[12.5px] shadow-sm transition hover:border-[#f6a800]"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setSelectedProject(p)}
-                            className="cproj-open min-w-0 flex-1 text-left"
-                          >
-                            <span className="cproj-icon" aria-hidden="true"><i className="ti ti-folder" /></span>
-                            <span className="cproj-copy">
-                            <span className="cproj-title font-bold text-[#1b4264] block">
-                              {p.group}
-                            </span>
-                            <span className="text-sm text-slate-500">
-                              {p.researchers.length === 1
-                                ? "Individual"
-                                : `${p.researchers.length} researchers`}{" "}
-                              · {p.currentStage?.name || "Not started"} ·{" "}
-                              {p.progress}% complete
-                            </span>
-                            </span>
-                            <i className="cproj-chevron ti ti-chevron-right" aria-hidden="true" />
-                          </button>
-                          <div className="cproj-actions ml-4 flex shrink-0 items-center gap-2">
-                            <Tag className="capitalize" variant={p.status === "revision" ? "warning" : p.status === "completed" ? "success" : "neutral"}>{p.status}</Tag>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setMonitoringPendingRemoval({
-                                  kind: "project",
-                                  id: p.id,
-                                  name: p.title,
-                                })
-                              }
-                              className="inline-flex items-center rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50"
-                            >
-                              <i className="ti ti-trash mr-1.5" />
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    {!registeredProjects.length && projects.length > 0 && <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"><h3 className="font-bold">Research titles not registered yet</h3><p className="mt-2 text-sm">Researchers can begin milestones before registering a title. If the workflow uses Title Proposal, accept a submitted title to register their project.</p><button type="button" onClick={() => router.push("/professor/dashboard?tab=builder")} className="mt-3 text-sm font-bold text-[var(--color-primary)]">View workflow</button></div>}
-                    {!projects.length &&
-                      !projectsError &&
-                      !workflowsError &&
-                      !enrollmentsError && (
-                        <ResearchProjectsOnboarding
-                          workflows={workflows.map((workflow) => ({
-                            id: workflow.id,
-                            name: workflow.name,
-                          }))}
-                          selectedWorkflowId={selectedWorkflowId}
-                          participantCount={selectedWorkflowParticipants.length}
-                          onSelectWorkflow={selectMonitoringWorkflow}
-                          onCreateWorkflow={() => {
-                            setCreatingWorkflow(true);
-                            router.push("/professor/dashboard?tab=builder");
-                          }}
-                          onOpenParticipants={() =>
-                            openWorkflowParticipants(selectedWorkflowId)
-                          }
-                        />
-                      )}
-                    {registeredProjects.length > 0 &&
-                      !registeredProjects.some((project: any) => {
-                        const query = monitoringSearch.trim().toLowerCase();
-                        if (!query) return true;
-                        return [
-                          project.title,
-                          project.adviser?.firstName,
-                          project.adviser?.lastName,
-                          project.adviser?.email,
-                          project.researchType?.name,
-                          project.program?.code,
-                          project.program?.name,
-                        ]
-                          .filter(Boolean)
-                          .some((value) =>
-                            String(value).toLowerCase().includes(query),
-                          );
-                      }) && (
-                        <div className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                          No projects match “{monitoringSearch}”.
-                        </div>
-                      )}
-                  </div>
-                )}
-              </div>
+                  ) : null
+                }
+              />
             ),
             builder: (
-              <div data-tour="workflow-structure" className="professor-workflow mx-auto flex w-full max-w-[1360px] flex-col gap-5 text-[var(--color-text-primary)]">
-                <section className="workflow-builder-header workspace-page-header rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] lg:p-6">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--color-primary)]">
-                        Professor / Coordinator
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-xl font-extrabold text-[var(--color-text-primary)]">
-                          Research Workflow
-                        </h2>
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${selectedWorkflow?.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
-                        >
-                          {selectedWorkflow?.status
-                            ? selectedWorkflow.status
-                                .toLowerCase()
-                                .replace(/^\w/, (letter: string) =>
-                                  letter.toUpperCase(),
-                                )
-                            : "No workflow selected"}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-base text-slate-500">
-                        Configure research stages, milestones, and approval requirements.
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto">
-                      <button
-                        type="button"
-                        disabled={!selectedWorkflow}
-                        onClick={() => setShowStudentPreview(true)}
-                        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-extrabold text-[var(--color-primary)] transition hover:bg-[var(--color-surface-subtle)] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <i className="ti ti-eye mr-1.5" aria-hidden="true" />
-                        Preview as Student
-                      </button>
-                      <button
-                        type="button"
-                        disabled={
-                          !selectedWorkflow ||
-                          selectedWorkflow.status === "PUBLISHED" ||
-                          publishingWorkflow
-                        }
-                        data-guide="co-workflow-publish"
-                        onClick={() => setShowPublishConfirmation(true)}
-                        className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-extrabold text-[var(--college-on-primary)] shadow-sm transition hover:bg-[var(--color-primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <i
-                          className={`ti ${publishingWorkflow ? "ti-loader-2 animate-spin" : selectedWorkflow?.status === "PUBLISHED" ? "ti-circle-check" : "ti-send"} mr-1.5`}
-                          aria-hidden="true"
-                        />
-                        {publishingWorkflow
-                          ? "Publishing…"
-                          : selectedWorkflow?.status === "PUBLISHED"
-                            ? "Published"
-                            : "Publish"}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="workflow-builder-selector mt-5 flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center">
-                    <label className="text-sm font-bold text-[var(--color-text-primary)]">
-                      Workflow
-                    </label>
-                    <select
-                      value={selectedWorkflowId}
-                      onChange={(event) => {
-                        selectWorkflow(event.target.value);
-                      }}
-                      className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-base font-semibold text-[var(--color-text-primary)] sm:max-w-md"
-                    >
-                      {!workflows.length && (
-                        <option value="">No workflow created yet</option>
-                      )}
+              <div data-tour="workflow-structure" className="professor-workflow rs mx-auto w-full max-w-[1360px]">
+                <RoleBand
+                  eyebrow="Course workspace"
+                  title="Research workflow"
+                  titleId="coordinator-workflow-title"
+                  meta={selectedWorkflow?.status === "DRAFT" ? "Draft milestones stay private until you publish. Existing student submissions are never changed." : "Configure research stages, milestones, and approval requirements."}
+                  counts={[
+                    { label: "Topics", value: selectedWorkflowTopics.length },
+                    { label: "Milestones", value: milestones.filter((item) => item.workflowId === selectedWorkflowId).length },
+                    { label: "Requirements", value: workflowRequirementCount },
+                    { label: "Researchers", value: workflowEnrollmentCount },
+                  ]}
+                  countsLabel="Workflow summary"
+                  primary={{
+                    label: publishingWorkflow ? "Publishing…" : selectedWorkflow?.status === "PUBLISHED" ? "Published" : "Publish",
+                    icon: selectedWorkflow?.status === "PUBLISHED" ? "ti-circle-check" : "ti-send",
+                    guide: "co-workflow-publish",
+                    disabled: !selectedWorkflow || selectedWorkflow.status === "PUBLISHED" || publishingWorkflow,
+                    onClick: () => setShowPublishConfirmation(true),
+                  }}
+                  secondary={[{ label: "Preview as Student", icon: "ti-eye", disabled: !selectedWorkflow, onClick: () => setShowStudentPreview(true) }]}
+                />
+                <div className="rs-tools">
+                  <div className="rs-tools-end" style={{ marginLeft: 0 }}>
+                    <select className="rs-select" aria-label="Workflow" value={selectedWorkflowId} onChange={(event) => selectWorkflow(event.target.value)}>
+                      {!workflows.length && <option value="">No workflow created yet</option>}
                       {workflows.map((workflow) => (
-                        <option key={workflow.id} value={workflow.id}>
-                          {workflow.name}
-                        </option>
+                        <option key={workflow.id} value={workflow.id}>{workflow.name}</option>
                       ))}
                     </select>
-                    <span
-                      className="flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-muted)]"
-                      role="status"
-                    >
-                      <i
-                        className="ti ti-cloud-check text-emerald-600"
-                        aria-hidden="true"
-                      />
-                      {workflowSavedLabel
-                        ? `Last saved ${workflowSavedLabel}`
-                        : "Changes are saved directly to this workflow"}
-                    </span>
+                    <StatusDot tone={selectedWorkflow?.status === "PUBLISHED" ? "done" : selectedWorkflow ? "waiting" : "neutral"}>
+                      {selectedWorkflow?.status ? selectedWorkflow.status.toLowerCase().replace(/^\w/, (letter: string) => letter.toUpperCase()) : "No workflow selected"}
+                    </StatusDot>
                   </div>
-                  {selectedWorkflow?.status === "DRAFT" && (
-                    <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-                      <i className="ti ti-lock mt-0.5" aria-hidden="true" />
-                      Draft milestones remain private until you publish.
-                      Existing student submissions are never changed by
-                      publishing.
-                    </p>
-                  )}
-                </section>
+                  <span className="rs-note" role="status">
+                    <i className="ti ti-cloud-check" aria-hidden="true" /> {workflowSavedLabel ? `Last saved ${workflowSavedLabel}` : "Changes are saved directly to this workflow"}
+                  </span>
+                </div>
                 <div
                   className="workflow-builder-tabs overflow-x-auto rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-2 shadow-sm"
                   role="tablist"
@@ -5914,12 +4874,12 @@ function ProfessorDashboardContent() {
                             0,
                           );
                         }}
-                        className={`relative flex items-center gap-2 whitespace-nowrap px-5 py-4 text-sm font-extrabold transition ${workflowView === item.id ? "text-[#173f63]" : "text-slate-500 hover:text-[#173f63]"}`}
+                        className={`relative flex items-center gap-2 whitespace-nowrap px-5 py-4 text-sm font-semibold transition ${workflowView === item.id ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"}`}
                       >
                         <i className={`ti ${item.icon}`} />
                         {item.label}
                         {workflowView === item.id && (
-                          <span className="absolute inset-x-3 bottom-0 h-1 rounded-t-full bg-[#f6a800]" />
+                          <span className="absolute inset-x-3 bottom-0 h-1 rounded-t-full bg-[var(--color-primary)]" />
                         )}
                       </button>
                     ))}
@@ -5932,14 +4892,14 @@ function ProfessorDashboardContent() {
                     aria-labelledby="workflow-tab-overview"
                     className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]"
                   >
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
-                      <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-[#C58A18]">
+                    <div className="rounded-[17px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm lg:p-6">
+                      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#C58A18]">
                         Selected workflow
                       </p>
-                      <h3 className="mt-2 text-xl font-black text-[#102f49]">
+                      <h3 className="mt-2 text-xl font-semibold text-[var(--color-text-primary)]">
                         {selectedWorkflow?.name || "Create your first workflow"}
                       </h3>
-                      <p className="mt-2 max-w-3xl text-base leading-6 text-slate-500">
+                      <p className="mt-2 max-w-3xl text-base leading-6 text-[var(--color-text-secondary)]">
                         {selectedWorkflow?.description ||
                           "Build a reusable research process, share official guides, and invite researchers when it is ready."}
                       </p>
@@ -5964,15 +4924,15 @@ function ProfessorDashboardContent() {
                         ].map(([label, value, icon]) => (
                           <div
                             key={String(label)}
-                            className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                            className="rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4"
                           >
                             <i
                               className={`ti ${icon} text-lg text-[#C58A18]`}
                             />
-                            <strong className="mt-3 block text-2xl font-black text-[#102f49]">
+                            <strong className="mt-3 block text-2xl font-semibold text-[var(--color-text-primary)]">
                               {value}
                             </strong>
-                            <span className="text-xs font-bold text-slate-500">
+                            <span className="text-xs font-bold text-[var(--color-text-secondary)]">
                               {label}
                             </span>
                           </div>
@@ -5986,7 +4946,7 @@ function ProfessorDashboardContent() {
                             openNewMilestone("submission");
                           }}
                           disabled={!selectedWorkflowId}
-                          className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-40"
+                          className="rounded-[10px] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
                         >
                           <i className="ti ti-plus mr-1.5" />
                           Add milestone
@@ -5995,7 +4955,7 @@ function ProfessorDashboardContent() {
                           type="button"
                           onClick={() => setWorkflowView("resources")}
                           disabled={!selectedWorkflowId}
-                          className="rounded-xl border border-[#173f63] px-4 py-2.5 text-sm font-extrabold text-[#173f63] disabled:opacity-40"
+                          className="rounded-[10px] border border-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] disabled:opacity-40"
                         >
                           <i className="ti ti-upload mr-1.5" />
                           Manage resources
@@ -6003,23 +4963,23 @@ function ProfessorDashboardContent() {
                       </div>
                     </div>
                     <aside className="space-y-4">
-                      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <h3 className="font-extrabold text-[#102f49]">
+                      <section className="rounded-[17px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+                        <h3 className="font-semibold text-[var(--color-text-primary)]">
                           Workflow readiness
                         </h3>
                         <div className="mt-4 space-y-3 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-slate-500">Version</span>
+                            <span className="text-[var(--color-text-secondary)]">Version</span>
                             <strong>v{selectedWorkflow?.version || 1}</strong>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-slate-500">
+                            <span className="text-[var(--color-text-secondary)]">
                               Approval gates
                             </span>
                             <strong>{workflowApprovalCount}</strong>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-slate-500">Invitation</span>
+                            <span className="text-[var(--color-text-secondary)]">Invitation</span>
                             <strong
                               className={
                                 selectedWorkflow?.inviteCode
@@ -6034,11 +4994,11 @@ function ProfessorDashboardContent() {
                           </div>
                         </div>
                       </section>
-                      <section className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5">
-                        <h3 className="font-extrabold text-[#102f49]">
+                      <section className="rounded-[17px] border border-blue-100 bg-blue-50/70 p-5">
+                        <h3 className="font-semibold text-[var(--color-text-primary)]">
                           Whole-workflow resources
                         </h3>
-                        <p className="mt-1 text-base leading-5 text-slate-600">
+                        <p className="mt-1 text-base leading-5 text-[var(--color-text-secondary)]">
                           Guides and templates are shared with every enrolled
                           researcher and are not tied to individual milestones.
                         </p>
@@ -6095,7 +5055,7 @@ function ProfessorDashboardContent() {
                   >
                     {(workflowsError || workflowsLoading) && (
                       <section
-                        className={`rounded-2xl border p-5 text-sm ${workflowsError ? "border-red-200 bg-red-50 text-red-700" : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]"}`}
+                        className={`rounded-[17px] border p-5 text-sm ${workflowsError ? "border-red-200 bg-red-50 text-red-700" : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]"}`}
                         role="status"
                         aria-live="polite"
                         aria-busy={workflowsLoading}
@@ -6109,10 +5069,10 @@ function ProfessorDashboardContent() {
                     )}
                     {!workflowsLoading && !workflowsError && (
                       <div className="workflow-builder-layout grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
-                        <section className="workflow-structure rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+                        <section className="workflow-structure rounded-[17px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
                           <div className="workflow-structure-heading flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                              <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
+                              <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
                                 Workflow structure
                               </h3>
                               <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
@@ -6139,7 +5099,7 @@ function ProfessorDashboardContent() {
                                   data-guide="co-workflow-create"
                                   aria-haspopup="menu"
                                   aria-expanded={showWorkflowCreateMenu}
-                                  className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-extrabold text-[var(--college-on-primary)] shadow-sm disabled:cursor-not-allowed disabled:opacity-40 dark:text-[var(--college-on-primary-dark)]"
+                                  className="rounded-[10px] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--college-on-primary)] shadow-sm disabled:cursor-not-allowed disabled:opacity-40 dark:text-[var(--college-on-primary-dark)]"
                                 >
                                   <i className="ti ti-plus mr-1.5" />
                                   Create{" "}
@@ -6148,25 +5108,25 @@ function ProfessorDashboardContent() {
                                 {showWorkflowCreateMenu && (
                                   <div
                                     role="menu"
-                                    className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] py-2 shadow-xl"
+                                    className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface)] py-2 shadow-xl"
                                   >
                                     <button
                                       type="button"
                                       role="menuitem"
                                       onClick={() => openTopicEditor()}
-                                      className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
+                                      className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-[var(--color-surface-subtle)]"
                                     >
                                       <i className="ti ti-folders mt-0.5 text-lg text-[#C58A18]" />
                                       <span>
-                                        <strong className="block text-sm text-[#102f49]">
+                                        <strong className="block text-sm text-[var(--color-text-primary)]">
                                           Topic
                                         </strong>
-                                        <span className="mt-0.5 block text-sm text-slate-500">
+                                        <span className="mt-0.5 block text-sm text-[var(--color-text-secondary)]">
                                           Group milestones by defense or phase
                                         </span>
                                       </span>
                                     </button>
-                                    <div className="my-1 border-t border-slate-100" />
+                                    <div className="my-1 border-t border-[var(--color-border)]" />
                                     {[
                                       ["title", "ti-writing", "Title Proposal", "Approve one title to register the research project"],
                                       [
@@ -6217,23 +5177,23 @@ function ProfessorDashboardContent() {
                                                 | "title",
                                             );
                                           }}
-                                          className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                          className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-[var(--color-surface-subtle)] disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                           <i
-                                            className={`ti ${icon} mt-0.5 text-lg text-[#173f63]`}
+                                            className={`ti ${icon} mt-0.5 text-lg text-[var(--color-text-primary)]`}
                                           />
                                           <span>
-                                            <strong className="block text-sm text-[#102f49]">
+                                            <strong className="block text-sm text-[var(--color-text-primary)]">
                                               {label}
                                             </strong>
-                                            <span className="mt-0.5 block text-sm text-slate-500">
+                                            <span className="mt-0.5 block text-sm text-[var(--color-text-secondary)]">
                                               {description}
                                             </span>
                                           </span>
                                         </button>
                                       ),
                                     )}
-                                    <div className="my-1 border-t border-slate-100" />
+                                    <div className="my-1 border-t border-[var(--color-border)]" />
                                     <button
                                       type="button"
                                       role="menuitem"
@@ -6241,14 +5201,14 @@ function ProfessorDashboardContent() {
                                         setShowWorkflowCreateMenu(false);
                                         setWorkflowView("resources");
                                       }}
-                                      className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
+                                      className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-[var(--color-surface-subtle)]"
                                     >
-                                      <i className="ti ti-books mt-0.5 text-lg text-[#173f63]" />
+                                      <i className="ti ti-books mt-0.5 text-lg text-[var(--color-text-primary)]" />
                                       <span>
-                                        <strong className="block text-sm text-[#102f49]">
+                                        <strong className="block text-sm text-[var(--color-text-primary)]">
                                           Guide or template
                                         </strong>
-                                        <span className="mt-0.5 block text-sm text-slate-500">
+                                        <span className="mt-0.5 block text-sm text-[var(--color-text-secondary)]">
                                           Share a reusable workflow resource
                                         </span>
                                       </span>
@@ -6260,13 +5220,13 @@ function ProfessorDashboardContent() {
                           </div>
                           <div className="workflow-topic-list mt-5 flex flex-col gap-5">
                             {ungroupedWorkflowMilestones.length > 0 && (
-                              <section className="workflow-topic workflow-topic-ungrouped order-2 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+                              <section className="workflow-topic workflow-topic-ungrouped order-2 overflow-hidden rounded-[17px] border border-[var(--color-border)] bg-[var(--color-surface)]">
                                 <div className="workflow-topic-heading flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-3">
-                                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-100 text-amber-700">
+                                  <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-amber-100 text-amber-700">
                                     <i className="ti ti-folder-question" />
                                   </span>
                                   <div>
-                                    <h4 className="font-extrabold text-[var(--color-text-primary)]">
+                                    <h4 className="font-semibold text-[var(--color-text-primary)]">
                                       Ungrouped milestones
                                     </h4>
                                     <p className="text-base text-[var(--color-text-secondary)]">
@@ -6297,7 +5257,7 @@ function ProfessorDashboardContent() {
                                       if (draggedMilestoneId) void handleMoveMilestone(draggedMilestoneId, topic.id, null);
                                       else void handleDropTopic(topic.id);
                                     }}
-                                    className={`workflow-topic order-1 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] transition ${draggedTopicId === topic.id ? "opacity-60 ring-2 ring-[var(--college-focus-ring)]" : ""}`}
+                                    className={`workflow-topic order-1 overflow-hidden rounded-[17px] border border-[var(--color-border)] bg-[var(--color-surface)] transition ${draggedTopicId === topic.id ? "opacity-60 ring-2 ring-[var(--college-focus-ring)]" : ""}`}
                                   >
                                     <header className="workflow-topic-heading flex flex-col gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                                       <div className="flex min-w-0 items-start gap-3">
@@ -6312,7 +5272,7 @@ function ProfessorDashboardContent() {
                                           onDragEnd={() =>
                                             setDraggedTopicId(null)
                                           }
-                                          className="grid h-10 w-10 shrink-0 cursor-grab place-items-center rounded-xl bg-[var(--color-primary)] text-[var(--college-on-primary)] active:cursor-grabbing"
+                                          className="grid h-10 w-10 shrink-0 cursor-grab place-items-center rounded-[10px] bg-[var(--color-primary)] text-[var(--college-on-primary)] active:cursor-grabbing"
                                           aria-hidden="true"
                                           title="Drag to reorder"
                                         >
@@ -6322,7 +5282,7 @@ function ProfessorDashboardContent() {
                                           />
                                         </span>
                                         <div className="min-w-0">
-                                          <h4 className="font-extrabold text-[var(--color-text-primary)]">
+                                          <h4 className="font-semibold text-[var(--color-text-primary)]">
                                             <span className="mr-2 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
                                               Phase {topicIndex + 1}
                                             </span>
@@ -6333,7 +5293,7 @@ function ProfessorDashboardContent() {
                                               {topic.description}
                                             </p>
                                           )}
-                                          <span className="mt-1 block text-xs font-bold uppercase tracking-wide text-slate-400">
+                                          <span className="mt-1 block text-xs font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
                                             {topicMilestones.length} milestone
                                             {topicMilestones.length === 1
                                               ? ""
@@ -6358,7 +5318,7 @@ function ProfessorDashboardContent() {
                                           }
                                           aria-controls={`workflow-topic-${topic.id}`}
                                           aria-label={`${collapsedTopicIds.has(topic.id) ? "Expand" : "Collapse"} ${topic.title}`}
-                                          className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-white"
+                                          className="grid h-9 w-9 place-items-center rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]"
                                         >
                                           <i
                                             className={`ti ${collapsedTopicIds.has(topic.id) ? "ti-chevron-down" : "ti-chevron-up"}`}
@@ -6376,7 +5336,7 @@ function ProfessorDashboardContent() {
                                               topic.id,
                                             )
                                           }
-                                          className="ml-1 rounded-xl bg-white px-3 py-2 text-sm font-extrabold text-[#173f63] shadow-sm ring-1 ring-slate-200 hover:ring-[#173f63]"
+                                          className="ml-1 rounded-[10px] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)] shadow-sm ring-1 ring-slate-200 hover:ring-[#173f63]"
                                         >
                                           <i className="ti ti-plus mr-1" />
                                           Milestone
@@ -6401,7 +5361,7 @@ function ProfessorDashboardContent() {
                                               topic.id,
                                             )
                                           }
-                                          className="w-full rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm font-bold text-slate-500 hover:border-[#f6a800] hover:bg-amber-50/40 hover:text-[#102f49]"
+                                          className="w-full rounded-[10px] border border-dashed border-[var(--color-border)] px-4 py-6 text-center text-sm font-bold text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:bg-amber-50/40 hover:text-[var(--color-text-primary)]"
                                         >
                                           <i className="ti ti-plus mr-1.5" />
                                           Add the first milestone to{" "}
@@ -6415,16 +5375,16 @@ function ProfessorDashboardContent() {
                             )}
                             {!selectedWorkflowMilestones.length &&
                               !selectedWorkflowTopics.length && (
-                                <div className="rounded-2xl border border-dashed border-slate-300 px-6 py-12 text-center">
-                                  <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-amber-50 text-[#d98d00]">
+                                <div className="rounded-[17px] border border-dashed border-[var(--color-border)] px-6 py-12 text-center">
+                                  <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-amber-50 text-[var(--color-text-secondary)]">
                                     <i className="ti ti-route text-2xl" />
                                   </span>
-                                  <h4 className="mt-3 font-extrabold text-[#102f49]">
+                                  <h4 className="mt-3 font-semibold text-[var(--color-text-primary)]">
                                     {workflows.length
                                       ? "Start your research process"
                                       : "Create your first workflow"}
                                   </h4>
-                                  <p className="mt-1 text-base text-slate-500">
+                                  <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                                     {workflows.length
                                       ? "Create the first topic that will organize this workflow."
                                       : "Create an empty department workflow before adding milestones."}
@@ -6437,7 +5397,7 @@ function ProfessorDashboardContent() {
                                         : setCreatingWorkflow(true)
                                     }
                                     data-guide={workflows.length ? undefined : "co-workflow-new"}
-                                    className="mt-4 rounded-xl bg-[#f6a800] px-4 py-2.5 text-sm font-extrabold text-[#102f49]"
+                                    className="mt-4 rounded-[10px] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--college-on-primary)]"
                                   >
                                     {workflows.length
                                       ? "Add first topic"
@@ -6448,8 +5408,8 @@ function ProfessorDashboardContent() {
                           </div>
                         </section>
                         <aside className="workflow-builder-sidebar space-y-4">
-                          <section className="workflow-sidebar-quick-actions rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
-                            <h3 className="font-extrabold text-[var(--color-text-primary)]">Quick actions</h3>
+                          <section className="workflow-sidebar-quick-actions rounded-[17px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+                            <h3 className="font-semibold text-[var(--color-text-primary)]">Quick actions</h3>
                             <div className="mt-3 divide-y divide-[var(--color-border-subtle)]">
                               <button type="button" onClick={() => setShowStudentPreview(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)]"><i className="ti ti-eye" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Preview as Student</strong><span className="text-xs text-[var(--color-text-secondary)]">See the published student view</span></span></button>
                               <button type="button" onClick={() => setWorkflowView("resources")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-books" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Guides & Templates</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage shared workflow resources</span></span></button>
@@ -6458,10 +5418,10 @@ function ProfessorDashboardContent() {
                               <button type="button" disabled={!selectedWorkflow || deletingWorkflow} onClick={() => { if (!selectedWorkflow) return; setWorkflowToDelete({ id: selectedWorkflow.id, name: selectedWorkflow.name }); setDeleteConfirmation(""); setDeleteWorkflowError(""); }} className="flex w-full items-center gap-3 py-3 text-left disabled:opacity-50"><span className="grid h-9 w-9 place-items-center rounded-full bg-rose-50 text-rose-600"><i className="ti ti-trash" /></span><span><strong className="block text-sm text-rose-700">Delete workflow</strong><span className="text-xs text-[var(--color-text-secondary)]">Available only when no project is linked</span></span></button>
                             </div>
                           </section>
-                          <section className="workflow-sidebar-summary rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+                          <section className="workflow-sidebar-summary rounded-[17px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
                             <div className="flex items-start justify-between gap-3">
                               <div>
-                                <h3 className="font-extrabold text-[var(--color-text-primary)]">
+                                <h3 className="font-semibold text-[var(--color-text-primary)]">
                                   Workflow summary
                                 </h3>
                                 <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
@@ -6536,11 +5496,11 @@ function ProfessorDashboardContent() {
                               </div>
                             </div>
                           </section>
-                          <section className="workflow-sidebar-tip rounded-2xl border border-[var(--color-border)] bg-[var(--color-primary-subtle)] p-5">
+                          <section className="workflow-sidebar-tip rounded-[17px] border border-[var(--color-border)] bg-[var(--color-primary-subtle)] p-5">
                             <div className="flex gap-3">
                               <i className="ti ti-bulb text-xl text-[var(--color-primary)]" />
                               <div>
-                                <h3 className="font-extrabold text-[var(--color-text-primary)]">
+                                <h3 className="font-semibold text-[var(--color-text-primary)]">
                                   Planning tip
                                 </h3>
                                 <p className="mt-1 text-base leading-5 text-[var(--color-text-secondary)]">
@@ -6550,11 +5510,11 @@ function ProfessorDashboardContent() {
                               </div>
                             </div>
                           </section>
-                          <section className="workflow-sidebar-progress rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
-                            <h3 className="font-extrabold text-[var(--color-text-primary)]">Organization progress</h3>
+                          <section className="workflow-sidebar-progress rounded-[17px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+                            <h3 className="font-semibold text-[var(--color-text-primary)]">Organization progress</h3>
                             <div className="mt-4 flex items-center gap-4">
                               <div className="relative grid h-20 w-20 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(var(--color-primary) ${workflowConfigurationPercent}%, var(--color-surface-muted) 0)` }}>
-                                <span className="grid h-14 w-14 place-items-center rounded-full bg-[var(--color-surface)] text-sm font-black text-[var(--color-text-primary)]">{workflowConfigurationPercent}%</span>
+                                <span className="grid h-14 w-14 place-items-center rounded-full bg-[var(--color-surface)] text-sm font-semibold text-[var(--color-text-primary)]">{workflowConfigurationPercent}%</span>
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-bold text-[var(--color-text-primary)]">{selectedWorkflowMilestones.filter((item) => item.topicId).length} of {selectedWorkflowMilestones.length} milestones organized</p>
@@ -6678,62 +5638,13 @@ function ProfessorDashboardContent() {
               </div>
             ),
             tracking: (
-              <section data-tour="progress-records" className="coordinator-progress" aria-labelledby="coordinator-progress-title">
-                <header className="workspace-page-header cprogress-header">
-                  <div>
-                    <p className="cprogress-eyebrow">Research workspace</p>
-                    <h2 id="coordinator-progress-title">Research progress</h2>
-                    <p>Track each project's milestone completion.</p>
-                  </div>
-                  <Tag variant="neutral">
-                    {projects.length} {projects.length === 1 ? "project" : "projects"}
-                  </Tag>
-                </header>
-                <div className="cprogress-list">
-                  {projects.map((p) => (
-                    <article
-                      key={p.id}
-                      className="cprogress-row"
-                    >
-                      <div className="cprogress-project">
-                        <span className="cprogress-icon" aria-hidden="true">
-                          <ChartLine size={21} />
-                        </span>
-                        <div>
-                          <h3>{p.title || p.group}</h3>
-                          <p>
-                            <span>Current milestone</span>
-                            {p.currentStage?.name || "Not started"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="cprogress-meter">
-                        <div className="cprogress-value">
-                          <span>Milestone completion</span>
-                          <strong>{p.progress}<span>%</span></strong>
-                        </div>
-                        <div
-                          className="cprogress-track"
-                          role="progressbar"
-                          aria-label={`Milestone completion for ${p.title || p.group}`}
-                          aria-valuenow={p.progress}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                        >
-                          <div style={{ width: `${p.progress}%` }} />
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                  {projects.length === 0 && (
-                    <div className="cprogress-empty">
-                      <ChartLine className="cprogress-empty-icon" size={28} aria-hidden="true" />
-                      <h3>No projects to track yet</h3>
-                      <p>Projects will appear here once they have a workflow.</p>
-                    </div>
-                  )}
-                </div>
-              </section>
+              <CoordinatorProgress
+                projects={projects}
+                onOpen={(project) => {
+                  setSelectedProject(project);
+                  handleTabChange("monitoring");
+                }}
+              />
             ),
             completion: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">

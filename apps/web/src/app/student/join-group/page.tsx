@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
+import { RoleBand } from "@/components/dashboards/RoleScreenParts";
+import "../student-screens.css";
 
 const personName = (person: any) =>
   person
@@ -75,142 +77,86 @@ export default function JoinResearchGroupPage() {
     }
   };
 
+  const accessLabel =
+    preview?.accessMode === "PUBLIC_APPROVAL"
+      ? "Leader approval required"
+      : preview?.accessMode === "PUBLIC_OPEN"
+        ? "Open group"
+        : "Private invitation";
+
   return (
-    <div className="flex flex-1 items-center justify-center p-4 sm:p-6 lg:p-8">
-      <section className="w-full max-w-2xl rounded-2xl border border-[#DDE3E8] bg-white p-7 shadow-sm dark:border-white/10 dark:bg-[#101b2b] sm:p-8">
-        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#C9A227]">
-          <i className="ti ti-users-plus text-2xl" />
-        </span>
-        <h1 className="mt-4 text-center text-2xl font-black text-[#17212B] dark:text-white">
-          Join a research group
-        </h1>
-        <p className="mt-2 text-center text-base text-slate-500 dark:text-slate-400 sm:text-base">
-          Enter the code from the group leader, review the project, then confirm
-          whether you want to join.
-        </p>
-
-        {!preview ? (
-          <form onSubmit={reviewGroup} className="mt-6">
-            <label className="text-sm font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-              Research group code
-            </label>
-            <input
-              value={code}
-              data-guide="group-code"
-              onChange={(event) => {
-                setCode(
-                  event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""),
-                );
-                setMessage(null);
-              }}
-              maxLength={32}
-              autoFocus
-              placeholder="ENTER GROUP CODE"
-              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-center font-mono text-lg font-bold uppercase tracking-widest text-[#17212B] outline-none focus:border-[#0B3A53] dark:border-white/20 dark:bg-[#0B1726] dark:text-white dark:focus:border-[#C9A227]"
-            />
-            <button
-              disabled={!code.trim() || loading}
-              data-guide="group-review"
-              className="mt-5 w-full rounded-xl bg-[#0B3A53] px-5 py-3 text-sm font-extrabold text-white shadow-xs transition hover:bg-[#072A3D] disabled:opacity-50"
-            >
-              {loading ? "Checking…" : "Review group"}
-            </button>
-          </form>
-        ) : (
-          <div className="mt-6 space-y-4">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-white/5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-extrabold uppercase tracking-widest text-[#C58A18]">
-                    {previewKind === "workspace" ? "Workspace preview" : "Group preview"}
-                  </p>
-                  <h2 data-guide="group-preview" className="mt-1 text-lg font-black text-[#17212B] dark:text-white">
-                    {preview.groupName || "Research group"}
-                  </h2>
-                  <p className="mt-1 text-base text-slate-600 dark:text-slate-300">
-                    {previewKind === "workspace" ? `${preview.projectCount || 0} research projects` : preview.title}
-                  </p>
-                </div>
-                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-extrabold text-blue-800">
-                  {preview.accessMode === "PUBLIC_APPROVAL"
-                    ? "Leader approval required"
-                    : preview.accessMode === "PUBLIC_OPEN"
-                      ? "Open group"
-                      : "Private invitation"}
-                </span>
-              </div>
-              <dl className="mt-5 grid gap-3 text-xs sm:grid-cols-2">
-                <div className="rounded-xl bg-white p-3 dark:bg-white/5">
-                  <dt className="text-slate-400">Group leader</dt>
-                  <dd className="mt-1 font-bold text-[#17212B] dark:text-white">
-                    {personName(preview.leader)}
-                  </dd>
-                </div>
-                <div className="rounded-xl bg-white p-3 dark:bg-white/5">
-                  <dt className="text-slate-400">Program</dt>
-                  <dd className="mt-1 font-bold text-[#17212B] dark:text-white">
-                    {preview.program?.code || preview.program?.name}
-                  </dd>
-                </div>
-                <div className="rounded-xl bg-white p-3 dark:bg-white/5">
-                  <dt className="text-slate-400">Researchers</dt>
-                  <dd className="mt-1 font-bold text-[#17212B] dark:text-white">
-                    {preview.memberCount}
-                  </dd>
-                </div>
-                <div className="rounded-xl bg-white p-3 dark:bg-white/5">
-                  <dt className="text-slate-400">Adviser</dt>
-                  <dd className="mt-1 font-bold text-[#17212B] dark:text-white">
-                    {personName(preview.adviser)}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-            {!success && (
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setPreview(null)}
-                  className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600"
-                >
-                  Use another code
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void joinGroup()}
-                  disabled={joining}
-                  className="rounded-xl bg-[#0B3A53] px-5 py-2.5 text-sm font-extrabold text-white disabled:opacity-50"
-                >
-                  {joining
-                    ? "Submitting…"
-                    : preview.accessMode === "PUBLIC_APPROVAL"
-                      ? "Request to join"
-                      : "Join group"}
-                </button>
-              </div>
-            )}
+    <div className="rs mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8">
+      <RoleBand
+        eyebrow="Research workspace"
+        title="Join a research group"
+        titleId="student-join-title"
+        meta="Enter the code from your group leader, review the project, then confirm."
+      />
+      <div className="stu-two">
+        <section className="rh-panel" aria-labelledby="student-join-step">
+          <div className="rh-head">
+            <h2 id="student-join-step">{preview ? (previewKind === "workspace" ? "Workspace preview" : "Group preview") : "Enter your code"}</h2>
           </div>
-        )}
-
-        {message && (
-          <p
-            className={`mt-4 rounded-xl border p-3 text-base font-semibold sm:text-base ${
-              success
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
-                : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"
-            }`}
-          >
-            {message}
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={() => router.push("/student/dashboard?tab=group")}
-          className="mt-3 w-full rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 transition hover:text-slate-800 dark:hover:text-slate-200 sm:text-sm"
-        >
-          Back to My Projects
-        </button>
-      </section>
+          {!preview ? (
+            <form onSubmit={reviewGroup}>
+              <label className="stu-code-label" htmlFor="student-group-code">Research group code</label>
+              <input
+                id="student-group-code"
+                className="stu-code"
+                value={code}
+                data-guide="group-code"
+                onChange={(event) => {
+                  setCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""));
+                  setMessage(null);
+                }}
+                maxLength={32}
+                autoFocus
+                placeholder="ENTER CODE"
+              />
+              <button disabled={!code.trim() || loading} data-guide="group-review" className="rh-cta stu-wide-cta">
+                {loading ? "Checking…" : "Review group"} {!loading && <i className="ti ti-arrow-right" aria-hidden="true" />}
+              </button>
+            </form>
+          ) : (
+            <>
+              <div className="stu-preview">
+                <span className="rh-pill">{accessLabel}</span>
+                <h3 data-guide="group-preview">{preview.groupName || "Research group"}</h3>
+                <p>{previewKind === "workspace" ? `${preview.projectCount || 0} research projects` : preview.title}</p>
+                <dl>
+                  <div><dt>Group leader</dt><dd>{personName(preview.leader)}</dd></div>
+                  <div><dt>Program</dt><dd>{preview.program?.code || preview.program?.name}</dd></div>
+                  <div><dt>Researchers</dt><dd>{preview.memberCount}</dd></div>
+                  <div><dt>Adviser</dt><dd>{personName(preview.adviser)}</dd></div>
+                </dl>
+              </div>
+              {!success && (
+                <div className="stu-buttons">
+                  <button type="button" className="rh-secondary" onClick={() => setPreview(null)}>Use another code</button>
+                  <button type="button" className="rs-primary" onClick={() => void joinGroup()} disabled={joining}>
+                    {joining ? "Submitting…" : preview.accessMode === "PUBLIC_APPROVAL" ? "Request to join" : "Join group"}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+          {message && (
+            <div className="stu-notice" data-tone={success ? "done" : "attention"} style={{ marginTop: 12 }} role={success ? "status" : "alert"}>
+              <i className={`ti ${success ? "ti-circle-check" : "ti-alert-circle"}`} aria-hidden="true" />
+              <div className="stu-notice-text"><strong>{message}</strong></div>
+            </div>
+          )}
+          <button type="button" className="stu-link-button" onClick={() => router.push("/student/dashboard?tab=group")}>Back to My Projects</button>
+        </section>
+        <aside className="rh-panel" aria-labelledby="student-join-how">
+          <div className="rh-head"><h2 id="student-join-how">How joining works</h2></div>
+          <ol className="stu-steps">
+            <li><span><strong>Get the code</strong><small>Ask your group leader for the group code.</small></span></li>
+            <li><span><strong>Review the group</strong><small>Check the project, leader and adviser.</small></span></li>
+            <li><span><strong>Join or request</strong><small>Some groups need the leader's approval.</small></span></li>
+          </ol>
+        </aside>
+      </div>
     </div>
   );
 }

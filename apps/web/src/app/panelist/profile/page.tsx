@@ -20,7 +20,7 @@ function PanelistProfilePageContent() {
   return (
     <div>
       {toast && (
-        <div className="fixed top-5 right-5 z-55 bg-[#1b4264] border border-white/10 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3">
+        <div className="fixed top-5 right-5 z-55 bg-[var(--color-primary)] border border-white/10 text-[var(--college-on-primary)] px-4 py-3 rounded-lg shadow-xl flex items-center gap-3">
           <i className="ti ti-circle-check text-[var(--color-primary)] text-lg" />
           <span className="text-[12px] font-bold">{toast}</span>
         </div>

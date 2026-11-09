@@ -66,7 +66,7 @@ describe("archived user views", () => {
     expect(html).not.toContain("CURRENT-USER");
     expect(html).not.toContain("SUSPENDED-USER");
     expect(html).toContain("Verify &amp; restore");
-    expect(html).toContain("ARCHIVED</span>");
+    expect(html).toContain("Archived</span>");
     expect(html).not.toContain(">Archive</button>");
     expect(html).not.toContain(">Suspend</button>");
   });

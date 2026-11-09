@@ -460,16 +460,13 @@
   .app-workspace .workspace-page { gap: 12px; }
 
   /* ---------- Role home heroes ---------- */
-  .app-workspace .adviser-overview__hero,
-  .app-workspace .professor-overview__hero {
+  .app-workspace .adviser-overview__hero {
     padding: 14px 16px;
   }
-  .app-workspace .adviser-overview__hero h1,
-  .app-workspace .professor-overview__hero h1 {
+  .app-workspace .adviser-overview__hero h1 {
     font-size: 21px;
   }
-  .app-workspace .adviser-overview__hero p:not(.adviser-overview__eyebrow),
-  .app-workspace .professor-overview__hero p {
+  .app-workspace .adviser-overview__hero p:not(.adviser-overview__eyebrow) {
     font-size: 14px;
     line-height: 1.35;
   }
@@ -504,7 +501,6 @@
   }
   .app-workspace .adviser-overview__hero .adviser-overview__metric-value { font-size: 20px; }
   .app-workspace .adviser-overview__hero .adviser-overview__metric-label { font-size: 12px; }
-  .app-workspace .professor-overview__hero .professor-overview__hero-actions { margin-top: 10px; }
 
   /* ---------- Documents: work first ---------- */
   .app-workspace .researcher-documents .rd-library-hero {
@@ -728,13 +724,13 @@
   }
 
   /* ---------- Dean Home hero ---------- */
-  .app-workspace .dean-hero .au-band-side { align-items: stretch; width: 100%; }
-  .app-workspace .dean-hero .au-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .app-workspace .dean-hero .au-band-actions { display: flex; gap: 8px; }
-  .app-workspace .dean-hero .au-band-actions > * { width: auto; min-height: 44px; }
-  .app-workspace .dean-hero .au-band-actions > :first-child { flex: 1; }
-  .app-workspace .dean-hero .au-on-home,
-  .app-workspace .dean-hero .phone-filter-button {
+  .app-workspace .role-hero .au-band-side { align-items: stretch; width: 100%; }
+  .app-workspace .role-hero .au-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .app-workspace .role-hero .au-band-actions { display: flex; gap: 8px; }
+  .app-workspace .role-hero .au-band-actions > * { width: auto; min-height: 44px; }
+  .app-workspace .role-hero .au-band-actions > :first-child { flex: 1; }
+  .app-workspace .role-hero .au-on-home,
+  .app-workspace .role-hero .phone-filter-button {
     display: grid;
     place-items: center;
     flex: none;
@@ -747,7 +743,265 @@
     color: #ffffff;
     font-size: 0;
   }
-  .app-workspace .dean-hero .au-on-home i { font-size: 20px; }
-  .app-workspace .dean-hero .phone-filter-button svg { width: 20px; height: 20px; }
-  .app-workspace .dean-hero .phone-filter-count { font-size: 11px; }
+  .app-workspace .role-hero .au-on-home i { font-size: 20px; }
+  .app-workspace .role-hero .phone-filter-button svg { width: 20px; height: 20px; }
+  .app-workspace .role-hero .phone-filter-count { font-size: 11px; }
+
+  /* ---------- Grid lists become short expandable rows ---------- */
+  .app-workspace [data-phone-rows] > .rs-row:not(.rs-row--head) {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 3px 10px;
+    padding: 10px 46px 10px 14px;
+  }
+  .app-workspace [data-phone-rows] > .rs-row > [data-phone-role="title"] { flex: 1 1 0; min-width: 0; grid-column: auto; }
+  .app-workspace [data-phone-rows] > .rs-row > [data-phone-role="summary"] { flex: none; grid-column: auto; font-size: 13px; }
+  .app-workspace [data-phone-rows] > .rs-row > .rs-note[data-phone-role="summary"] { order: 3; flex: 0 0 100%; font-size: 12.5px; }
+  .app-workspace [data-phone-rows] .rs-who .rs-text { min-width: 0; }
+  .app-workspace [data-phone-rows] .rs-row:not([data-phone-open]) .rs-who small {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .app-workspace [data-phone-rows] .rs-row:not([data-phone-open]) > .rs-text[data-phone-role="title"] > :not(strong, small:first-of-type, .phone-row-toggle) { display: none !important; }
+  .app-workspace [data-phone-rows] > .rs-row > [data-phone-role="detail"],
+  .app-workspace [data-phone-rows] > .rs-row > [data-phone-role="actions"] { display: none !important; }
+  .app-workspace [data-phone-rows] > .rs-row[data-phone-open] > [data-phone-role="detail"] {
+    display: grid !important;
+    order: 4;
+    flex: 0 0 100%;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 2px 10px;
+    margin-top: 6px;
+  }
+  .app-workspace [data-phone-rows] > .rs-row > [data-phone-role="detail"]::before {
+    content: attr(data-label);
+    grid-row: 1 / span 3;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+  }
+  .app-workspace [data-phone-rows] > .rs-row > [data-phone-role="detail"] > * { grid-column: 2; }
+  .app-workspace [data-phone-rows] > .rs-row[data-phone-open] > [data-phone-role="actions"] {
+    display: flex !important;
+    order: 5;
+    flex: 0 0 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  /* ---------- Compact inner-page banners; role Homes keep the full one ---------- */
+  .app-workspace .rs-band.au-band--home:not(.rs-band--home) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 8px;
+    min-height: 0;
+    padding: 12px 14px;
+    border-radius: 16px;
+  }
+  .app-workspace .rs-band:not(.rs-band--home) .au-band-seal { top: 50%; right: -14px; height: 130%; opacity: 0.1; }
+  .app-workspace .rs-band:not(.rs-band--home) .au-band-main { grid-column: 1; grid-row: 1; min-width: 0; }
+  .app-workspace .rs-band:not(.rs-band--home) .au-band-eyebrow:not(:has(.rs-back)) { display: none; }
+  .app-workspace .rs-band:not(.rs-band--home) .au-band-title { margin: 0; font-size: 20px; line-height: 1.2; overflow-wrap: normal; }
+  .app-workspace .rs-band:not(.rs-band--home) .au-band-meta { margin-top: 3px; color: #f4c870; font-size: 13px; font-weight: 600; }
+  .app-workspace .rs-band:not(.rs-band--home) .au-band-side { display: contents; }
+  .app-workspace .rs-band:not(.rs-band--home) .au-band-actions { display: flex; grid-column: 2; grid-row: 1; gap: 6px; width: auto; }
+  .app-workspace .rs-band:not(.rs-band--home) .au-band-actions > * { flex: none; width: auto; min-height: 40px; }
+  .app-workspace .rs-band:not(.rs-band--home) .au-band-actions > :first-child { flex: none; }
+  .app-workspace .rs-band:not(.rs-band--home) .au-on-home { width: 40px; height: 40px; }
+  .app-workspace .rs-band:not(.rs-band--home) .au-counts {
+    display: flex;
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+    gap: 2px 9px;
+  }
+  .app-workspace .rs-band:not(.rs-band--home) .au-counts > div {
+    flex-direction: row-reverse;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 3px;
+    padding: 0;
+    border: 0;
+  }
+  .app-workspace .rs-band:not(.rs-band--home) .au-counts dt { font-size: 12px; white-space: nowrap; }
+  .app-workspace .rs-band:not(.rs-band--home) .au-counts dd :is(button, span) { min-height: 0; font-size: 15px; line-height: 1.3; }
+
+  /* ---------- Compact Adviser inner-page banners ---------- */
+  .app-workspace .phone-slim-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 8px;
+    min-height: 0;
+    padding: 12px 14px;
+    border-radius: 16px;
+  }
+  .app-workspace .phone-slim-hero .adviser-overview__seal { height: 130%; opacity: 0.1; }
+  .app-workspace .phone-slim-hero .adviser-overview__hero-heading { display: contents; }
+  .app-workspace .phone-slim-hero .adviser-overview__hero-heading > div:first-child { grid-column: 1; grid-row: 1; min-width: 0; }
+  .app-workspace .phone-slim-hero .adviser-overview__hero-heading p { display: none; }
+  .app-workspace .phone-slim-hero h1 { margin: 0; font-size: 20px; line-height: 1.2; }
+  .app-workspace .phone-slim-hero .adviser-overview__workload {
+    display: flex;
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+    gap: 2px 9px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .app-workspace .phone-slim-hero .adviser-overview__workload-item {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 3px;
+    width: auto;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .app-workspace .phone-slim-hero .adviser-overview__metric-value { font-size: 15px; line-height: 1.3; }
+  .app-workspace .phone-slim-hero .adviser-overview__metric-label { font-size: 12px; white-space: nowrap; }
+  .app-workspace .phone-slim-hero .adviser-overview__hero-actions {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    gap: 6px;
+    width: auto;
+    margin: 0;
+  }
+  .app-workspace .phone-slim-hero .adviser-overview__hero-actions button {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 40px;
+    min-width: 0;
+    height: 40px;
+    min-height: 40px;
+    padding: 0;
+    font-size: 0;
+  }
+  .app-workspace .phone-slim-hero .adviser-overview__hero-actions button i { font-size: 19px; }
+
+  /* ---------- Compact Official Copies picker ---------- */
+  .app-workspace .phone-slim-picker { min-height: 0; padding: 12px 14px; border-radius: 16px; }
+  .app-workspace .phone-slim-picker .pd-hero-eyebrow,
+  .app-workspace .phone-slim-picker .pd-hero-summary { display: none; }
+  .app-workspace .phone-slim-picker .pd-hero-title { margin: 0; font-size: 20px; line-height: 1.2; }
+  .app-workspace .phone-slim-picker .pd-hero-top { gap: 8px; }
+
+  /* ---------- Compact plain page headers ---------- */
+  .app-workspace .phone-slim-header {
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px;
+    padding: 10px 14px !important;
+  }
+  .app-workspace .phone-slim-header > div:first-child { flex: 1; min-width: 0; margin: 0; }
+  .app-workspace .phone-slim-header > div:first-child > .flex { margin-bottom: 2px; }
+  .app-workspace .phone-slim-header > div:first-child > .flex > span:first-child:not(:last-child) { display: none; }
+  .app-workspace .phone-slim-header h1 { font-size: 20px; line-height: 1.2; }
+  .app-workspace .phone-slim-header > div:first-child > p { display: none; }
+
+  /* ---------- Compact Researcher workflow card ---------- */
+  .app-workspace .rt-workflow { min-height: 0; padding: 12px 14px; border-radius: 16px; }
+  .app-workspace .rt-workflow .rt-eyebrow,
+  .app-workspace .rt-workflow .rt-professor { display: none; }
+  .app-workspace .rt-workflow .rt-workflow-title { margin: 0; font-size: 18px; line-height: 1.25; }
+  .app-workspace .rt-workflow .rt-workflow-metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    margin-top: 6px;
+    padding-top: 0;
+    border: 0;
+  }
+
+  /* ---------- Compact banner refinements ---------- */
+  .app-workspace .phone-slim-header h1 { font-size: 20px !important; white-space: nowrap; }
+  .app-workspace .phone-slim-header > :last-child:not(:first-child) { flex: none; }
+  .app-workspace .phone-slim-hero .adviser-overview__workload { column-gap: 10px !important; justify-content: flex-start; }
+  .app-workspace .phone-slim-hero .adviser-overview__workload-item { flex: none; margin: 0; }
+  .app-workspace .phone-slim-hero .adviser-overview__workload-item + .adviser-overview__workload-item { padding-left: 0; border-left: 0; }
+  .app-workspace .phone-slim-hero .adviser-overview__metric-label { margin: 0 0 0 3px; }
+
+  /* ---------- Compact Adviser Reviews header ---------- */
+  .app-workspace .phone-compact-header { padding: 12px 14px !important; border-radius: 16px; }
+  .app-workspace .phone-compact-header .max-w-3xl > p { display: none; }
+  .app-workspace .phone-compact-header h1 { margin-top: 0; font-size: 20px !important; line-height: 1.2; }
+  .app-workspace .phone-compact-header .phone-stat-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px !important;
+    margin-top: 6px;
+    border: 0;
+    background: transparent;
+  }
+  .app-workspace .phone-compact-header .phone-stat-strip > * { flex: none; width: auto; height: auto; min-height: 0; padding: 0; border: 0; }
+  .app-workspace .phone-compact-header .phone-stat-strip > * > span:last-child {
+    display: flex !important;
+    flex-direction: row-reverse;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: 3px;
+  }
+  .app-workspace .phone-compact-header .phone-stat-strip > * > span:last-child > span:first-child { font-size: 12px; white-space: nowrap; }
+  .app-workspace .phone-compact-header .phone-stat-strip > * > span:last-child > span:last-child { margin: 0; font-size: 15px; line-height: 1.3; }
+
+  /* ---------- Compact Researcher workflow facts ---------- */
+  .app-workspace .research-tasks .rt-workflow-metadata { gap: 2px 12px; }
+  .app-workspace .research-tasks .rt-info { display: flex; align-items: baseline; gap: 4px; padding: 0; border: 0; }
+  .app-workspace .research-tasks .rt-info-label { font-size: 12px; letter-spacing: 0; text-transform: none; }
+  .app-workspace .research-tasks .rt-info-label i { display: none; }
+  .app-workspace .research-tasks .rt-info-value { margin: 0; font-size: 13px; }
+
+  /* ---------- Final phone polish ---------- */
+  .app-workspace .phone-slim-hero .adviser-overview__hero-actions button[data-phone-label] {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: auto;
+    padding: 0 11px;
+  }
+  .app-workspace .phone-slim-hero .adviser-overview__hero-actions button[data-phone-label]::after {
+    content: attr(data-phone-label);
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .app-workspace .phone-slim-hero .adviser-overview__workload { column-gap: 8px !important; padding-right: 2px; }
+  .app-workspace .phone-slim-hero .adviser-overview__metric-value { font-size: 14px; }
+  .app-workspace .phone-slim-hero .adviser-overview__metric-label { margin-left: 2px; font-size: 11.5px; }
+  .app-workspace .role-hero .au-band-actions > .au-on-home:first-child { flex: none; width: 44px; margin-left: auto; }
+  .app-workspace .role-hero .au-counts dt { font-size: 11.5px; white-space: nowrap; }
+  .app-workspace .au-band--home:not(.rs-band:not(.rs-band--home)) .au-band-seal { opacity: 0.09; }
+
+  /* Review and requirement cards: details stay one tap away. */
+  .app-workspace .phone-inline-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    margin-top: 8px;
+    padding: 0;
+    border: 0;
+  }
+  .app-workspace .phone-inline-facts dt { display: none; }
+  .app-workspace .phone-inline-facts dd { margin: 0; font-size: 13px; font-weight: 500; color: var(--color-text-secondary); }
+  .app-workspace .phone-compact-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+  .app-workspace .phone-compact-facts > div > span:first-child { display: none; }
+  .app-workspace .phone-compact-facts > div > span:last-child { font-size: 13px; }
+  .app-workspace .research-tasks .rt-description { display: none; }
 }

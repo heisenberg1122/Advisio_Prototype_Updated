@@ -11,7 +11,7 @@ vi.mock("../services/google-calendar.service.js", () => ({ googleCalendarService
 
 import router from "./consultation.routes.js";
 
-async function list(workspace: string, roles: AuthenticatedUser["roles"], collegeId: string | null = "college-a") {
+async function list(workspace: string, roles: AuthenticatedUser["roles"], collegeId: string | null = "college-a", filters = {}) {
   const layer = router.stack.find((entry) => entry.route?.path === "/workspace/:workspace");
   const handler = layer?.route?.stack.at(-1)?.handle;
   if (!handler) throw new Error("The consultation workspace route was not registered.");
@@ -24,7 +24,7 @@ async function list(workspace: string, roles: AuthenticatedUser["roles"], colleg
   await handler({
     user: { id: "faculty-a", collegeId, roles },
     params: { workspace },
-    query: { collegeId: "college-b" },
+    query: { collegeId: "college-b", ...filters },
   } as unknown as Request, response as unknown as Response, next);
   return { response, next };
 }
@@ -52,6 +52,62 @@ describe("faculty consultation workspaces", () => {
       collegeId: "college-a",
       members: { some: { userId: "faculty-a", leftAt: null, projectRole: "PANELIST" } },
     });
+  });
+
+  it("filters Dean history by the entire selected Manila day, outcome, and project within the active college", async () => {
+    const { next } = await list("dean", ["DEAN"], "college-a", {
+      view: "history", from: "2026-11-09", to: "2026-11-09", search: " Campus ", status: "CANCELLED", page: "2",
+    });
+    expect(next).not.toHaveBeenCalled();
+    expect(findConsultations).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        research: {
+          collegeId: "college-a",
+          OR: [
+            { groupName: { contains: "Campus", mode: "insensitive" } },
+            { title: { contains: "Campus", mode: "insensitive" } },
+          ],
+        },
+        scheduledStart: { gte: new Date("2026-11-08T16:00:00Z"), lt: new Date("2026-11-09T16:00:00Z") },
+        status: "CANCELLED",
+      },
+      skip: 25,
+      select: expect.objectContaining({
+        meetingUrl: false,
+        research: { select: {
+          title: true,
+          groupName: true,
+          members: {
+            where: { projectRole: "ADVISER", leftAt: null },
+            select: { user: { select: { firstName: true, lastName: true } } },
+          },
+        } },
+      }),
+    }));
+  });
+
+  it("keeps past sessions without a recorded outcome separate from completed and cancelled sessions", async () => {
+    await list("dean", ["DEAN"], "college-a", { view: "history" });
+    const unresolved = {
+      scheduledEnd: { lte: expect.any(Date) },
+      status: { in: ["REQUESTED", "SCHEDULED", "ONGOING"] },
+    };
+    expect(findConsultations.mock.calls[0][0].where.OR).toEqual([
+      { status: { in: ["COMPLETED", "CANCELLED"] } },
+      unresolved,
+    ]);
+    await list("dean", ["DEAN"], "college-a", { view: "history", status: "UNRECORDED" });
+    expect(findConsultations.mock.calls[1][0].where).toEqual({ research: { collegeId: "college-a" }, ...unresolved });
+  });
+
+  it.each([
+    { from: "2026-02-30" },
+    { from: "2026-11-09", to: "2026-11-08" },
+    { status: "SCHEDULED" },
+  ])("rejects invalid history filters %j before querying records", async (filters) => {
+    const { response } = await list("dean", ["DEAN"], "college-a", { view: "history", ...filters });
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(findConsultations).not.toHaveBeenCalled();
   });
 
   it("limits the Coordinator view to their project assignments and workflows", async () => {

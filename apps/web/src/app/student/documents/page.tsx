@@ -401,7 +401,8 @@ export default function DocumentWorkspacePage() {
   const { user: sealUser } = useAuth();
   const librarySeal = isResearcherPortal ? getAcademicIdentity({ college: sealUser?.college, program: sealUser?.program })?.logoSrc : undefined;
   const isAdviserPortal = pathname.startsWith("/adviser/");
-  const adviserSeal = isAdviserPortal ? getAcademicIdentity({ college: sealUser?.college, program: sealUser?.program })?.logoSrc : undefined;
+  const isOversightPortal = pathname.startsWith("/professor/") || pathname.startsWith("/admin/");
+  const adviserSeal = (isAdviserPortal || isOversightPortal) ? getAcademicIdentity({ college: sealUser?.college, program: sealUser?.program })?.logoSrc : undefined;
   const useDocumentLibrary =
     isResearcherPortal || isAdviserPortal || pathname.startsWith("/professor/");
   const useDocumentLibraryStyles = useDocumentLibrary;
@@ -1278,18 +1279,19 @@ export default function DocumentWorkspacePage() {
     status === "ACTIVE" ? "Active" : status === "REVOKED" ? "Revoked" : "Superseded";
   // Panelists pick from a list of their panel projects instead of a hidden dropdown.
   const showPanelistPicker = isPanelistPortal && !activeProjectId && projects.length > 0;
-  const showAdviserPicker = isAdviserPortal && !activeProjectId && projects.length > 0;
+  const usesAdviserLayout = isAdviserPortal || (isOversightPortal && activeTab === "official");
+  const showAdviserPicker = usesAdviserLayout && !activeProjectId && projects.length > 0;
 
   return (
     <PageContainer
       maxWidth="full"
       className={
         useDocumentLibraryStyles
-          ? `researcher-documents${isAdviserPortal ? " adviser-documents" : ""}`
-          : "gap-2.5 py-4 sm:px-5 lg:px-6 lg:py-5"
+          ? `researcher-documents${usesAdviserLayout ? " adviser-documents" : ""}`
+          : usesAdviserLayout ? "researcher-documents adviser-documents" : "gap-2.5 py-4 sm:px-5 lg:px-6 lg:py-5"
       }
     >
-      {!researcherViewerOpen && isAdviserPortal && activeProject ? (
+      {!researcherViewerOpen && usesAdviserLayout && activeProject ? (
         <section className="pd-hero" aria-labelledby="adviser-documents-title" data-guide={activeTab === "official" && projects.length <= 1 ? "adviser-official-project" : undefined}>
           {adviserSeal && (
             <span className="pd-hero-seal" aria-hidden="true">
@@ -1344,7 +1346,7 @@ export default function DocumentWorkspacePage() {
           )}
         </section>
       ) : !researcherViewerOpen && !showAdviserPicker && (
-        <div className={useDocumentLibraryStyles ? `rd-library-hero${isAdviserPortal ? " college-hero-surface" : ""}` : "contents"}>
+        <div className={useDocumentLibraryStyles ? `rd-library-hero${usesAdviserLayout ? " college-hero-surface" : ""}` : "contents"}>
           {librarySeal && useDocumentLibraryStyles && <span className="rd-library-seal-clip" aria-hidden="true"><img className="rd-library-seal" src={librarySeal} alt="" draggable={false} /></span>}
           <div
             id={useDocumentLibraryStyles ? "researcher-library-title" : undefined}
@@ -1361,7 +1363,7 @@ export default function DocumentWorkspacePage() {
             <PageHeader
               data-guide={isResearcherPortal ? "document-page-heading" : pathname.startsWith("/admin/") ? "dean-official-copies" : undefined}
               variant="plain"
-              className="border-0 pb-0"
+              className="phone-slim-header border-0 pb-0"
               title={isPanelistPortal ? "Panel Documents" : "Documents"}
               subtitle={
                 isPanelistPortal

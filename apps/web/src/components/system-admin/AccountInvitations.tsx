@@ -1,3 +1,6 @@
+import type { CSSProperties } from "react";
+import { EmptyNote, InlineFeedback, StatusDot, type StatusTone } from "@/components/ui/advisio";
+import { FilterChips, SearchField, initials } from "@/components/dashboards/RoleScreenParts";
 import { useCallback, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MailPlus, RefreshCw, ShieldCheck } from "lucide-react";
@@ -481,7 +484,114 @@ export function InviteAccountDialog({
   );
 }
 
-export function AccountInvitations() {
+const invitationStatusLabel = (invitation: Invitation) => {
+  if (invitation.status === "PENDING" && new Date(invitation.expiresAt) <= new Date()) return "Expired";
+  return {
+    PENDING: invitation.deliveredAt ? "Invited" : "Sending",
+    ACCEPTED: "Accepted",
+    REVOKED: "Revoked",
+    DELIVERY_FAILED: "Delivery failed",
+    AWAITING_APPROVAL: "Awaiting approval",
+    REJECTED: "Rejected",
+  }[invitation.status];
+};
+
+const invitationTone = (status: Invitation["status"]): StatusTone =>
+  status === "ACCEPTED" ? "done" : status === "AWAITING_APPROVAL" ? "waiting" : status === "DELIVERY_FAILED" || status === "REJECTED" ? "attention" : status === "PENDING" ? "brand" : "neutral";
+
+/** Roomier invitation list used on the Dean's Faculty Access page. */
+function RoleInvitationList({
+  invitations,
+  isLoading,
+  isError,
+  busyId,
+  feedback,
+  onAct,
+  onRetry,
+}: {
+  invitations: Invitation[];
+  isLoading: boolean;
+  isError: boolean;
+  busyId: string | null;
+  feedback: { error: boolean; message: string } | null;
+  onAct: (invitation: Invitation, action: "resend" | "revoke") => void;
+  onRetry: () => void;
+}) {
+  const [filter, setFilter] = useState<"all" | Invitation["status"]>("all");
+  const [search, setSearch] = useState("");
+  const count = (status: Invitation["status"]) => invitations.filter((item) => item.status === status).length;
+  const query = search.trim().toLowerCase();
+  const rows = invitations.filter(
+    (item) =>
+      (filter === "all" || item.status === filter) &&
+      `${item.firstName} ${item.lastName} ${item.email}`.toLowerCase().includes(query),
+  );
+  return (
+    <>
+      <div className="rs-tools">
+        <FilterChips
+          label="Filter invitations"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: "all", label: "All", count: invitations.length },
+            { value: "AWAITING_APPROVAL", label: "Awaiting approval", count: count("AWAITING_APPROVAL") },
+            { value: "PENDING", label: "Invited", count: count("PENDING") },
+            { value: "DELIVERY_FAILED", label: "Not delivered", count: count("DELIVERY_FAILED") },
+            { value: "ACCEPTED", label: "Accepted", count: count("ACCEPTED") },
+          ]}
+        />
+        <div className="rs-tools-end">
+          <SearchField value={search} onChange={setSearch} placeholder="Search name or email" />
+        </div>
+      </div>
+      {feedback && <InlineFeedback tone={feedback.error ? "error" : "ok"}>{feedback.message}</InlineFeedback>}
+      {isLoading ? (
+        <TableSkeleton rows={3} columns={4} />
+      ) : isError ? (
+        <div className="rs-empty-card">
+          <EmptyNote layout="row" tone="problem" icon="ti-alert-circle" title="Unable to load invitations" action={<button type="button" className="au-link" onClick={onRetry}>Try again</button>} />
+        </div>
+      ) : rows.length ? (
+        <div className="rs-table" style={{ "--rs-cols": "minmax(0,1.7fr) minmax(0,1fr) minmax(0,1.1fr) 170px" } as CSSProperties}>
+          <div className="rs-row rs-row--head"><span>Person</span><span>Access</span><span>Status</span><span /></div>
+          {rows.map((item) => {
+            const name = `${item.firstName} ${item.lastName}`;
+            const canResend = ["PENDING", "DELIVERY_FAILED"].includes(item.status);
+            const canRevoke = canResend || item.status === "AWAITING_APPROVAL";
+            return (
+              <div key={item.id} className={`rs-row rs-row--hover${item.status === "AWAITING_APPROVAL" ? " rs-row--tint" : ""}`}>
+                <div className="rs-who">
+                  <span className="rs-avatar" aria-hidden="true">{initials(name)}</span>
+                  <span className="rs-text"><strong>{name}</strong><small>{item.email}</small></span>
+                </div>
+                <span className="rs-hide-small">{item.roleNames.map((role) => invitationRoleLabels[role]).join(", ")}</span>
+                <span className="rs-text rs-wide">
+                  <StatusDot tone={invitationTone(item.status)}>{invitationStatusLabel(item)}</StatusDot>
+                  <small>
+                    {item.status === "AWAITING_APPROVAL" ? "Requested" : "Created"} {new Date(item.createdAt).toLocaleDateString()}
+                    {canResend ? ` · Link expires ${new Date(item.expiresAt).toLocaleDateString()}` : ""}
+                  </small>
+                  {item.reviewNote && <small>Decision: {item.reviewNote}</small>}
+                </span>
+                <div className="rs-actions">
+                  {canResend && <button type="button" className="rh-secondary" disabled={Boolean(busyId)} onClick={() => onAct(item, "resend")}>{busyId === item.id ? "Working…" : "Resend"}</button>}
+                  {canRevoke && <button type="button" className="rh-secondary" disabled={Boolean(busyId)} aria-label={`Revoke invitation for ${name}`} onClick={() => onAct(item, "revoke")}>Revoke</button>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rs-empty-card">
+          <EmptyNote layout="row" icon="ti-user-plus" title={invitations.length ? "No invitations match" : "No invitations yet"} text={invitations.length ? "Try another filter or search." : "Use Invite or request access to get started."} />
+        </div>
+      )}
+    </>
+  );
+}
+
+export function AccountInvitations({ presentation = "default" }: { presentation?: "default" | "role" } = {}) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const query = useQuery({
@@ -525,6 +635,19 @@ export function AccountInvitations() {
       });
       setBusyId(null);
     }
+  }
+  if (presentation === "role") {
+    return (
+      <RoleInvitationList
+        invitations={query.data?.invitations || []}
+        isLoading={query.isLoading}
+        isError={query.isError}
+        busyId={busyId}
+        feedback={feedback}
+        onAct={(invitation, action) => void act(invitation, action)}
+        onRetry={() => void query.refetch()}
+      />
+    );
   }
   return (
     <div className="space-y-4 p-5 text-[var(--color-text-primary)]">

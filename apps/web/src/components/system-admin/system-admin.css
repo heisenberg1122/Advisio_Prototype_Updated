@@ -1,0 +1,87 @@
+/* System Admin screen pieces. Lists, chips and panels come from role-screens.css and role-home.css. */
+.sa-users-table { overflow: visible; }
+.sa-users-table .rs-row:last-child { border-radius: 0 0 17px 17px; }
+.sa-roles { display: flex; flex-wrap: wrap; gap: 4px; }
+.sa-role { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--color-text-secondary); background: var(--color-surface-subtle); }
+.sa-menu-wrap { position: relative; }
+.sa-menu { position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; width: 200px; padding: 6px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--rh-card); box-shadow: 0 12px 32px rgb(20 30 45 / 16%); }
+.sa-menu[hidden] { display: none; }
+.sa-menu button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--color-text-primary); text-align: left; }
+.sa-menu button:hover:not(:disabled), .sa-menu button:focus-visible { outline: none; background: var(--color-surface-subtle); }
+.sa-menu button:disabled { cursor: not-allowed; opacity: 0.5; }
+.sa-menu button > i { font-size: 16px; color: var(--color-text-secondary); }
+.sa-menu button[data-tone="danger"], .sa-menu button[data-tone="danger"] > i { color: var(--au-attention); }
+
+.sa-matrix { width: 100%; border-collapse: collapse; font-size: 14px; }
+.sa-matrix th { padding: 11px 18px; font-size: 12px; font-weight: 600; text-align: center; color: var(--color-text-secondary); background: var(--color-surface-subtle); }
+.sa-matrix td { padding: 12px 18px; border-top: 1px solid var(--color-border); text-align: center; }
+.sa-matrix :is(th, td):first-child { text-align: left; }
+.sa-matrix td:first-child { font-weight: 600; }
+.sa-mark { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; font-size: 15px; color: var(--color-text-secondary); background: var(--color-surface-subtle); }
+.sa-mark[data-on="true"] { color: var(--au-done); background: color-mix(in srgb, var(--color-success) 13%, var(--rh-card)); }
+.sa-note { display: flex; align-items: center; gap: 9px; margin: 0; padding: 11px 14px; border-radius: 12px; font-size: 13px; color: var(--color-text-secondary); background: var(--color-surface-subtle); }
+.sa-note > i { font-size: 17px; color: var(--color-primary); }
+
+.sa-status-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.sa-status { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 18px; border: 1px solid var(--color-border); border-radius: 16px; background: var(--rh-card); box-shadow: 0 1px 2px rgb(20 35 50 / 4%), 0 6px 18px rgb(20 35 50 / 6%); }
+.dark .sa-status { box-shadow: none; }
+.sa-status-icon { display: grid; flex: none; place-items: center; width: 46px; height: 46px; border-radius: 13px; font-size: 22px; color: var(--au-done); background: color-mix(in srgb, var(--color-success) 13%, var(--rh-card)); }
+.sa-status-text { flex: 1; min-width: 0; }
+.sa-status-text h2 { font-size: 15.5px; font-weight: 600; line-height: 1.3; }
+.sa-status-text p { margin-top: 2px; font-size: 13px; color: var(--color-text-secondary); }
+
+.sa-college { padding: 0; overflow: hidden; }
+.sa-college[data-archived="true"], .sa-program[data-archived="true"] { opacity: 0.72; }
+.sa-college-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 15px 18px; background: color-mix(in srgb, var(--color-primary) 7%, var(--rh-card)); }
+.sa-college-code { display: grid; flex: none; place-items: center; min-width: 52px; height: 42px; padding: 0 9px; border-radius: 11px; font-size: 13px; font-weight: 700; color: #ffffff; background: color-mix(in srgb, var(--color-primary) 32%, #0b1524); }
+.sa-college-text { flex: 1 1 200px; min-width: 0; }
+.sa-college-text h2 { font-size: 16px; font-weight: 600; line-height: 1.3; }
+.sa-college-text p { font-size: 13px; color: var(--color-text-secondary); }
+.sa-program { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 18px; border-top: 1px solid var(--color-border); }
+.sa-program-text { flex: 1 1 220px; min-width: 0; }
+.sa-program-text h3 { font-size: 14px; font-weight: 600; line-height: 1.3; }
+.sa-program-text p { font-size: 12.5px; color: var(--color-text-secondary); }
+.sa-majors { display: flex; flex: 1 1 100%; flex-wrap: wrap; gap: 6px; }
+.sa-major { display: inline-flex; align-items: center; gap: 2px; padding: 2px 3px 2px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 500; background: var(--color-surface-subtle); }
+.sa-major[data-archived="true"] { opacity: 0.65; }
+.sa-major small { margin-left: 5px; color: var(--color-text-secondary); }
+.sa-major button { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; font-size: 13px; color: var(--color-text-secondary); }
+.sa-major button:hover { color: var(--color-text-primary); background: var(--rh-card); }
+.sa-empty-line { padding: 14px 18px; border-top: 1px solid var(--color-border); font-size: 13px; color: var(--color-text-secondary); }
+
+.sa-facts { margin: 10px 0 0; }
+.sa-facts > div { display: flex; justify-content: space-between; gap: 14px; padding: 11px 0; border-top: 1px solid var(--color-border); font-size: 13.5px; }
+.sa-facts > div:first-child { border-top: 0; }
+.sa-facts dt { color: var(--color-text-secondary); }
+.sa-facts dd { margin: 0; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.sa-facts small { display: block; font-size: 12.5px; font-weight: 400; color: var(--color-text-secondary); }
+.sa-danger { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 14px; padding: 13px 15px; border: 1px solid color-mix(in srgb, var(--color-danger) 28%, var(--color-border)); border-radius: 12px; background: color-mix(in srgb, var(--color-danger) 5%, var(--rh-card)); }
+.sa-danger > div { flex: 1 1 200px; min-width: 0; }
+.sa-danger h3 { font-size: 14px; font-weight: 600; }
+.sa-danger p { font-size: 12.5px; color: var(--color-text-secondary); }
+.sa-danger button { display: inline-flex; flex: none; align-items: center; gap: 6px; min-height: 36px; padding: 0 13px; border: 1px solid color-mix(in srgb, var(--color-danger) 40%, var(--color-border)); border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--au-attention); background: var(--rh-card); }
+.sa-danger button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+.sa-filter-input { height: 38px; width: 100%; padding: 0 10px; border: 1px solid var(--color-border); border-radius: 10px; font-size: 13px; color: var(--color-text-primary); background: var(--rh-card); }
+.sa-filter-label { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
+.sa-pager { display: flex; justify-content: space-between; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--color-border); }
+.sa-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 6px; }
+.sa-mode { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; border: 1px solid var(--color-border); border-radius: 11px; font-size: 13.5px; font-weight: 600; color: var(--color-text-secondary); background: var(--rh-card); }
+.sa-mode:hover { border-color: var(--color-primary); }
+.sa-mode[aria-pressed="true"] { border-color: var(--color-primary); color: var(--color-primary); box-shadow: inset 0 0 0 1px var(--color-primary); }
+.dark .sa-mode[aria-pressed="true"] { color: var(--color-text-primary); }
+.sa-swatch { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 13px; border: 1px solid var(--color-border); border-radius: 13px; background: var(--color-surface-subtle); }
+.sa-swatch > span:first-child { flex: none; width: 42px; height: 42px; border-radius: 11px; }
+.sa-swatch > i { margin-left: auto; color: var(--color-primary); }
+
+@media (max-width: 899px) {
+  .sa-status-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .sa-matrix { table-layout: fixed; }
+  .sa-matrix th, .sa-matrix td { padding: 9px 3px; font-size: 11px; overflow-wrap: anywhere; }
+  .sa-matrix th:first-child { width: 32%; }
+  .sa-matrix :is(th, td):first-child { padding-left: 12px; }
+  .sa-mark { width: 22px; height: 22px; font-size: 13px; }
+  .sa-menu button { min-height: 44px; }
+}

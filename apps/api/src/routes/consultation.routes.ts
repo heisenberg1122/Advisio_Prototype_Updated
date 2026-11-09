@@ -1,7 +1,9 @@
 import { Router, type Request, type Response } from "express";
+import { z } from "zod";
 import { AttendanceStatus, ConsultationStatus, Prisma, prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
-import { deanCollege } from "../services/dean-monitoring-scope.js";
+import { monitoringDateSchema } from "../schemas/dean-monitoring.schema.js";
+import { dateBounds, deanCollege } from "../services/dean-monitoring-scope.js";
 import { googleCalendarService } from "../services/google-calendar.service.js";
 import {
   consultationInclude,
@@ -46,6 +48,12 @@ function coordinatorProjects(userId: string, collegeId: string): Prisma.Research
 }
 
 const coordinatorRoles = ["PROFESSOR", "RESEARCH_COORDINATOR"];
+const historyFilters = z.object({
+  from: monitoringDateSchema,
+  to: monitoringDateSchema,
+  search: z.string().trim().max(160).optional(),
+  status: z.enum(["COMPLETED", "CANCELLED", "UNRECORDED"]).optional(),
+}).refine(({ from, to }) => !from || !to || from <= to, "End date must be on or after the start date.");
 
 router.get("/workspace/coordinator/projects", requireAuth, async (req, res) => {
   const user = req.user!;
@@ -75,8 +83,33 @@ router.get("/workspace/:workspace", requireAuth, async (req, res, next) => {
 
   try {
     let research: Prisma.ResearchProjectWhereInput;
+    let historyWhere: Prisma.ConsultationWhereInput = {};
+    const history = workspace === "dean" && req.query.view === "history";
     if (workspace === "dean") {
       research = { collegeId: deanCollege(user) };
+      if (history) {
+        const filters = historyFilters.safeParse(req.query);
+        if (!filters.success) {
+          return void res.status(400).json({ error: filters.error.issues[0]?.message || "Invalid history filters." });
+        }
+        const { from, to, search, status } = filters.data;
+        if (search) {
+          research.OR = [
+            { groupName: { contains: search, mode: "insensitive" } },
+            { title: { contains: search, mode: "insensitive" } },
+          ];
+        }
+        const unresolved: Prisma.ConsultationWhereInput = {
+          scheduledEnd: { lte: new Date() },
+          status: { in: ["REQUESTED", "SCHEDULED", "ONGOING"] },
+        };
+        historyWhere = {
+          ...(from || to ? { scheduledStart: dateBounds({ from, to }) } : {}),
+          ...(status === "UNRECORDED" ? unresolved : status ? { status } : {
+            OR: [{ status: { in: ["COMPLETED", "CANCELLED"] } }, unresolved],
+          }),
+        };
+      }
     } else if (workspace === "coordinator" && user.collegeId && user.roles.some((role) => coordinatorRoles.includes(role))) {
       research = coordinatorProjects(user.id, user.collegeId);
     } else if (workspace === "panelist" && user.collegeId && user.roles.includes("PANELIST")) {
@@ -90,7 +123,7 @@ router.get("/workspace/:workspace", requireAuth, async (req, res, next) => {
 
     const pageSize = 25;
     const rows = await prisma.consultation.findMany({
-      where: { research },
+      where: { research, ...historyWhere },
       select: {
         id: true,
         title: true,
@@ -98,7 +131,11 @@ router.get("/workspace/:workspace", requireAuth, async (req, res, next) => {
         scheduledStart: true,
         scheduledEnd: true,
         meetingUrl: workspace !== "dean",
-        research: { select: { title: true, groupName: true } },
+        research: { select: {
+          title: true,
+          groupName: true,
+          members: history ? consultationInclude.research.select.members : false,
+        } },
       },
       orderBy: [{ scheduledStart: "desc" }, { id: "desc" }],
       skip: (page - 1) * pageSize,

@@ -20,6 +20,7 @@ function UserThemeProvider({ children }: { children: ReactNode }) {
       roles={user?.roles}
       appearancePreference={user?.appearancePreference}
       colorThemePreference={user?.colorThemePreference}
+      headingFontPreference={user?.headingFontPreference}
     >
       {children}
     </ThemeProvider>

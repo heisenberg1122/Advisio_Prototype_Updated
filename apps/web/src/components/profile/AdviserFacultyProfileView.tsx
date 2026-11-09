@@ -3,29 +3,15 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  Mail,
-  Building2,
-  Award,
-  Edit3,
-  CheckCircle2,
-  BookOpen,
-  GraduationCap,
-  Briefcase,
-  FileText,
-  Lightbulb,
-  AlertCircle,
-  ExternalLink,
-  Eye,
-  Info,
-  Sparkles,
-} from "lucide-react";
+import { GraduationCap, Sparkles, ExternalLink } from "lucide-react";
 import { useFacultyProfile } from "@/hooks/use-faculty-profile";
 import { ProfileSkeleton } from "@/components/ui/Skeleton";
-import { Card } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
 import { Button } from "@/components/ui/Button";
+import { ProgressRing, progressTone } from "@/components/dashboards/RoleHomeParts";
+import { RoleBand } from "@/components/dashboards/RoleScreenParts";
+import "./faculty-profile.css";
 import { Modal } from "@/components/ui/Modal";
 
 export function AdviserFacultyProfileView() {
@@ -80,14 +66,32 @@ export function AdviserFacultyProfileView() {
   const suggestions = completion?.suggestions ?? [];
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div className="rs faculty-scope w-full">
+      <RoleBand
+        eyebrow="Faculty profile · Verified adviser"
+        title={academicTitle ? `${academicTitle} ${fullName}` : fullName}
+        titleId="faculty-profile-title"
+        meta={[facultyDesignation, department, collegeName].filter(Boolean).join(" · ")}
+        counts={[
+          ...(capacity
+            ? [
+                { label: "Groups", value: `${capacity.adviseeCount} of ${capacity.maxAdviseeGroups}` },
+                { label: "Slots left", value: capacity.availableSlots, tone: capacity.isFull ? ("waiting" as const) : undefined },
+              ]
+            : []),
+          { label: "Complete", value: `${completionPercentage}%` },
+        ]}
+        countsLabel="Faculty profile summary"
+        primary={{ label: "Edit profile", icon: "ti-edit", onClick: () => router.push("/adviser/profile/edit") }}
+        secondary={[{ label: "Preview student view", icon: "ti-eye", onClick: () => setIsPreviewOpen(true) }]}
+      />
       {/* Controlled Legacy localStorage Migration Banner */}
       {legacyData && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50/90 dark:bg-amber-950/30 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
           <div className="flex items-start gap-3">
             <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-lg font-extrabold text-amber-900 dark:text-amber-200">
+              <h4 className="text-lg font-semibold text-amber-900 dark:text-amber-200">
                 Draft Profile Details Found On This Device
               </h4>
               <p className="text-base text-amber-700 dark:text-amber-300 mt-0.5">
@@ -119,159 +123,44 @@ export function AdviserFacultyProfileView() {
         </div>
       )}
 
-      {/* Profile Completion Guidance Banner */}
-      <Card className="p-5 sm:p-6 border border-[#DDE3E8] dark:border-white/10 bg-gradient-to-r from-white via-white to-[#F4F8FA] dark:from-[#101b2b] dark:to-[#0B1522] shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-1.5">
-                <Lightbulb className="h-4 w-4" />
-                Professional Profile Completion — {completionPercentage}%
-              </span>
-              <span className="text-xs font-bold text-slate-500">
-                {completionPercentage >= 85 ? "Well Formatted CV" : "Guidance Suggestions Available"}
-              </span>
-            </div>
-            {/* Progress bar */}
-            <div className="h-2 w-full bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-[#0B3A53] to-[#C9A227] transition-all duration-500 rounded-full"
-                style={{ width: `${completionPercentage}%` }}
-              />
-            </div>
-            {/* Suggestions */}
-            {suggestions.length > 0 && (
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold text-slate-400">Suggested additions:</span>
-                {suggestions.slice(0, 3).map((suggestion, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 px-2.5 py-0.5 rounded-lg border border-slate-200 dark:border-white/10"
-                  >
-                    <Info className="h-3 w-3 text-[#C9A227]" />
-                    {suggestion}
-                  </span>
-                ))}
-              </div>
-            )}
-            <p className="mt-2 text-sm text-slate-400 italic">
-              Note: Profile completion is for student guidance only. Your verified adviser status and ability to receive research group requests are not restricted.
-            </p>
+      {(completionPercentage < 100 || suggestions.length > 0) && (
+        <div className="faculty-meter">
+          <ProgressRing value={completionPercentage} tone={progressTone(completionPercentage)} />
+          <div className="faculty-meter-text">
+            <strong>{completionPercentage >= 85 ? "Your profile is nearly complete" : "Add a little more so students can find the right match"}</strong>
+            <span>Profile completion is for student guidance only. Your verified adviser status and ability to receive research group requests are not restricted.</span>
           </div>
-
-          <div className="flex items-center gap-2.5 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsPreviewOpen(true)}
-              icon={<Eye className="h-4 w-4" />}
-            >
-              Preview Student View
-            </Button>
-            <Link href="/adviser/profile/edit">
-              <Button
-                variant="primary"
-                size="sm"
-                icon={<Edit3 className="h-4 w-4" />}
-              >
-                Edit Profile
-              </Button>
-            </Link>
-          </div>
+          {suggestions.length > 0 && (
+            <div className="faculty-suggestions">
+              {suggestions.slice(0, 3).map((suggestion, idx) => <span key={idx}>{suggestion}</span>)}
+            </div>
+          )}
         </div>
-      </Card>
-
-      {/* Professional Header Banner */}
-      <Card className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 sm:p-8 bg-white dark:bg-[#101b2b] relative overflow-hidden border border-[#DDE3E8] dark:border-white/10 shadow-[0_1px_3px_0_rgba(11,58,83,0.04)]">
-        {/* Decorative UA Gold Corner Accent */}
-        <div className="absolute right-0 top-0 w-36 h-36 bg-[#C9A227]/10 rounded-bl-full pointer-events-none" />
-
-        <div className="flex flex-col sm:flex-row items-center gap-5 z-10 text-center sm:text-left">
-          <Avatar
-            initials={initials}
-            name={fullName}
-            src={profile?.photoUrl || undefined}
-            colorVariant="accent"
-            size="xl"
-            className="w-20 h-20 text-2xl font-black shadow-md border-4 border-white dark:border-[#101b2b]"
-          />
-          <div>
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              <h2 className="text-xl sm:text-2xl font-extrabold text-[#17212B] dark:text-white">
-                {academicTitle ? `${academicTitle} ${fullName}` : fullName}
-              </h2>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-0.5 text-xs font-extrabold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Verified Adviser
-              </span>
-            </div>
-
-            <div className="text-xs sm:text-sm font-bold text-[#C9A227] mt-1">
-              {facultyDesignation} {department ? `· ${department}` : ""}
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-3 text-xs text-slate-500">
-              <Tag variant="neutral">{collegeName}</Tag>
-              <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
-                <Mail className="h-3.5 w-3.5 text-slate-400" />
-                {profileUser?.email}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Live Advising Capacity Metric Pill */}
-        {capacity && (
-          <div className="z-10 shrink-0 w-full md:w-64 bg-slate-50 dark:bg-white/5 p-4 rounded-xl border border-slate-200 dark:border-white/10">
-            <div className="flex items-center justify-between text-xs font-bold mb-1.5">
-              <span className="text-slate-600 dark:text-slate-300">Advising Capacity</span>
-              <span className={capacity.isFull ? "text-rose-600" : "text-emerald-600"}>
-                {capacity.availableSlots} {capacity.availableSlots === 1 ? "slot" : "slots"} left
-              </span>
-            </div>
-            <div className="h-2 w-full bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden mb-2">
-              <div
-                className={`h-full transition-all duration-300 rounded-full ${
-                  capacity.isFull ? "bg-rose-500" : "bg-[#0B3A53] dark:bg-[#C9A227]"
-                }`}
-                style={{
-                  width: `${Math.min(100, capacity.maxAdviseeGroups ? (capacity.adviseeCount / capacity.maxAdviseeGroups) * 100 : 100)}%`,
-                }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>{capacity.adviseeCount} active groups</span>
-              <span>Max: {capacity.maxAdviseeGroups}</span>
-            </div>
-          </div>
-        )}
-      </Card>
+      )}
 
       {/* Academic CV Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,1fr)]">
         {/* Left Column (2 Cols): Bio, Qualifications, Experience, Publications */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-[18px]">
           {/* Professional Summary & Biography */}
-          <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
-              <BookOpen className="h-4 w-4 text-[#C9A227]" />
-              Professional Summary & Mentoring Philosophy
-            </h3>
-            <div className="space-y-4 text-xs sm:text-[13px] leading-relaxed">
+          <section className="rh-panel faculty-card">
+            <h2 className="faculty-title">About</h2>
+            <div className="space-y-4 text-sm leading-relaxed">
               <div>
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
+                <span className="faculty-label">
                   Faculty Biography
                 </span>
-                <p className="text-slate-800 dark:text-slate-200 whitespace-pre-line">
+                <p className="text-[var(--color-text-primary)] whitespace-pre-line">
                   {profile?.biography || "No professional biography added yet. Click 'Edit Profile' to introduce yourself to prospective advisees."}
                 </p>
               </div>
 
               {profile?.teachingBackground && (
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
+                  <span className="faculty-label">
                     Teaching Background
                   </span>
-                  <p className="text-slate-700 dark:text-slate-300 whitespace-pre-line">
+                  <p className="text-[var(--color-text-primary)] whitespace-pre-line">
                     {profile.teachingBackground}
                   </p>
                 </div>
@@ -279,10 +168,10 @@ export function AdviserFacultyProfileView() {
 
               {profile?.mentoringPhilosophy && (
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
+                  <span className="faculty-label">
                     Research Mentoring Philosophy
                   </span>
-                  <p className="text-slate-700 dark:text-slate-300 italic border-l-2 border-[#C9A227] pl-3 py-1">
+                  <p className="text-[var(--color-text-primary)] border-l-2 border-[var(--color-primary)] pl-3 py-1">
                     "{profile.mentoringPhilosophy}"
                   </p>
                 </div>
@@ -290,33 +179,30 @@ export function AdviserFacultyProfileView() {
 
               {profile?.preferredProjectTypes && (
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
+                  <span className="faculty-label">
                     Preferred Types of Research Projects
                   </span>
-                  <p className="text-slate-700 dark:text-slate-300">
+                  <p className="text-[var(--color-text-primary)]">
                     {profile.preferredProjectTypes}
                   </p>
                 </div>
               )}
             </div>
-          </Card>
+          </section>
 
           {/* Academic Qualifications */}
-          <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
-              <GraduationCap className="h-4 w-4 text-[#C9A227]" />
-              Academic Qualifications & Degrees
-            </h3>
+          <section className="rh-panel faculty-card">
+            <h2 className="faculty-title">Degrees</h2>
             {educations.length > 0 ? (
-              <div className="divide-y divide-slate-100 dark:divide-white/5">
+              <div className="divide-y divide-[var(--color-border)]">
                 {educations.map((edu, idx) => (
                   <div key={edu.id || idx} className="py-3 first:pt-0 last:pb-0 flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-slate-100 dark:bg-white/5 text-[#0B3A53] dark:text-[#C9A227] shrink-0 mt-0.5">
+                    <div className="p-2 rounded-lg bg-[var(--color-surface-subtle)] text-[var(--color-primary)] dark:text-[var(--color-text-primary)] shrink-0 mt-0.5">
                       <GraduationCap className="h-4 w-4" />
                     </div>
                     <div>
                       <div className="flex flex-wrap items-baseline gap-2">
-                        <span className="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white">
+                        <span className="text-sm font-semibold text-[var(--color-text-primary)]">
                           {edu.degreeName}
                         </span>
                         {edu.graduationYear && (
@@ -325,7 +211,7 @@ export function AdviserFacultyProfileView() {
                           </span>
                         )}
                       </div>
-                      <p className="text-base text-slate-600 dark:text-slate-300 mt-0.5">
+                      <p className="text-base text-[var(--color-text-secondary)] mt-0.5">
                         {edu.fieldOfStudy} · <span className="font-semibold">{edu.institution}</span>
                       </p>
                     </div>
@@ -337,29 +223,26 @@ export function AdviserFacultyProfileView() {
                 No academic degrees entered yet.
               </p>
             )}
-          </Card>
+          </section>
 
           {/* Professional & Academic Experience */}
-          <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
-              <Briefcase className="h-4 w-4 text-[#C9A227]" />
-              Professional & Academic Experience
-            </h3>
+          <section className="rh-panel faculty-card">
+            <h2 className="faculty-title">Experience</h2>
             {experiences.length > 0 ? (
-              <div className="divide-y divide-slate-100 dark:divide-white/5">
+              <div className="divide-y divide-[var(--color-border)]">
                 {experiences.map((exp, idx) => (
                   <div key={exp.id || idx} className="py-3 first:pt-0 last:pb-0">
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white">
+                          <span className="text-sm font-semibold text-[var(--color-text-primary)]">
                             {exp.title}
                           </span>
-                          <span className="text-xs font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300">
+                          <span className="text-xs font-semibold uppercase px-2 py-0.5 rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)]">
                             {exp.type}
                           </span>
                         </div>
-                        <p className="text-base font-medium text-slate-600 dark:text-slate-300 mt-0.5">
+                        <p className="text-base font-medium text-[var(--color-text-secondary)] mt-0.5">
                           {exp.organization}
                         </p>
                       </div>
@@ -368,7 +251,7 @@ export function AdviserFacultyProfileView() {
                       </span>
                     </div>
                     {exp.description && (
-                      <p className="text-base text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                      <p className="text-base text-[var(--color-text-secondary)] mt-1 leading-relaxed">
                         {exp.description}
                       </p>
                     )}
@@ -380,25 +263,22 @@ export function AdviserFacultyProfileView() {
                 No teaching or industry positions added yet.
               </p>
             )}
-          </Card>
+          </section>
 
           {/* Publications & Research Contributions */}
           {publications.length > 0 && (
-            <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-              <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
-                <FileText className="h-4 w-4 text-[#C9A227]" />
-                Publications & Conference Presentations
-              </h3>
+            <section className="rh-panel faculty-card">
+              <h2 className="faculty-title">Publications</h2>
               <div className="space-y-3">
                 {publications.map((pub, idx) => (
-                  <div key={pub.id || idx} className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/80 dark:border-white/5 text-xs">
+                  <div key={pub.id || idx} className="p-3 rounded-xl bg-[var(--color-surface-subtle)] text-sm">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-extrabold text-slate-900 dark:text-white">
+                      <p className="font-semibold text-[var(--color-text-primary)]">
                         {pub.title}
                       </p>
                       {pub.year && <span className="font-bold text-slate-400">{pub.year}</span>}
                     </div>
-                    <p className="text-slate-600 dark:text-slate-300 mt-0.5 italic">
+                    <p className="text-[var(--color-text-secondary)] mt-0.5 italic">
                       {pub.venue}
                     </p>
                     {pub.authors && <p className="text-slate-500 mt-0.5">{pub.authors}</p>}
@@ -407,7 +287,7 @@ export function AdviserFacultyProfileView() {
                         href={pub.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-sm font-bold text-[#0B3A53] dark:text-[#C9A227] mt-1.5 hover:underline"
+                        className="inline-flex items-center gap-1 text-sm font-bold text-[var(--color-primary)] dark:text-[var(--color-text-primary)] mt-1.5 hover:underline"
                       >
                         <ExternalLink className="h-3 w-3" />
                         View Publication
@@ -416,24 +296,21 @@ export function AdviserFacultyProfileView() {
                   </div>
                 ))}
               </div>
-            </Card>
+            </section>
           )}
         </div>
 
         {/* Right Column (1 Col): Expertise, Research Interests, Certifications, Awards, Advising Preferences */}
-        <div className="flex flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-[18px]">
           {/* Areas of Expertise */}
-          <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-3">
-            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
-              <Award className="h-4 w-4 text-[#C9A227]" />
-              Areas of Expertise
-            </h3>
+          <section className="rh-panel faculty-card">
+            <h2 className="faculty-title">Areas of expertise</h2>
             {expertiseKeywords.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {expertiseKeywords.map((kw, idx) => (
                   <span
                     key={idx}
-                    className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg bg-[#0B3A53]/5 dark:bg-[#C9A227]/10 text-[#0B3A53] dark:text-[#C9A227] border border-[#0B3A53]/15 dark:border-[#C9A227]/20"
+                    className="faculty-tag"
                   >
                     {kw}
                   </span>
@@ -442,18 +319,15 @@ export function AdviserFacultyProfileView() {
             ) : (
               <p className="text-sm text-slate-500 italic">No expertise specialties selected yet.</p>
             )}
-          </Card>
+          </section>
 
           {/* Research Interests & Topics */}
-          <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-3">
-            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
-              <Lightbulb className="h-4 w-4 text-[#C9A227]" />
-              Research Interests & Topics
-            </h3>
-            <div className="space-y-3 text-xs">
+          <section className="rh-panel faculty-card">
+            <h2 className="faculty-title">Research interests</h2>
+            <div className="space-y-3 text-sm">
               {researchInterests.length > 0 && (
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
+                  <span className="faculty-label">
                     Preferred Research Fields
                   </span>
                   <div className="flex flex-wrap gap-1">
@@ -466,10 +340,10 @@ export function AdviserFacultyProfileView() {
 
               {specializedTopics.length > 0 && (
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
+                  <span className="faculty-label">
                     Specialized Thesis Topics
                   </span>
-                  <ul className="list-disc list-inside space-y-1 text-slate-700 dark:text-slate-300">
+                  <ul className="list-disc list-inside space-y-1 text-[var(--color-text-primary)]">
                     {specializedTopics.map((topic, idx) => (
                       <li key={idx}>{topic}</li>
                     ))}
@@ -479,10 +353,10 @@ export function AdviserFacultyProfileView() {
 
               {profile?.supervisionMethodologies?.length ? (
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
+                  <span className="faculty-label">
                     Technologies & Methodologies Supervised
                   </span>
-                  <p className="text-slate-700 dark:text-slate-300">
+                  <p className="text-[var(--color-text-primary)]">
                     {profile.supervisionMethodologies.join(", ")}
                   </p>
                 </div>
@@ -490,10 +364,10 @@ export function AdviserFacultyProfileView() {
 
               {profile?.acceptedResearchTypes?.length ? (
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
+                  <span className="faculty-label">
                     Accepted Research Types
                   </span>
-                  <p className="text-slate-700 dark:text-slate-300">
+                  <p className="text-[var(--color-text-primary)]">
                     {profile.acceptedResearchTypes.join(", ")}
                   </p>
                 </div>
@@ -503,59 +377,50 @@ export function AdviserFacultyProfileView() {
                 <p className="text-sm text-slate-500 italic">No specific research topics defined yet.</p>
               )}
             </div>
-          </Card>
+          </section>
 
           {/* Certifications & Licenses */}
           {certifications.length > 0 && (
-            <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-3">
-              <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
-                <CheckCircle2 className="h-4 w-4 text-[#C9A227]" />
-                Certifications & Licenses
-              </h3>
-              <div className="divide-y divide-slate-100 dark:divide-white/5">
+            <section className="rh-panel faculty-card">
+              <h2 className="faculty-title">Certifications</h2>
+              <div className="divide-y divide-[var(--color-border)]">
                 {certifications.map((cert, idx) => (
-                  <div key={cert.id || idx} className="py-2 first:pt-0 last:pb-0 text-xs">
-                    <p className="font-extrabold text-slate-900 dark:text-white">{cert.title}</p>
+                  <div key={cert.id || idx} className="py-2 first:pt-0 last:pb-0 text-sm">
+                    <p className="font-semibold text-[var(--color-text-primary)]">{cert.title}</p>
                     <p className="text-slate-500">
                       {cert.issuingBody} {cert.yearIssued ? `(${cert.yearIssued})` : ""}
                     </p>
                   </div>
                 ))}
               </div>
-            </Card>
+            </section>
           )}
 
           {/* Awards & Achievements */}
           {awards.length > 0 && (
-            <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-3">
-              <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
-                <Award className="h-4 w-4 text-[#C9A227]" />
-                Awards & Achievements
-              </h3>
+            <section className="rh-panel faculty-card">
+              <h2 className="faculty-title">Awards</h2>
               <div className="space-y-2">
                 {awards.map((award, idx) => (
-                  <div key={award.id || idx} className="text-xs">
-                    <p className="font-extrabold text-slate-900 dark:text-white">
+                  <div key={award.id || idx} className="text-sm">
+                    <p className="font-semibold text-[var(--color-text-primary)]">
                       {award.title} {award.year ? `(${award.year})` : ""}
                     </p>
                     <p className="text-slate-500">{award.issuingOrganization}</p>
                   </div>
                 ))}
               </div>
-            </Card>
+            </section>
           )}
 
           {/* Advising Preferences */}
           {profile?.advisingPreferences && (
-            <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-3">
-              <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
-                <Building2 className="h-4 w-4 text-[#C9A227]" />
-                Advising Preferences & Guidelines
-              </h3>
-              <p className="text-base text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed">
+            <section className="rh-panel faculty-card">
+              <h2 className="faculty-title">Advising preferences</h2>
+              <p className="text-base text-[var(--color-text-primary)] whitespace-pre-line leading-relaxed">
                 {profile.advisingPreferences}
               </p>
-            </Card>
+            </section>
           )}
         </div>
       </div>
@@ -568,20 +433,20 @@ export function AdviserFacultyProfileView() {
         subtitle="This is exactly how prospective students see your academic CV modal."
         maxWidth="lg"
       >
-        <div className="space-y-5 text-xs text-slate-700 dark:text-slate-300">
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center gap-3">
+        <div className="space-y-5 text-xs text-[var(--color-text-primary)]">
+          <div className="p-4 rounded-xl bg-[var(--color-surface-subtle)] border border-[var(--color-border)] flex items-center gap-3">
             <Avatar initials={initials} name={fullName} size="lg" colorVariant="accent" />
             <div>
-              <p className="font-extrabold text-base text-slate-900 dark:text-white">
+              <p className="font-semibold text-base text-[var(--color-text-primary)]">
                 {academicTitle ? `${academicTitle} ${fullName}` : fullName}
               </p>
-              <p className="text-base text-[#C9A227] font-bold">{facultyDesignation} · {department}</p>
+              <p className="text-base text-[var(--color-text-secondary)] font-bold">{facultyDesignation} · {department}</p>
               <p className="text-base text-slate-500">{profileUser?.email}</p>
             </div>
           </div>
 
           <div>
-            <h4 className="font-extrabold text-slate-900 dark:text-white uppercase tracking-wider text-lg mb-1">
+            <h4 className="font-semibold text-[var(--color-text-primary)] uppercase tracking-wider text-lg mb-1">
               Biography
             </h4>
             <p className="leading-relaxed">
@@ -591,13 +456,13 @@ export function AdviserFacultyProfileView() {
 
           {educations.length > 0 && (
             <div>
-              <h4 className="font-extrabold text-slate-900 dark:text-white uppercase tracking-wider text-lg mb-1.5">
+              <h4 className="font-semibold text-[var(--color-text-primary)] uppercase tracking-wider text-lg mb-1.5">
                 Academic Qualifications
               </h4>
               <ul className="space-y-1">
                 {educations.map((edu, idx) => (
                   <li key={idx} className="flex items-center gap-1.5">
-                    <GraduationCap className="h-3.5 w-3.5 text-[#C9A227]" />
+                    <GraduationCap className="h-3.5 w-3.5 text-[var(--color-text-secondary)]" />
                     <span>{edu.degreeName} ({edu.institution}{edu.graduationYear ? `, ${edu.graduationYear}` : ""})</span>
                   </li>
                 ))}
@@ -607,12 +472,12 @@ export function AdviserFacultyProfileView() {
 
           {expertiseKeywords.length > 0 && (
             <div>
-              <h4 className="font-extrabold text-slate-900 dark:text-white uppercase tracking-wider text-lg mb-1.5">
+              <h4 className="font-semibold text-[var(--color-text-primary)] uppercase tracking-wider text-lg mb-1.5">
                 Specialties
               </h4>
               <div className="flex flex-wrap gap-1">
                 {expertiseKeywords.map((kw, idx) => (
-                  <span key={idx} className="px-2 py-0.5 rounded text-xs bg-slate-100 dark:bg-white/10 font-semibold">
+                  <span key={idx} className="px-2 py-0.5 rounded text-xs bg-[var(--color-surface-subtle)] font-semibold">
                     {kw}
                   </span>
                 ))}

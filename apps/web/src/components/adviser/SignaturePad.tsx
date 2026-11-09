@@ -149,7 +149,7 @@ export function SignaturePad({
             maxLength={100}
             disabled={disabled}
             autoComplete="name"
-            className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3 font-serif italic text-[#173f63] focus-visible:outline-2 focus-visible:outline-[#173f63]"
+            className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-3 font-serif italic text-[var(--color-text-primary)] focus-visible:outline-2 focus-visible:outline-[#173f63]"
           />
         </>
       ) : (
@@ -165,17 +165,17 @@ export function SignaturePad({
                 setHasInk(false);
                 onChange(null);
               }}
-              className="rounded px-2 py-1 text-[#173f63] focus-visible:outline-2 disabled:opacity-40"
+              className="rounded px-2 py-1 text-[var(--color-text-primary)] focus-visible:outline-2 disabled:opacity-40"
             >
               Clear
             </button>
           </div>
           <div
-            className={`relative mt-2 overflow-hidden rounded-xl border border-slate-300 bg-slate-50 ${drawing ? "ring-2 ring-[#173f63]" : ""}`}
+            className={`relative mt-2 overflow-hidden rounded-xl border border-[var(--color-border)] bg-slate-50 ${drawing ? "ring-2 ring-[#173f63]" : ""}`}
           >
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-x-4 bottom-8 border-b border-dashed border-slate-300"
+              className="pointer-events-none absolute inset-x-4 bottom-8 border-b border-dashed border-[var(--color-border)]"
             />
             {!hasInk && (
               <span

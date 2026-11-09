@@ -270,3 +270,19 @@
     flex: 1 1 auto;
   }
 }
+
+.coordinator-defense :is(.cdf-event, .cdf-eligibility) {
+  border-radius: 17px;
+  background: var(--color-white);
+  box-shadow: 0 1px 2px rgb(20 35 50 / 4%), 0 6px 18px rgb(20 35 50 / 6%);
+}
+.dark .coordinator-defense :is(.cdf-event, .cdf-eligibility) {
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+/* Sessions sit in the wider column beside eligibility, so titles get the full row and actions wrap below. */
+@media (min-width: 1024px) {
+  .coordinator-defense .cdf-session-row { flex-direction: column; align-items: stretch; }
+}
+.coordinator-defense .cdf-session-row .truncate { overflow: visible; text-overflow: clip; white-space: normal; }

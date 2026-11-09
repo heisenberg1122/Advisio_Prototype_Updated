@@ -2,6 +2,9 @@ import React, { useMemo } from "react";
 import { buildWorkflowTimeline, WorkflowProjectLike } from "@/lib/workflow-progress";
 import { WORKFLOW_TIME_ZONE } from "@/lib/workflow-deadlines";
 import { calendarDaysUntil, relativeDays } from "@/lib/researcher-home";
+import { datePlacement, visibleMonths, weekLabelStep, type MonthCandidate } from "@/lib/gantt-layout";
+import { useIsPhone } from "@/hooks/use-is-phone";
+import { GanttPhoneMonths } from "./GanttPhoneMonths";
 import "./gantt-chart.css";
 
 interface StudentGanttChartProps {
@@ -28,6 +31,7 @@ function formatRange(start: Date, end: Date) {
 }
 
 export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGanttChartProps) {
+  const isPhone = useIsPhone();
   const stages = useMemo(() => {
     const progressById = new Map(milestoneProgress.map((milestone) => [milestone.id, milestone]));
     return buildWorkflowTimeline(project).map((stage) => {
@@ -65,12 +69,14 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
   const totalDays = weeks * 7;
   const pct = (days: number) => `${(days / totalDays) * 100}%`;
 
-  const months: Array<{ label: string; start: number }> = [];
+  const candidates: MonthCandidate[] = [];
   for (let day = 0; day < totalDays; day += 1) {
     const label = formatPart(new Date(scaleStart.getTime() + day * DAY_MS), "month");
-    // Skip a month that only peeks in at the very end; its name would be clipped.
-    if (months.at(-1)?.label !== label && totalDays - day >= 6) months.push({ label, start: day });
+    if (candidates.at(-1)?.label !== label) candidates.push({ label, start: day });
   }
+  const shortMonths = isPhone || totalDays > 180;
+  const months = visibleMonths(candidates, totalDays, isPhone ? 0.11 : shortMonths ? 0.06 : 0.12);
+  const weekStep = weekLabelStep(weeks);
   const todayIndex = dayIndex(new Date(now));
   const showToday = todayIndex >= 0 && todayIndex < totalDays;
 
@@ -100,6 +106,14 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
         </dl>
       </header>
 
+      {isPhone ? (
+        <GanttPhoneMonths
+          stages={stages.map((stage) => ({ id: stage.id, name: stage.name, sequence: stage.sequence, status: stage.status, startDate: stage.startDate, endDate: stage.endDate, range: formatRange(stage.startDate, stage.endDate) }))}
+          now={now}
+          timeZone={WORKFLOW_TIME_ZONE}
+        />
+      ) : (
+      <>
       <div className="gc-legend" aria-hidden="true">
         <span><i data-tone="completed" />Approved</span>
         <span><i data-tone="active" />In progress</span>
@@ -113,9 +127,9 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
             <div className="gc-label">Milestone</div>
             <div className="gc-track">
               {months.map((month, index) => (
-                <span key={`${month.label}-${month.start}`} className="gc-month" data-first={index === 0} style={{ left: pct(month.start) }}>{month.label}</span>
+                <span key={`${month.label}-${month.start}`} className="gc-month" data-first={index === 0} style={{ left: pct(month.start) }}>{shortMonths ? month.label.slice(0, 3) : month.label}</span>
               ))}
-              {Array.from({ length: weeks }, (_, week) => (
+              {Array.from({ length: weeks }, (_, week) => week % weekStep === 0 && (
                 <span key={week} className="gc-week" style={{ left: pct(week * 7) }}>
                   {formatPart(new Date(scaleStart.getTime() + week * 7 * DAY_MS), "day")}
                 </span>
@@ -127,8 +141,14 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
           {stages.map((stage, index) => {
             const start = Math.max(0, dayIndex(stage.startDate));
             const span = Math.max(1, dayIndex(stage.endDate) - start + 1);
-            const rightLabel = (start + span) / totalDays < 0.78;
+            const placement = datePlacement(start, span, totalDays);
             const range = formatRange(stage.startDate, stage.endDate);
+            const dateStyle: React.CSSProperties =
+              placement === "right"
+                ? { left: `calc(${pct(start + span)} + 8px)` }
+                : placement === "left"
+                  ? { right: `calc(${pct(totalDays - start)} + 8px)` }
+                  : { right: "6px" };
             const showGroup = grouped && stage.topic?.title && stage.topic.title !== stages[index - 1]?.topic?.title;
             return (
               <React.Fragment key={stage.id}>
@@ -149,10 +169,7 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
                   </div>
                   <div className="gc-track" aria-hidden="true">
                     <span className="gc-bar" style={{ left: pct(start), width: pct(span) }} />
-                    <span
-                      className="gc-dates"
-                      style={rightLabel ? { left: `calc(${pct(start + span)} + 8px)` } : { right: `calc(${pct(totalDays - start)} + 8px)` }}
-                    >
+                    <span className="gc-dates" style={dateStyle}>
                       {range}
                     </span>
                   </div>
@@ -166,6 +183,8 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
       </div>
 
       <p className="gc-note">Planned dates follow milestone targets in Philippine time. Milestones without a target use a projected span.</p>
+      </>
+      )}
     </section>
   );
 }
