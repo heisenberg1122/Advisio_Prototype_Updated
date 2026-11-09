@@ -82,7 +82,7 @@ function SetupFormContent() {
       <div className="w-full max-w-[560px] bg-white rounded-2xl border border-slate-200/80 p-8 md:p-10 shadow-xl flex flex-col gap-6 animate-fade-in-up">
         
         {/* Brand Header */}
-        <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+        <div className="phone-brand-header flex justify-between items-center border-b border-slate-100 pb-4">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-[#1b4264] flex items-center justify-center shadow-md">
               <i className="ti ti-school text-lg text-[#ffa400]" />

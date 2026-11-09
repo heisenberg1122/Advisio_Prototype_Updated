@@ -7,6 +7,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import { revealPhoneRowTarget } from "@/lib/phone-tables";
 import { GuideConnector } from "./GuideConnector";
 import { guidePlacement, type GuideRect } from "./guide-geometry";
 import type {
@@ -122,6 +123,7 @@ export function GuidedWalkthrough({
           ? previous
           : { width, height },
       );
+      if (routeReady) revealPhoneRowTarget(step.targets[0]?.key);
       const found = routeReady ? step.targets
         .map((target) => ({ target, node: findGuideTarget(target.key) }))
         .find((item) => item.node) : undefined;

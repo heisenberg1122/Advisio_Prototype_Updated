@@ -699,4 +699,31 @@
     overflow-y: auto;
     border-radius: 20px 20px 0 0 !important;
   }
+
+  /* ---------- Edit profile: side margin where the layout adds none ---------- */
+  .app-workspace > div:not(.profile-page-shell) > .profile-edit,
+  .app-workspace .phone-page-inset {
+    padding-inline: 14px;
+  }
+  .app-workspace .phone-stack-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .app-workspace .phone-stack-header > div:last-child {
+    justify-content: flex-end;
+  }
+
+  /* ---------- First-login setup: roomier card, unsquashed brand ---------- */
+  :has(> .phone-brand-header) {
+    padding: 20px;
+  }
+  .phone-brand-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .phone-brand-header > div:first-child > div:first-child {
+    flex: none;
+  }
 }
