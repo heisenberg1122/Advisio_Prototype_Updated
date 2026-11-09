@@ -74,6 +74,7 @@ interface ResearcherGuideContext {
   workspace: AssistantWorkspace;
   page: GuideHelpId | undefined;
   enabled: boolean;
+  assistantEnabled: boolean;
   busy: boolean;
   drawerOpen: boolean;
   open: (topic?: GuideHelpId) => void;
@@ -144,6 +145,9 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
     user?.id,
   );
   const evaluation = token === "__evaluation__";
+  const assistantEnabled =
+    enabled &&
+    (workspace === "dean" || (evaluation && workspace !== "system-admin"));
   const session = useQuery({
     queryKey: [
       "workspace-tour-evaluation-session",
@@ -668,6 +672,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
         workspace,
         page,
         enabled,
+        assistantEnabled,
         open,
         act,
         busy: Boolean(running || requested || orientation.active),
@@ -678,6 +683,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
       {enabled && drawer && (
         <GuideDrawer
           workspace={workspace}
+          assistantEnabled={assistantEnabled}
           permissions={user?.permissions || []}
           page={page}
           selected={selected}
@@ -757,7 +763,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
           onExplore={() => end(true, true)}
         />
       )}
-      {enabled && workspace === "dean" && <FloatingResearcherAssistant key={scope} />}
+      {assistantEnabled && <FloatingResearcherAssistant key={scope} />}
     </Context.Provider>
   );
 }

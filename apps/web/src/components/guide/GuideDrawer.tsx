@@ -117,6 +117,7 @@ const contextual: Record<
 };
 interface Props {
   workspace: AssistantWorkspace;
+  assistantEnabled: boolean;
   permissions: readonly string[];
   page: GuideHelpId | undefined;
   selected: GuideHelpId | null;
@@ -137,6 +138,7 @@ interface Props {
 }
 export function GuideDrawer({
   workspace,
+  assistantEnabled,
   permissions,
   page,
   selected,
@@ -165,8 +167,7 @@ export function GuideDrawer({
     : (isFacultyHelpWorkspace(workspace) ? facultyHelp[workspace] : panelist ? PANELIST_HELP : ADVISER_HELP).filter((item) =>
         allowed.some((topic) => topic.id === item.id),
       );
-  // TAM: only the Dean workspace has the floating assistant.
-  const topics = workspace === "dean"
+  const topics = assistantEnabled
     ? workspaceTopics
     : workspaceTopics.filter((item) => !/floating assistant/i.test(item.question));
   const popular = assistantPopular[workspace].flatMap((id) => topics.filter((item) => item.id === id));

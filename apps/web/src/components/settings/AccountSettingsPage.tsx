@@ -543,7 +543,7 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
                   ))}
                 </div>
 
-                {guide?.enabled && guide.workspace === "dean" && (
+                {guide?.assistantEnabled && (
                   <section className="as-section-gap" aria-labelledby="workspace-assistance-title">
                     <h3 id="workspace-assistance-title">Workspace Assistance</h3>
                     <ul className="as-rows">
