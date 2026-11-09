@@ -1,18 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { DateTile, EmptyNote, StatusDot, type StatusTone } from "@/components/ui/advisio";
+import { ConsultationActions } from "@/components/consultations/ConsultationActions";
+import type { ConsultationItem } from "@/lib/consultation-store";
 import "./consultations-workspace.css";
 
-export type AdviserConsultation = {
-  id: string;
-  topic: string;
-  groupName?: string;
-  date: string;
-  time: string;
-  status: string;
-  meetingUrl?: string;
-  scheduledStart?: string;
-  researchId?: string;
-};
+export type AdviserConsultation = ConsultationItem;
 
 type Stage = "approval" | "upcoming" | "past";
 type Classified = AdviserConsultation & {
@@ -37,16 +29,19 @@ function classify(item: AdviserConsultation, now: number): Classified {
   const status = String(item.status).toLowerCase();
   const startsAt = Date.parse(item.scheduledStart || `${item.date}T23:59:59+08:00`) || 0;
   const future = startsAt >= now;
+  if (status === "declined") return { ...item, stage: "past", startsAt, label: "Declined", tone: "attention" };
   if (status === "cancelled" || status === "canceled") return { ...item, stage: "past", startsAt, label: "Cancelled", tone: "attention" };
   if (status === "completed") return { ...item, stage: "past", startsAt, label: "Completed", tone: "neutral" };
-  if (status === "pending" || status === "requested") {
-    return future
-      ? { ...item, stage: "approval", startsAt, label: "Awaiting approval", tone: "waiting" }
-      : { ...item, stage: "past", startsAt, label: "Not approved in time", tone: "neutral" };
+  if (status === "provisioning") {
+    return { ...item, stage: item.canManage ? "approval" : "upcoming", startsAt,
+      label: item.conferenceState === "failed" ? "Calendar setup failed" : "Preparing Google Meet", tone: "waiting" };
   }
-  if (status === "ongoing") return { ...item, stage: "upcoming", startsAt, label: "In progress", tone: "live" };
-  return future
-    ? { ...item, stage: "upcoming", startsAt, label: "Confirmed", tone: "done" }
+  if (status === "pending" || status === "requested") {
+    return { ...item, stage: item.canManage ? "approval" : "upcoming", startsAt, label: "Awaiting approval", tone: "waiting" };
+  }
+  if (status === "ongoing") return { ...item, stage: item.meetingUrl ? "upcoming" : "past", startsAt, label: item.meetingUrl ? "In progress" : "Session ended", tone: item.meetingUrl ? "live" : "neutral" };
+  return future || Date.parse(item.scheduledEnd || "") >= now
+    ? { ...item, stage: "upcoming", startsAt, label: item.meetingUrl ? "Confirmed" : "Scheduled · link unavailable", tone: item.meetingUrl ? "done" : "waiting" }
     : { ...item, stage: "past", startsAt, label: "Past", tone: "neutral" };
 }
 
@@ -57,7 +52,9 @@ export function AdviserConsultationsWorkspace({
   onRetry,
   seal,
   onSchedule,
-  onApprove,
+  onInstantMeet,
+  viewerId,
+  linkedId,
   onJoin,
   onCopy,
 }: {
@@ -67,18 +64,26 @@ export function AdviserConsultationsWorkspace({
   onRetry: () => void;
   seal?: string;
   onSchedule: () => void;
-  onApprove: (item: AdviserConsultation) => Promise<void> | void;
+  onInstantMeet: () => void;
+  viewerId?: string;
+  linkedId?: string;
   onJoin: (item: AdviserConsultation) => void;
   onCopy: (url: string) => void;
 }) {
-  const [approvingId, setApprovingId] = useState<string | null>(null);
   const [pickedDay, setPickedDay] = useState<string | null>(null);
   const now = Date.now();
 
-  const sessions = useMemo(() => consultations.map((item) => classify(item, now)), [consultations, now]);
+  const sessions = consultations.map((item) => classify(item, now));
   const approvals = sessions.filter((item) => item.stage === "approval").sort((a, b) => a.startsAt - b.startsAt);
   const upcoming = sessions.filter((item) => item.stage === "upcoming").sort((a, b) => a.startsAt - b.startsAt);
   const past = sessions.filter((item) => item.stage === "past").sort((a, b) => b.startsAt - a.startsAt);
+  const hasLinkedItem = sessions.some(({ id }) => id === linkedId);
+  useEffect(() => {
+    if (!hasLinkedItem || !linkedId) return;
+    const element = document.getElementById(`consultation-${linkedId}`);
+    element?.focus({ preventScroll: true });
+    element?.scrollIntoView({ block: "nearest" });
+  }, [hasLinkedItem, linkedId]);
 
   const todayKey = dayKey(new Date(now));
   const week = Array.from({ length: 7 }, (_, index) => {
@@ -105,15 +110,6 @@ export function AdviserConsultationsWorkspace({
         approvals.length ? `${approvals.length} ${approvals.length === 1 ? "request needs" : "requests need"} your approval.` : null,
         next && nextParts ? `Next session is ${nextParts.weekday}, ${nextParts.month} ${nextParts.day} at ${next.time}.` : null,
       ].filter(Boolean).join(" ") || "No upcoming sessions. Schedule one when a group needs guidance.";
-
-  const approve = async (item: AdviserConsultation) => {
-    setApprovingId(item.id);
-    try {
-      await onApprove(item);
-    } finally {
-      setApprovingId(null);
-    }
-  };
 
   const tile = (item: Classified, muted = false) => {
     const parts = dateParts(item.date);
@@ -152,6 +148,9 @@ export function AdviserConsultationsWorkspace({
           <button type="button" data-guide="adviser-consultation-open" className="adviser-overview__hero-primary" data-phone-label="Schedule" onClick={onSchedule}>
             <i className="ti ti-plus" aria-hidden="true" /> Schedule consultation
           </button>
+          <button type="button" className="ac-secondary" onClick={onInstantMeet}>
+            <i className="ti ti-video" aria-hidden="true" /> Instant Google Meet
+          </button>
         </div>
       </section>
 
@@ -166,15 +165,17 @@ export function AdviserConsultationsWorkspace({
               {approvals.map((item) => {
                 const parts = dateParts(item.date);
                 return (
-                  <div key={item.id} className="ac-request">
+                  <div key={item.id} id={`consultation-${item.id}`} tabIndex={-1} className="ac-request">
                     {tile(item)}
                     <div className="ac-text">
                       <h3>{item.topic}</h3>
                       <p>{item.groupName || "Research group"} · {parts.weekday}, {item.time}</p>
+                      {item.status === "requested" && item.requesterName && <p>Requested by {item.requesterName}</p>}
+                      {item.description && <p className="whitespace-pre-wrap">{item.description}</p>}
+                      <StatusDot tone={item.tone}>{item.label}</StatusDot>
                     </div>
-                    <button type="button" className="ac-primary" disabled={Boolean(approvingId)} onClick={() => void approve(item)}>
-                      <i className="ti ti-check" aria-hidden="true" /> {approvingId === item.id ? "Approving…" : "Approve"}
-                    </button>
+                    <ConsultationActions item={{ ...item, title: item.topic }} viewerId={viewerId}
+                      approvalVisible={Date.parse(item.scheduledEnd || "") > now} />
                   </div>
                 );
               })}
@@ -195,7 +196,7 @@ export function AdviserConsultationsWorkspace({
             {upcoming.length ? (
               <ul className="ac-list">
                 {upcoming.map((item) => (
-                  <li key={item.id} className="ac-row">
+                  <li key={item.id} id={`consultation-${item.id}`} tabIndex={-1} className="ac-row">
                     {tile(item)}
                     <div className="ac-text">
                       <h3>{item.topic}</h3>
@@ -203,15 +204,16 @@ export function AdviserConsultationsWorkspace({
                     </div>
                     <StatusDot tone={item.tone}>{item.label}</StatusDot>
                     <div className="ac-actions">
-                      <button type="button" className="ac-secondary" data-guide={item.meetingUrl ? "adviser-consultation-meeting" : undefined} onClick={() => onJoin(item)}>
+                      {item.meetingUrl && <button type="button" className="ac-secondary" data-guide="adviser-consultation-meeting" onClick={() => onJoin(item)}>
                         <i className="ti ti-video" aria-hidden="true" /> Join Meet
-                      </button>
+                      </button>}
                       {item.meetingUrl && (
                         <button type="button" className="ac-icon" aria-label={`Copy meeting link for ${item.topic}`} title="Copy link" onClick={() => onCopy(item.meetingUrl as string)}>
                           <i className="ti ti-copy" aria-hidden="true" />
                         </button>
                       )}
                     </div>
+                    <ConsultationActions item={{ ...item, title: item.topic }} viewerId={viewerId} />
                   </li>
                 ))}
               </ul>
@@ -288,13 +290,14 @@ export function AdviserConsultationsWorkspace({
           </div>
           <div className="ac-past">
             {past.map((item) => (
-              <div key={item.id} className="ac-past-item">
+              <div key={item.id} id={`consultation-${item.id}`} tabIndex={-1} className="ac-past-item">
                 {tile(item, true)}
                 <div className="ac-text">
                   <h3>{item.topic}</h3>
                   <p>{item.groupName || "Research group"} · {item.time}</p>
                 </div>
                 <StatusDot tone={item.tone}>{item.label}</StatusDot>
+                <ConsultationActions item={{ ...item, title: item.topic }} viewerId={viewerId} />
               </div>
             ))}
           </div>

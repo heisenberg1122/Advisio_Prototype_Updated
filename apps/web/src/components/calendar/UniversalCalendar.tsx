@@ -19,10 +19,12 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/providers/auth-provider";
+import { useDashboardWorkspace } from "@/providers/dashboard-workspace-provider";
 import { CalendarSkeleton } from "@/components/ui/Skeleton";
 import { getAcademicIdentity } from "@/lib/academic-identity";
 import { calendarDaysUntil } from "@/lib/researcher-home";
 import { PhoneFilters } from "@/components/ui/PhoneFilters";
+import { joinConsultation } from "@/components/consultations/ConsultationActions";
 
 type CalendarEventType =
   | "ACADEMIC"
@@ -272,6 +274,15 @@ function schedulePayload(form: CalendarForm) {
 
 export default function UniversalCalendar() {
   const { user } = useAuth();
+  const { activeWorkspace } = useDashboardWorkspace();
+  const consultationPath = ({
+    researcher: "/student/dashboard?tab=consultations",
+    adviser: "/adviser/dashboard?tab=consultations",
+    coordinator: "/professor/consultations",
+    panelist: "/panelist/consultations",
+    dean: "/admin/consultations",
+    "system-admin": undefined,
+  })[activeWorkspace?.id || "system-admin"];
   const queryClient = useQueryClient();
   const [cursor, setCursor] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -282,7 +293,7 @@ export default function UniversalCalendar() {
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [composerDay, setComposerDay] = useState<Date | null>(null);
   const [form, setForm] = useState<CalendarForm>(() =>
-    formForDate(new Date(), "CONSULTATION"),
+    formForDate(new Date(), "OTHER"),
   );
   const [conflicts, setConflicts] = useState<AvailabilityConflict[]>([]);
   const [conflictsAcknowledged, setConflictsAcknowledged] = useState(false);
@@ -319,9 +330,12 @@ export default function UniversalCalendar() {
   const calendar = useQuery({
     queryKey: [
       "universal-calendar",
+      user?.id,
+      user?.college?.id,
       gridStart.toISOString(),
       rangeEnd.toISOString(),
     ],
+    refetchInterval: 15_000,
     queryFn: () =>
       apiClient.get<{
         events: CalendarEvent[];
@@ -334,6 +348,9 @@ export default function UniversalCalendar() {
     queryKey: ["calendar-options"],
     queryFn: () => apiClient.get<CalendarOptions>("/api/calendar/options"),
   });
+  const currentEvent = selectedEvent?.source === "CONSULTATION"
+    ? calendar.data?.events.find((event) => event.id === selectedEvent.id)
+    : selectedEvent;
 
   const eventsByDay = useMemo(() => {
     const grouped = new Map<string, CalendarEvent[]>();
@@ -407,7 +424,7 @@ export default function UniversalCalendar() {
 
   const openComposer = (day: Date, type?: CalendarEventType) => {
     const defaultType =
-      type || (options.data?.canCreate ? "CONSULTATION" : "AVAILABILITY");
+      type || (options.data?.canCreate ? "OTHER" : "AVAILABILITY");
     setComposerDay(day);
     setEditingEvent(null);
     setForm(formForDate(day, defaultType));
@@ -605,6 +622,7 @@ export default function UniversalCalendar() {
                   <Plus size={16} aria-hidden="true" /> New entry
                 </button>
               )}
+              {consultationPath && <Link to={consultationPath} className="uc-btn">Open consultations</Link>}
             </div>
           </div>
 
@@ -747,14 +765,15 @@ export default function UniversalCalendar() {
             setSelectedDay(null);
             setSelectedEvent(calendarEvent);
           }}
-          onCreateEvent={() => openComposer(selectedDay, "CONSULTATION")}
+          onCreateEvent={() => openComposer(selectedDay)}
           onCreateAvailability={() => openComposer(selectedDay, "AVAILABILITY")}
         />
       )}
 
-      {selectedEvent && (
+      {currentEvent && (
         <EventDetailsDialog
-          event={selectedEvent}
+          key={currentEvent.id}
+          event={currentEvent}
           cancelling={cancelEvent.isPending}
           cancelError={
             cancelEvent.isError
@@ -763,14 +782,14 @@ export default function UniversalCalendar() {
               : ""
           }
           onClose={() => setSelectedEvent(null)}
-          onEdit={() => openEdit(selectedEvent)}
+          onEdit={() => openEdit(currentEvent)}
           onCancel={() => {
             if (
               window.confirm(
-                `Cancel “${selectedEvent.title}”? This removes it from active calendars.`,
+                `Cancel “${currentEvent.title}”? This removes it from active calendars.`,
               )
             )
-              cancelEvent.mutate(selectedEvent.id);
+              cancelEvent.mutate(currentEvent.id);
           }}
         />
       )}
@@ -780,6 +799,7 @@ export default function UniversalCalendar() {
           form={form}
           options={options.data}
           editing={Boolean(editingEvent)}
+          legacyConsultation={editingEvent?.type === "CONSULTATION"}
           conflicts={conflicts}
           conflictsAcknowledged={conflictsAcknowledged}
           saving={saveEvent.isPending || checkingConflicts}
@@ -933,6 +953,10 @@ function EventDetailsDialog({
   onEdit: () => void;
   onCancel: () => void;
 }) {
+  const [joinError, setJoinError] = useState("");
+  const consultationStatus = event.source === "CONSULTATION" && event.status
+    ? ({ REQUESTED: "Pending approval", PROVISIONING: "Preparing Google Meet", SCHEDULED: "Scheduled", ONGOING: "In progress", COMPLETED: "Completed" } as Record<string, string>)[event.status]
+    : null;
   return (
     <div
       className="fixed inset-0 z-[100] grid items-end overflow-y-auto bg-slate-950/60 p-0 backdrop-blur-sm sm:place-items-center sm:p-4"
@@ -956,6 +980,7 @@ function EventDetailsDialog({
                   {defenseStatus(event)}
                 </span>
               )}
+              {consultationStatus && <span className="text-xs font-bold">{consultationStatus}</span>}
             </div>
             <h2 className="mt-3 text-xl font-black text-[var(--color-text-primary)]">
               {event.title}
@@ -1041,6 +1066,7 @@ function EventDetailsDialog({
             {cancelError}
           </p>
         )}
+        {joinError && <p role="alert" className="mt-4 text-sm text-red-700 dark:text-red-300">{joinError}</p>}
         <div className="mt-6 flex flex-wrap gap-2">
           {event.actionUrl && (
             <Link
@@ -1050,7 +1076,13 @@ function EventDetailsDialog({
               Open defense workspace
             </Link>
           )}
-          {event.meetingUrl && (
+          {event.meetingUrl && event.source === "CONSULTATION" && (
+            <button type="button" onClick={() => { setJoinError(""); void joinConsultation(event.id.slice("consultation:".length), setJoinError); }}
+              className="inline-flex rounded-xl border border-[var(--color-primary)]/30 px-4 py-2.5 text-sm font-black text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]">
+              Join Google Meet
+            </button>
+          )}
+          {event.meetingUrl && event.source !== "CONSULTATION" && (
             <a
               href={event.meetingUrl}
               target="_blank"
@@ -1089,6 +1121,7 @@ function CalendarComposer({
   form,
   options,
   editing,
+  legacyConsultation,
   conflicts,
   conflictsAcknowledged,
   saving,
@@ -1102,6 +1135,7 @@ function CalendarComposer({
   form: CalendarForm;
   options?: CalendarOptions;
   editing: boolean;
+  legacyConsultation: boolean;
   conflicts: AvailabilityConflict[];
   conflictsAcknowledged: boolean;
   saving: boolean;
@@ -1114,7 +1148,6 @@ function CalendarComposer({
 }) {
   const isAvailability = form.type === "AVAILABILITY";
   const standardTypes: CalendarEventType[] = [
-    "CONSULTATION",
     "DEFENSE",
     "DEADLINE",
     "MILESTONE",
@@ -1125,6 +1158,7 @@ function CalendarComposer({
   const availableTypes = [
     ...(options?.canCreate ? standardTypes : []),
     ...(options?.canManageAvailability ? ["AVAILABILITY" as const] : []),
+    ...(legacyConsultation ? ["CONSULTATION" as const] : []),
   ];
   return (
     <div className="fixed inset-0 z-[110] grid items-end overflow-y-auto bg-slate-950/60 p-0 backdrop-blur-sm sm:place-items-center sm:p-4">
@@ -1169,7 +1203,7 @@ function CalendarComposer({
             >
               {availableTypes.map((type) => (
                 <option key={type} value={type}>
-                  {prettyType(type)}
+                  {type === "CONSULTATION" ? "Consultation reminder (legacy)" : prettyType(type)}
                 </option>
               ))}
             </select>

@@ -11,8 +11,8 @@ import { AdviserAdviseesWorkspace } from "@/components/adviser/AdviserAdviseesWo
 import { AdviserConsultationsWorkspace } from "@/components/adviser/AdviserConsultationsWorkspace";
 import { AdviserProgressWorkspace } from "@/components/adviser/AdviserProgressWorkspace";
 import { AdviserGroupChats } from "@/components/dashboards/adviser/AdviserGroupChats";
-import { getStoredMeetingSession, saveMeetingSession, DEFAULT_SHARED_MEET_URL } from "@/lib/meeting-store";
-import { GoogleMeetConnectModal } from "@/components/consultations/GoogleMeetConnectModal";
+import { ConsultationMeetingForm } from "@/components/consultations/ConsultationMeetingForm";
+import { joinConsultation } from "@/components/consultations/ConsultationActions";
 import { GoogleMeetTranscriptModal, ParsedChatMessage } from "@/components/consultations/GoogleMeetTranscriptModal";
 import type { ConsultationItem } from "@/lib/consultation-store";
 import { useAuth } from "@/providers/auth-provider";
@@ -77,157 +77,17 @@ function AdviserDashboardContent() {
   const contextualResearchId = searchParams.get("researchId") || "";
   const { isDark, toggleTheme } = useTheme();
 
-  // Synchronized Floating Google Meet Conference Session State
-  const initialSession = getStoredMeetingSession();
-  const [isMeetingActive, setIsMeetingActive] = useState(initialSession.isActive);
-  const [meetingDuration, setMeetingDuration] = useState(0);
-  const [activeMeetingUrl, setActiveMeetingUrl] = useState(initialSession.meetingUrl || DEFAULT_SHARED_MEET_URL);
-  const [activeMeetingTopic, setActiveMeetingTopic] = useState(initialSession.topic || "Advising Stream Conference");
-  const [activeParticipants, setActiveParticipants] = useState(
-    initialSession.participants.length > 0 ? initialSession.participants : []
-  );
-  const [showConnectModal, setShowConnectModal] = useState(false);
   const [showTranscriptModal, setShowTranscriptModal] = useState(false);
   const [selectedConsultationForTranscript, setSelectedConsultationForTranscript] = useState<ConsultationItem | null>(null);
-  const [conferenceProjectId, setConferenceProjectId] = useState("");
-
   // Live query for consultations with background refresh
   const { data: consultationsApiData, isPending: consultationsLoading, isError: consultationsError, refetch: refetchConsultations } = useQuery({
-    queryKey: ["consultations"],
-    queryFn: () => apiClient.get<{ consultations: any[] }>("/api/consultations"),
+    queryKey: ["consultations", "adviser", user?.id, user?.college?.id],
+    queryFn: () => apiClient.get<{ consultations: ConsultationItem[] }>("/api/consultations"),
     refetchInterval: 15000,
     refetchOnWindowFocus: true,
   });
 
-  const [consultations, setConsultations] = useState<ConsultationItem[]>([]);
-
-  useEffect(() => {
-    if (consultationsApiData?.consultations) {
-      setConsultations(consultationsApiData.consultations);
-    }
-  }, [consultationsApiData]);
-
-  // Poll backend database for active stream across different browsers (Edge, Brave, etc.)
-  useEffect(() => {
-    const fetchActiveStream = async () => {
-      try {
-        if (!conferenceProjectId) return;
-        const res = await apiClient.get<{ success: boolean; stream: any }>(`/api/consultations/active-stream?groupId=${conferenceProjectId}`);
-        if (res?.stream) {
-          const s = res.stream;
-          setIsMeetingActive(s.isActive);
-          if (s.meetingUrl) setActiveMeetingUrl(s.meetingUrl);
-          if (s.topic) setActiveMeetingTopic(s.topic);
-          if (s.participants && s.participants.length > 0) {
-            setActiveParticipants(s.participants);
-          }
-          saveMeetingSession({
-            groupId: s.groupId || "default",
-            groupName: s.groupName || "Advisee Consultation",
-            topic: s.topic,
-            meetingUrl: s.meetingUrl,
-            isActive: s.isActive,
-            participants: s.participants || [],
-          });
-        }
-      } catch {
-        // Fallback to local store
-      }
-    };
-
-    fetchActiveStream();
-    const interval = setInterval(fetchActiveStream, 3000);
-    return () => clearInterval(interval);
-  }, [conferenceProjectId]);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isMeetingActive) {
-      timer = setInterval(() => {
-        setMeetingDuration(prev => prev + 1);
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [isMeetingActive]);
-
-  const handleLaunchSyncedMeeting = async (targetUrl: string, selectedEmail: string) => {
-    setShowConnectModal(false);
-    setActiveMeetingUrl(targetUrl);
-    setIsMeetingActive(true);
-
-    const adviserParticipant = {
-      id: user?.id || selectedEmail,
-      name: `${user?.firstName || "Faculty"} ${user?.lastName || "Adviser"}`.trim(),
-      role: "Faculty Adviser",
-      email: selectedEmail,
-      joinedAt: "Just now",
-    };
-
-    const updatedParticipants = [
-      adviserParticipant,
-      ...activeParticipants.filter(p => p.email !== selectedEmail),
-    ];
-
-    setActiveParticipants(updatedParticipants);
-
-    // Broadcast active stream to backend database so other browser receives exact same URL
-    try {
-      await apiClient.post("/api/consultations/active-stream", {
-        groupId: conferenceProjectId,
-        groupName: "Advisee Consultation",
-        topic: activeMeetingTopic,
-        meetingUrl: targetUrl,
-        gmailAccount: selectedEmail,
-      });
-    } catch {
-      // Graceful fallback
-    }
-
-    saveMeetingSession({
-      groupId: conferenceProjectId,
-      groupName: "Advisee Consultation",
-      topic: activeMeetingTopic,
-      meetingUrl: targetUrl,
-      isActive: true,
-      startedAt: Date.now(),
-      participants: updatedParticipants,
-    });
-
-    window.open(targetUrl, "GoogleMeetWindow", "width=1024,height=720,resizable=yes");
-  };
-
-  const handleStartConference = (url?: string, topicTitle: string = "Group Conferencing", researchId?: string) => {
-    if (url) setActiveMeetingUrl(url);
-    if (topicTitle) setActiveMeetingTopic(topicTitle);
-    if (researchId) setConferenceProjectId(researchId);
-    setShowConnectModal(true);
-  };
-
-  const handleReopenMeetingWindow = () => {
-    window.open(activeMeetingUrl, "GoogleMeetWindow", "width=1024,height=720,resizable=yes");
-  };
-
-  const handleEndConference = async () => {
-    setIsMeetingActive(false);
-    setMeetingDuration(0);
-    saveMeetingSession({
-      ...getStoredMeetingSession(),
-      isActive: false,
-      participants: [],
-    });
-    try {
-      if (conferenceProjectId)
-        await apiClient.post("/api/consultations/active-stream/end", { groupId: conferenceProjectId });
-    } catch {
-      // Graceful fallback
-    }
-  };
-
-  const formatMeetingTime = (secs: number) => {
-    const mins = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${mins.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  };
+  const consultations = consultationsApiData?.consultations || [];
 
   const handleTabChange = (tab: string) => {
     if (tab === "reviews") {
@@ -318,11 +178,6 @@ function AdviserDashboardContent() {
       );
     }
   }, [milestoneProgressByProject, researchData, user?.id]);
-
-  useEffect(() => {
-    if (!contextualResearchId || !advisees.some((advisee) => advisee.id === contextualResearchId)) return;
-    setConsultGroupId(contextualResearchId);
-  }, [advisees, contextualResearchId]);
 
   const [selectedAdvisee, setSelectedAdvisee] = useState<any | null>(null);
   const [showWithdrawalForm, setShowWithdrawalForm] = useState(false);
@@ -444,59 +299,8 @@ function AdviserDashboardContent() {
     }
   };
 
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [consultTopic, setConsultTopic] = useState("");
-  const [consultDate, setConsultDate] = useState("");
-  const [consultTime, setConsultTime] = useState("");
-  const [consultGroupId, setConsultGroupId] = useState("");
-  const [customMeetUrl, setCustomMeetUrl] = useState("");
-  const [isScheduling, setIsScheduling] = useState(false);
-
-  const handleScheduleConsultation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!consultTopic) return;
-    setIsScheduling(true);
-    try {
-      const selectedAdv = advisees.find(a => a.id === consultGroupId) || advisees[0];
-      const startDateTime = new Date(`${consultDate || new Date().toISOString().split("T")[0]}T${consultTime || "10:00"}:00`);
-      const endDateTime = new Date(startDateTime.getTime() + 3600000);
-
-      if (!selectedAdv?.id) throw new Error("Select an assigned research group.");
-      const result = await apiClient.post<{ consultation: ConsultationItem; warning?: string }>("/api/consultations", {
-        researchId: selectedAdv.id,
-        title: consultTopic,
-        description: `Advising session for ${selectedAdv.groupName || "Research Group"}`,
-        scheduledStart: startDateTime.toISOString(),
-        scheduledEnd: endDateTime.toISOString(),
-        meetingUrl: customMeetUrl.trim() || undefined,
-      });
-      setConsultations((previous) => [
-        result.consultation,
-        ...previous.filter((item) => item.id !== result.consultation.id),
-      ]);
-      await refetchConsultations();
-      setConsultTopic("");
-      setConsultDate("");
-      setConsultTime("");
-      setCustomMeetUrl("");
-      setShowScheduleModal(false);
-      triggerToast(result.warning || "Consultation scheduled successfully.");
-    } catch (error: any) {
-      triggerToast(error?.message || "Unable to schedule the consultation.");
-    } finally {
-      setIsScheduling(false);
-    }
-  };
-
-  const handleApproveConsultation = async (id: string, topic: string) => {
-    try {
-      await apiClient.patch(`/api/consultations/${id}/approve`);
-      await refetchConsultations();
-      triggerToast(`Approved consultation: ${topic}`);
-    } catch (error: any) {
-      triggerToast(error?.message || "Unable to approve this consultation.");
-    }
-  };
+  const [consultationForm, setConsultationForm] = useState<"scheduled" | "instant" | null>(null);
+  const consultationProjects = advisees.map((group) => ({ id: group.id, title: group.projectTitle, groupName: group.groupName }));
 
   const handleOpenTranscriptModal = (consultation: ConsultationItem) => {
     setSelectedConsultationForTranscript(consultation);
@@ -597,7 +401,7 @@ function AdviserDashboardContent() {
   const attentionUnavailable = requestsError || reviewQueueError;
   const attentionLoading = requestsLoading || reviewQueueLoading;
   const openOverviewSchedule = () => {
-    setShowScheduleModal(true);
+    setConsultationForm("scheduled");
     handleTabChange("consultations");
   };
   const overviewWorkload = [
@@ -974,7 +778,8 @@ function AdviserDashboardContent() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => handleStartConference(nextConsultation.meetingUrl || DEFAULT_SHARED_MEET_URL, nextConsultation.topic, nextConsultation.researchId)}
+                          disabled={!nextConsultation.meetingUrl}
+                          onClick={() => void joinConsultation(nextConsultation.id, triggerToast)}
                           className="adviser-overview__join"
                         >
                           <i aria-hidden="true" className="ti ti-video" /> Join Google Meet
@@ -1159,133 +964,17 @@ function AdviserDashboardContent() {
                   error={Boolean(consultationsError)}
                   onRetry={() => void refetchConsultations()}
                   seal={overviewSeal}
-                  onSchedule={() => setShowScheduleModal(true)}
-                  onApprove={(item) => handleApproveConsultation(item.id, item.topic)}
-                  onJoin={(item) => handleStartConference(item.meetingUrl || DEFAULT_SHARED_MEET_URL, item.topic, item.researchId)}
+                  onSchedule={() => setConsultationForm("scheduled")}
+                  onInstantMeet={() => setConsultationForm("instant")}
+                  viewerId={user?.id}
+                  linkedId={searchParams.get("consultationId") || undefined}
+                  onJoin={(item) => void joinConsultation(item.id, triggerToast)}
                   onCopy={(url) => {
                     void navigator.clipboard.writeText(url);
                     triggerToast("Copied Google Meet link to clipboard!");
                   }}
                 />
 
-                {/* SCHEDULE MODAL */}
-                {showScheduleModal && (
-                  <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="adviser-consultation-form-title">
-                    <div className="bg-white rounded-2xl border border-[var(--color-border)] shadow-2xl p-6 w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto flex flex-col gap-4 animate-fade-in-up">
-                      <div className="flex justify-between items-center border-b border-[var(--color-border)] pb-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                            <i className="ti ti-video text-base" />
-                          </div>
-                          <div>
-                            <h4 id="adviser-consultation-form-title" className="font-bold text-lg text-slate-900">New Google Meet Consultation</h4>
-                            <span className="text-xs text-slate-400">Generate real calendar video conference</span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => setShowScheduleModal(false)}
-                          aria-label="Close scheduling form"
-                          className="text-slate-400 hover:text-slate-600 cursor-pointer p-1"
-                        >
-                          <i className="ti ti-x text-base" />
-                        </button>
-                      </div>
-
-                      <form onSubmit={handleScheduleConsultation} className="flex flex-col gap-3 text-[12px]">
-                        <div className="flex flex-col gap-1">
-                          <label className="font-bold text-slate-700">Advisee Group / Research Project</label>
-                          <select
-                            data-guide="adviser-consultation-group"
-                            data-guide-empty={advisees.length === 0}
-                            value={consultGroupId}
-                            onChange={(e) => setConsultGroupId(e.target.value)}
-                            className="bg-slate-50 border border-[var(--color-border)] rounded-lg p-2 text-slate-800 focus:outline-none focus:border-[#1b4264]"
-                          >
-                            {advisees.map((adv) => (
-                              <option key={adv.id} value={adv.id}>
-                                {adv.groupName} — {adv.projectTitle}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="flex flex-col gap-1">
-                          <label className="font-bold text-slate-700">Consultation Topic / Purpose</label>
-                          <input
-                            type="text"
-                            required
-                            data-guide="adviser-consultation-topic"
-                            value={consultTopic}
-                            onChange={(e) => setConsultTopic(e.target.value)}
-                            placeholder="e.g. Chapter 3 Methodology & Analysis Discussion"
-                            className="bg-slate-50 border border-[var(--color-border)] rounded-lg p-2 text-slate-800 focus:outline-none focus:border-[#1b4264]"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="flex flex-col gap-1">
-                            <label className="font-bold text-slate-700">Date</label>
-                            <input
-                              type="date"
-                              required
-                              data-guide="adviser-consultation-date"
-                              value={consultDate}
-                              onChange={(e) => setConsultDate(e.target.value)}
-                              className="bg-slate-50 border border-[var(--color-border)] rounded-lg p-2 text-slate-800 focus:outline-none focus:border-[#1b4264]"
-                            />
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <label className="font-bold text-slate-700">Time</label>
-                            <input
-                              type="time"
-                              required
-                              data-guide="adviser-consultation-time"
-                              value={consultTime}
-                              onChange={(e) => setConsultTime(e.target.value)}
-                              className="bg-slate-50 border border-[var(--color-border)] rounded-lg p-2 text-slate-800 focus:outline-none focus:border-[#1b4264]"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-1">
-                          <label className="font-bold text-slate-700">Google Meet Link (Optional)</label>
-                          <input
-                            type="url"
-                            value={customMeetUrl}
-                            onChange={(e) => setCustomMeetUrl(e.target.value)}
-                            placeholder="Leave blank for instant live Google Meet room (https://meet.google.com/new)"
-                            className="bg-slate-50 border border-[var(--color-border)] rounded-lg p-2 text-slate-800 focus:outline-none focus:border-[#1b4264] text-base"
-                          />
-                          <span className="text-xs text-slate-400">Default creates an instant live Google Meet video room automatically.</span>
-                        </div>
-
-                        <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-[var(--color-border)]">
-                          <button
-                            type="button"
-                            onClick={() => setShowScheduleModal(false)}
-                            className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-slate-600 hover:bg-slate-50 cursor-pointer font-semibold"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="submit"
-                            disabled={isScheduling}
-                            className="flex items-center gap-1.5 px-4 py-1.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-[var(--college-on-primary)] font-bold rounded-lg cursor-pointer shadow-sm disabled:opacity-50"
-                          >
-                            {isScheduling ? (
-                              <span>Generating Meet Link...</span>
-                            ) : (
-                              <>
-                                <i className="ti ti-video" />
-                                <span>Create & Generate Link</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  </div>
-                )}
               </>
             ),
             progress: (
@@ -1423,99 +1112,7 @@ function AdviserDashboardContent() {
                 </div>
               </div>
             ),
-            conferencing: (
-              <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-semibold text-[var(--color-text-primary)] text-lg">In-App Voice and Video Group Conferencing</h3>
-                <p className="text-base text-slate-400 font-bold">Initiate peer study room conferences or sync appointments with advisees.</p>
-                
-                {!isMeetingActive ? (
-                  <div className="bg-slate-50 p-6 border border-[var(--color-border)] rounded-xl text-center flex flex-col gap-4 shadow-sm">
-                    <div className="w-16 h-16 bg-[var(--color-primary)]/10 rounded-full flex items-center justify-center mx-auto text-[var(--college-on-primary)]">
-                      <i className="ti ti-video text-3xl animate-pulse" />
-                    </div>
-                    <div>
-                      <span className="font-bold text-[var(--color-text-primary)] text-[14px] block">Live Stream Channels Ready</span>
-                      <span className="text-xs text-slate-400">Join consultation call with your assigned advisee groups</span>
-                    </div>
-                    <button 
-                      onClick={() => handleStartConference("https://meet.google.com/new", "In-App Voice and Video Group Conferencing", advisees[0]?.id)}
-                      className="px-5 py-2.5 bg-[#ffa400] text-[#102f49] hover:bg-[#e09000] font-semibold rounded-lg shadow border border-[#ffa400] self-center cursor-pointer transition-colors flex items-center gap-2"
-                    >
-                      <i className="ti ti-video text-lg" />
-                      <span>Start Stream Conference</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50/60 p-6 border-2 border-emerald-400/80 rounded-xl text-center flex flex-col gap-4 shadow-md animate-fade-in">
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="relative flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                      </span>
-                      <span className="font-semibold text-emerald-800 text-[15px] uppercase tracking-wider">Meeting in Progress</span>
-                    </div>
-
-                    <div className="flex flex-col items-center justify-center gap-1">
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Active Call Duration</span>
-                      <span className="font-mono text-3xl font-semibold text-[var(--color-text-primary)] tracking-tight">{formatMeetingTime(meetingDuration)}</span>
-                      <span className="text-xs text-slate-500 mt-1">Google Meet session is running in floating window</span>
-                    </div>
-
-                    {/* LIVE ATTENDEES LIST */}
-                    <div className="bg-white/80 border border-emerald-200/80 rounded-xl p-3.5 max-w-lg mx-auto w-full text-left shadow-sm">
-                      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-emerald-100 pb-2">
-                        <span className="text-xs font-semibold text-[var(--color-text-primary)] flex items-center gap-1.5">
-                          <i className="ti ti-users text-emerald-600" />
-                          <span>Connected Attendees ({activeParticipants.length})</span>
-                        </span>
-                        <span className="text-xs font-bold text-emerald-600 bg-emerald-100/70 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Live Sync
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col gap-1.5">
-                        {activeParticipants.map((p) => (
-                          <div key={p.id} className="flex flex-col gap-1.5 rounded-lg p-1.5 text-xs transition hover:bg-emerald-50/50 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-[var(--color-primary)] text-[var(--college-on-primary)] text-xs font-semibold flex items-center justify-center">
-                                {p.name.split(" ").map(n => n[0]).slice(0, 2).join("")}
-                              </div>
-                              <div>
-                                <span className="font-bold text-slate-800 block leading-tight">{p.name}</span>
-                                <span className="break-all text-xs text-slate-500 sm:break-normal">{p.role} · {p.email}</span>
-                              </div>
-                            </div>
-                            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                              {p.joinedAt}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-                      <button
-                        onClick={handleReopenMeetingWindow}
-                        aria-label="Reopen meeting window"
-                        className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm font-bold text-[var(--color-text-primary)] shadow-sm transition hover:bg-[var(--color-surface-muted)]"
-                      >
-                        <i className="ti ti-external-link" />
-                        <span className="hidden sm:inline">Reopen Meeting Window</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleEndConference()}
-                        className="flex min-h-11 items-center gap-2 rounded-lg bg-rose-600 px-4 text-sm font-bold text-white shadow transition hover:bg-rose-700"
-                      >
-                        <i className="ti ti-phone-off" />
-                        <span>End Session</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ),
+            conferencing: <button type="button" className="adviser-overview__hero-primary" onClick={() => handleTabChange("consultations")}>Open consultations</button>,
             defense: (
               <div className="bg-white rounded-xl border border-[var(--color-border)] shadow-sm p-6 flex flex-col gap-4">
                 <h3 className="font-semibold text-[var(--color-text-primary)] text-lg">Defense Schedule Viewing</h3>
@@ -1572,15 +1169,11 @@ function AdviserDashboardContent() {
 
       </div>
 
-      <GoogleMeetConnectModal
-        isOpen={showConnectModal}
-        currentUrl={activeMeetingUrl}
-        defaultEmail="rachel.lim@university.edu.ph"
-        defaultName="Dr. Rachel Lim"
-        role="Faculty Adviser"
-        onClose={() => setShowConnectModal(false)}
-        onLaunch={handleLaunchSyncedMeeting}
-      />
+      {consultationForm && (
+        <ConsultationMeetingForm projects={consultationProjects} adviserGuide={consultationForm === "scheduled"}
+          initialProjectId={consultationProjects.find(({ id }) => id === contextualResearchId)?.id}
+          instant={consultationForm === "instant"} onClose={() => setConsultationForm(null)} onResult={triggerToast} />
+      )}
 
       <GoogleMeetTranscriptModal
         isOpen={showTranscriptModal}

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { CalendarClock, History, Search, Video } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
@@ -9,12 +10,15 @@ import { apiClient } from "@/lib/api-client";
 import { calendarDaysUntil } from "@/lib/researcher-home";
 import { CountStrip, DateTile, EmptyNote, InlineFeedback, ListRow, PageBand, SectionCard, StatusDot, type StatusTone } from "@/components/ui/advisio";
 import { useAuth } from "@/providers/auth-provider";
+import { ConsultationMeetingForm, type ConsultationProject } from "./ConsultationMeetingForm";
+import { ConsultationActions, joinConsultation, type ManagedConsultation } from "./ConsultationActions";
 
 type Workspace = "coordinator" | "panelist" | "dean";
-type Project = { id: string; title: string; groupName: string | null };
 
 const statusLabels = {
   REQUESTED: "Awaiting approval",
+  PROVISIONING: "Preparing Google Meet",
+  DECLINED: "Declined",
   SCHEDULED: "Scheduled",
   ONGOING: "In progress",
   COMPLETED: "Completed",
@@ -28,21 +32,23 @@ const historyOutcomes = {
 } as const;
 const emptyHistoryFilters = { search: "", from: "", to: "", status: "" };
 
-type Consultation = {
+type Consultation = ManagedConsultation & {
   id: string;
   title: string;
   status: keyof typeof statusLabels;
   scheduledStart: string;
   scheduledEnd: string;
   meetingUrl?: string | null;
-  research: Omit<Project, "id"> & {
+  conferenceState?: string;
+  attendanceStatus?: string;
+  research: Omit<ConsultationProject, "id"> & {
     members?: { user: { firstName: string; lastName: string } }[];
   };
 };
 
 const descriptions: Record<Workspace, string> = {
   coordinator: "Schedule consultations and review requests for the research groups you oversee.",
-  panelist: "See project consultations for the research groups you’re assigned to.",
+  panelist: "See consultations you have been invited to.",
   dean: "Review consultation schedules and status across your active college.",
 };
 const roleLabels: Record<Workspace, string> = {
@@ -52,17 +58,18 @@ const roleLabels: Record<Workspace, string> = {
 };
 const emptyText: Record<Workspace, string> = {
   coordinator: "Consultations you schedule or approve for your groups appear here.",
-  panelist: "Consultations the coordinator schedules for your assigned groups appear here.",
+  panelist: "Consultations you are invited to appear here.",
   dean: "Consultations scheduled across your college appear here.",
 };
 const statusTones: Record<Consultation["status"], StatusTone> = {
   REQUESTED: "waiting",
+  PROVISIONING: "waiting",
+  DECLINED: "attention",
   SCHEDULED: "brand",
   ONGOING: "live",
   COMPLETED: "done",
   CANCELLED: "neutral",
 };
-const fieldClass = "min-h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2";
 const dateTime = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -90,132 +97,59 @@ function dayLabel(date: Date) {
   return shortDay.format(date);
 }
 
-function httpsUrl(value?: string | null) {
-  if (!value) return null;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && !url.username && !url.password ? url : null;
-  } catch {
-    return null;
-  }
-}
-
-function projectLabel(project: Omit<Project, "id">) {
+function projectLabel(project: Omit<ConsultationProject, "id">) {
   return project.groupName ? `${project.groupName} · ${project.title}` : project.title;
 }
 
-function ScheduleConsultation({ scope, onClose, onScheduled }: {
+function ScheduleConsultation({ scope, instant, onClose, onScheduled }: {
   scope: string;
+  instant: boolean;
   onClose: () => void;
   onScheduled: (notice: string) => void;
 }) {
   const projects = useQuery({
     queryKey: ["consultation-projects", scope],
-    queryFn: () => apiClient.get<{ projects: Project[] }>("/api/consultations/workspace/coordinator/projects"),
+    queryFn: () => apiClient.get<{ projects: ConsultationProject[] }>("/api/consultations/workspace/coordinator/projects"),
   });
-  const schedule = useMutation({
-    mutationFn: (form: FormData) => {
-      const start = new Date(`${form.get("start")}:00+08:00`);
-      const end = new Date(`${form.get("end")}:00+08:00`);
-      if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) {
-        throw new Error("Choose an end time after the start time.");
-      }
-      const meetingUrl = String(form.get("meetingUrl") ?? "").trim();
-      if (meetingUrl && !httpsUrl(meetingUrl)) throw new Error("Enter a valid HTTPS meeting link.");
-      return apiClient.post<{ warning?: string }>("/api/consultations", {
-        researchId: form.get("project"),
-        title: form.get("title"),
-        scheduledStart: start.toISOString(),
-        scheduledEnd: end.toISOString(),
-        meetingUrl,
-      });
-    },
-    onSuccess: ({ warning }) => {
-      onScheduled(warning || "Consultation scheduled.");
-      onClose();
-    },
-  });
-  const options = projects.data?.projects ?? [];
-
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!schedule.isPending) schedule.mutate(new FormData(event.currentTarget));
-  }
-
-  return (
-    <Modal isOpen onClose={schedule.isPending ? () => {} : onClose} title="Schedule a consultation">
-      {projects.isPending && <p role="status">Loading your projects…</p>}
-      {projects.isError && (
-        <div className="space-y-3">
-          <p role="alert">{projects.error.message}</p>
-          <Button variant="secondary" onClick={() => void projects.refetch()}>Try again</Button>
-        </div>
-      )}
-      {projects.isSuccess && options.length === 0 && <p>You don’t have any active projects to schedule consultations for.</p>}
-      {options.length > 0 && (
-        <form className="flex flex-col gap-4 text-sm" onSubmit={submit}>
-          <label className="grid gap-1.5 font-semibold">
-            Research project
-            <select name="project" required defaultValue="" className={fieldClass}>
-              <option value="" disabled>Choose a project</option>
-              {options.map((project) => <option key={project.id} value={project.id}>{projectLabel(project)}</option>)}
-            </select>
-          </label>
-          <label className="grid gap-1.5 font-semibold">
-            Discussion topic
-            <input name="title" required maxLength={200} className={fieldClass} />
-          </label>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid min-w-0 gap-1.5 font-semibold">
-              Start (Philippine time)
-              <input name="start" type="datetime-local" required className={fieldClass} />
-            </label>
-            <label className="grid min-w-0 gap-1.5 font-semibold">
-              End (Philippine time)
-              <input name="end" type="datetime-local" required className={fieldClass} />
-            </label>
-          </div>
-          <label className="grid gap-1.5 font-semibold">
-            Meeting link (optional)
-            <input name="meetingUrl" type="url" maxLength={500} placeholder="https://meet.google.com/…" className={fieldClass} />
-          </label>
-          {schedule.error && <p role="alert" className="text-red-700 dark:text-red-300">{schedule.error.message}</p>}
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={onClose} disabled={schedule.isPending}>Cancel</Button>
-            <Button type="submit" isLoading={schedule.isPending} loadingText="Scheduling…">Schedule consultation</Button>
-          </div>
-        </form>
-      )}
-    </Modal>
-  );
+  if (projects.data?.projects.length) return <ConsultationMeetingForm projects={projects.data.projects} instant={instant} onClose={onClose} onResult={onScheduled} />;
+  return <Modal isOpen onClose={onClose} title="Consultation projects">
+    {projects.isPending && <p role="status">Loading your projects…</p>}
+    {projects.isError && <div className="space-y-3"><p role="alert">{projects.error.message}</p>
+      <Button variant="secondary" onClick={() => void projects.refetch()}>Try again</Button></div>}
+    {projects.isSuccess && <p>You don’t have any active projects to schedule consultations for.</p>}
+  </Modal>;
 }
 
-function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; scope: string }) {
-  const queryClient = useQueryClient();
+function ConsultationWorkspace({ workspace, scope, viewerId }: { workspace: Workspace; scope: string; viewerId?: string }) {
+  const [params, setParams] = useSearchParams();
+  const linkedId = params.get("consultationId") || undefined;
   const [page, setPage] = useState(1);
   const [history, setHistory] = useState(false);
   const [draftFilters, setDraftFilters] = useState(emptyHistoryFilters);
   const [filters, setFilters] = useState(emptyHistoryFilters);
-  const [scheduling, setScheduling] = useState(false);
+  const [scheduling, setScheduling] = useState<"scheduled" | "instant" | null>(null);
   const [notice, setNotice] = useState("");
-  const params = history ? {
+  const [joinError, setJoinError] = useState("");
+  const queryParams = history ? {
     page,
     view: "history",
     search: filters.search || undefined,
     from: filters.from || undefined,
     to: filters.to || undefined,
     status: filters.status || undefined,
-  } : { page };
+  } : { page, consultationId: linkedId };
   const consultations = useQuery({
-    queryKey: ["faculty-consultations", scope, workspace, params],
+    queryKey: ["faculty-consultations", scope, workspace, queryParams],
     queryFn: () => apiClient.get<{ consultations: Consultation[]; hasNextPage: boolean }>(
-      `/api/consultations/workspace/${workspace}`, { params },
+      `/api/consultations/workspace/${workspace}`, { params: queryParams },
     ),
+    refetchInterval: 15_000,
   });
 
   function showHistory(value: boolean) {
     setHistory(value);
     setPage(1);
+    setJoinError("");
   }
 
   function applyFilters(event: FormEvent<HTMLFormElement>) {
@@ -230,21 +164,9 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
     setPage(1);
   }
 
-  function refreshLists() {
-    for (const key of ["faculty-consultations", "consultations", "universal-calendar"]) {
-      void queryClient.invalidateQueries({ queryKey: [key] });
-    }
-  }
-
-  const approval = useMutation({
-    mutationFn: (id: string) => apiClient.patch(`/api/consultations/${id}/approve`),
-    onSuccess: () => setNotice("Consultation approved."),
-    onSettled: refreshLists,
-  });
-
   const items = consultations.data?.consultations ?? [];
   // Counts only describe the whole list when it fits on one page.
-  const showCounts = !history && consultations.isSuccess && page === 1 && !consultations.data.hasNextPage;
+  const showCounts = !history && !linkedId && consultations.isSuccess && page === 1 && !consultations.data.hasNextPage;
   const count = (...statuses: Consultation["status"][]) => items.filter((item) => statuses.includes(item.status)).length;
 
   return (
@@ -269,7 +191,10 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
             ]}
           />
         ) : undefined}
-        actions={workspace === "coordinator" ? <Button onClick={() => setScheduling(true)}>Schedule consultation</Button> : undefined}
+        actions={workspace === "coordinator" ? <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setScheduling("scheduled")}>Schedule consultation</Button>
+          <Button variant="secondary" onClick={() => setScheduling("instant")}>Instant Google Meet</Button>
+        </div> : undefined}
       />
 
       {workspace === "dean" && (
@@ -284,7 +209,8 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
       )}
 
       {notice && <InlineFeedback tone="ok">{notice}</InlineFeedback>}
-      {approval.error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{approval.error.message}</p>}
+      {joinError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{joinError}</p>}
+      {!history && linkedId && <Button variant="secondary" onClick={() => { setPage(1); setParams({}); }}>Show all consultations</Button>}
       <SectionCard title={history ? "Consultation history" : "Project consultations"} titleId="consultations-list" count={!history && consultations.isSuccess ? items.length : undefined}>
         {history && (
           <form className="au-card-body space-y-3 border-b border-[var(--color-border)]" onSubmit={applyFilters}>
@@ -356,7 +282,7 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
         {items.length > 0 && (
           <ul className="au-list">
             {items.map((item) => {
-              const meeting = item.status === "SCHEDULED" || item.status === "ONGOING" ? httpsUrl(item.meetingUrl) : null;
+              const meeting = !history && Boolean(item.meetingUrl);
               const start = new Date(item.scheduledStart);
               const outcome = item.status === "COMPLETED" || item.status === "CANCELLED" ? historyOutcomes[item.status] : historyOutcomes.UNRECORDED;
               const advisers = item.research.members?.map(({ user }) => `${user.firstName} ${user.lastName}`.trim()).join(", ");
@@ -383,21 +309,16 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
                       </>
                     }
                     end={
-                      <span className="flex flex-wrap items-center justify-end gap-2">
-                        <StatusDot tone={history ? outcome.tone : statusTones[item.status]}>{history ? outcome.label : statusLabels[item.status]}</StatusDot>
-                        {workspace === "coordinator" && item.status === "REQUESTED" && (
-                          <Button size="sm" variant="secondary" disabled={approval.isPending} isLoading={approval.isPending && approval.variables === item.id} onClick={() => {
-                            setNotice("");
-                            approval.mutate(item.id);
-                          }}>Approve</Button>
-                        )}
-                        {meeting && workspace !== "dean" && (
-                          <a href={meeting.href} target="_blank" rel="noopener noreferrer" className="au-link">
-                            <Video className="size-4" aria-hidden="true" />
-                            {meeting.hostname === "meet.google.com" ? "Google Meet" : "Meeting link"}
-                          </a>
-                        )}
-                      </span>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <StatusDot tone={history ? outcome.tone : statusTones[item.status]}>
+                          {history ? outcome.label : item.conferenceState === "FAILED" && item.status === "PROVISIONING" ? "Calendar setup failed" : statusLabels[item.status]}
+                        </StatusDot>
+                        {meeting && <Button size="sm" variant="secondary" onClick={() => { setJoinError(""); void joinConsultation(item.id, setJoinError); }}>
+                          <Video className="size-4" aria-hidden="true" /> Join Meet
+                        </Button>}
+                        {item.attendanceStatus === "INVITED" && meeting && <span className="text-xs">Invited</span>}
+                        {!history && <ConsultationActions item={item} viewerId={viewerId} approvalVisible={Date.parse(item.scheduledEnd) > Date.now()} />}
+                      </div>
                     }
                   />
                 </li>
@@ -414,10 +335,9 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
         )}
       </SectionCard>
 
-      {scheduling && <ScheduleConsultation scope={scope} onClose={() => setScheduling(false)} onScheduled={(message) => {
+      {scheduling && <ScheduleConsultation scope={scope} instant={scheduling === "instant"} onClose={() => setScheduling(null)} onScheduled={(message) => {
         setNotice(message);
         setPage(1);
-        refreshLists();
       }} />}
     </PageContainer>
   );
@@ -426,5 +346,5 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
 export default function FacultyConsultationsPage({ workspace }: { workspace: Workspace }) {
   const { user } = useAuth();
   const scope = `${user?.id ?? ""}:${user?.college?.id ?? ""}`;
-  return <ConsultationWorkspace key={`${scope}:${workspace}`} workspace={workspace} scope={scope} />;
+  return <ConsultationWorkspace key={`${scope}:${workspace}`} workspace={workspace} scope={scope} viewerId={user?.id} />;
 }

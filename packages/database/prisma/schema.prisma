@@ -302,10 +302,26 @@ enum DefensePacketStatus {
 
 enum ConsultationStatus {
   REQUESTED
+  PROVISIONING
   SCHEDULED
   ONGOING
   COMPLETED
   CANCELLED
+  DECLINED
+}
+
+enum ConsultationMeetingKind {
+  SCHEDULED
+  INSTANT
+}
+
+enum ConsultationConferenceState {
+  LEGACY
+  AWAITING_APPROVAL
+  PENDING
+  FAILED
+  GOOGLE_VERIFIED
+  MANUAL
 }
 
 enum AttendanceStatus {
@@ -2366,6 +2382,15 @@ model Consultation {
   scheduledEnd    DateTime           @map("scheduled_end")
   meetingUrl      String?            @map("meeting_url") @db.VarChar(500)
   status          ConsultationStatus @default(SCHEDULED)
+  meetingKind     ConsultationMeetingKind @default(SCHEDULED) @map("meeting_kind")
+  conferenceState ConsultationConferenceState @default(LEGACY) @map("conference_state")
+  googleEventId   String?            @unique @map("google_event_id") @db.VarChar(255)
+  approverId      String?            @map("approver_id") @db.Uuid
+  requestKey      String?            @unique @map("request_key") @db.VarChar(64)
+  requestHash     String?            @map("request_hash") @db.VarChar(64)
+  revision        Int                @default(0)
+  pendingCalendarUpdate Json?        @map("pending_calendar_update")
+  calendarCancellationPending Boolean @default(false) @map("calendar_cancellation_pending")
   legacyImportKey String?            @unique @map("legacy_import_key") @db.VarChar(100)
   createdAt       DateTime           @default(now()) @map("created_at")
   updatedAt       DateTime           @updatedAt @map("updated_at")
@@ -2376,6 +2401,7 @@ model Consultation {
 
   @@index([researchId])
   @@index([scheduledStart])
+  @@index([calendarCancellationPending])
   @@map("consultations")
 }
 
@@ -2391,6 +2417,7 @@ model ConsultationParticipant {
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([consultationId, userId])
+  @@index([userId])
   @@map("consultation_participants")
 }
 

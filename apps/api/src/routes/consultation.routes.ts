@@ -1,41 +1,57 @@
+import { createHash, randomUUID } from "node:crypto";
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import { AttendanceStatus, ConsultationStatus, Prisma, prisma } from "../lib/prisma.js";
+import { Prisma, prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { asyncHandler } from "../middleware/async-handler.js";
 import { monitoringDateSchema } from "../schemas/dean-monitoring.schema.js";
 import { dateBounds, deanCollege } from "../services/dean-monitoring-scope.js";
-import { googleCalendarService } from "../services/google-calendar.service.js";
+import { googleMeetUrl, ConsultationCalendarError } from "../services/google-calendar.service.js";
 import {
-  consultationInclude,
-  consultationProjectAccess,
-  legacyConsultationImportKey,
-  serializeConsultation,
+  consultationAudience, consultationInclude, consultationProjectAccess, joinableConsultationUrl,
+  legacyConsultationImportKey, serializeConsultation,
 } from "../services/consultation.service.js";
+import {
+  assertOrganizer, assertParticipant, consultationError, findConsultationRecipients, googleEventKey, notifyConsultation,
+  pendingCalendarUpdate, provisionConsultation, recipientWorkspaces, syncConsultationCancellation, syncConsultationUpdate,
+  uuid, withConsultationLock,
+} from "../services/consultation-lifecycle.service.js";
 
 const router = Router();
+router.use((_req, res, next) => {
+  res.setHeader("Cache-Control", "private, no-store");
+  next();
+});
 
-function validDateRange(startValue: unknown, endValue: unknown) {
+function id(value: unknown) {
+  if (typeof value !== "string" || !uuid.test(value)) throw consultationError(400, "Choose a valid consultation or research group.");
+  return value.toLowerCase();
+}
+
+function dateRange(startValue: unknown, endValue: unknown, future = true) {
   const start = new Date(String(startValue || ""));
   const end = new Date(String(endValue || ""));
-  return {
-    start,
-    end,
-    valid:
-      !Number.isNaN(start.getTime()) &&
-      !Number.isNaN(end.getTime()) &&
-      end.getTime() > start.getTime(),
-  };
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) ||
+      end <= start || (future && end.getTime() <= Date.now())) {
+    throw consultationError(400, "Choose a valid start and end time. New consultations must end in the future.");
+  }
+  return { start, end };
 }
 
-async function accessibleConsultation(id: string, user: NonNullable<Request["user"]>) {
-  const consultation = await prisma.consultation.findUnique({
-    where: { id },
-    include: consultationInclude,
-  });
-  if (!consultation) return { consultation: null, access: null };
-  const { access } = await consultationProjectAccess(user, consultation.researchId);
-  return { consultation, access };
+function participantIds(value: unknown): string[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 40) throw consultationError(400, "Select up to 40 participants.");
+  return [...new Set(value.map(id))].sort();
 }
+
+const digest = (value: string) => createHash("sha256").update(value).digest("hex");
+const coordinatorRoles = ["PROFESSOR", "RESEARCH_COORDINATOR"];
+const historyFilters = z.object({
+  from: monitoringDateSchema,
+  to: monitoringDateSchema,
+  search: z.string().trim().max(160).optional(),
+  status: z.enum(["COMPLETED", "CANCELLED", "UNRECORDED"]).optional(),
+}).refine(({ from, to }) => !from || !to || from <= to, "End date must be on or after the start date.");
 
 function coordinatorProjects(userId: string, collegeId: string): Prisma.ResearchProjectWhereInput {
   return {
@@ -47,427 +63,440 @@ function coordinatorProjects(userId: string, collegeId: string): Prisma.Research
   };
 }
 
-const coordinatorRoles = ["PROFESSOR", "RESEARCH_COORDINATOR"];
-const historyFilters = z.object({
-  from: monitoringDateSchema,
-  to: monitoringDateSchema,
-  search: z.string().trim().max(160).optional(),
-  status: z.enum(["COMPLETED", "CANCELLED", "UNRECORDED"]).optional(),
-}).refine(({ from, to }) => !from || !to || from <= to, "End date must be on or after the start date.");
-
-router.get("/workspace/coordinator/projects", requireAuth, async (req, res) => {
+router.get("/workspace/coordinator/projects", requireAuth, asyncHandler(async (req, res) => {
   const user = req.user!;
   if (!user.collegeId || !user.roles.some((role) => coordinatorRoles.includes(role))) {
-    return void res.status(403).json({ error: "An authorized Coordinator college is required." });
+    throw consultationError(403, "An authorized Coordinator college is required.");
   }
-  try {
-    const projects = await prisma.researchProject.findMany({
-      where: { ...coordinatorProjects(user.id, user.collegeId), status: { not: "ARCHIVED" } },
-      select: { id: true, title: true, groupName: true },
-      orderBy: [{ title: "asc" }, { id: "asc" }],
-    });
-    res.setHeader("Cache-Control", "private, no-store");
-    res.json({ projects });
-  } catch {
-    res.status(500).json({ error: "Unable to load consultation projects." });
-  }
-});
+  const projects = await prisma.researchProject.findMany({
+    where: { ...coordinatorProjects(user.id, user.collegeId), status: { not: "ARCHIVED" } },
+    select: { id: true, title: true, groupName: true },
+    orderBy: [{ title: "asc" }, { id: "asc" }],
+  });
+  res.json({ projects });
+}));
 
-router.get("/workspace/:workspace", requireAuth, async (req, res, next) => {
+router.get("/workspace/:workspace", requireAuth, asyncHandler(async (req, res) => {
   const user = req.user!;
   const workspace = req.params.workspace;
   const page = req.query.page === undefined ? 1 : Number(req.query.page);
-  if (!Number.isSafeInteger(page) || page < 1 || page > 10000) {
-    return void res.status(400).json({ error: "Choose a valid page." });
+  if (!Number.isSafeInteger(page) || page < 1 || page > 10000) throw consultationError(400, "Choose a valid page.");
+  const audience = consultationAudience(user);
+  const isDean = workspace === "dean";
+  if (isDean) {
+    deanCollege(user);
+  } else if (!user.collegeId ||
+      !(workspace === "coordinator" && user.roles.some((role) => coordinatorRoles.includes(role))) &&
+      !(workspace === "panelist" && user.roles.includes("PANELIST"))) {
+    throw consultationError(403, "You cannot open this consultation workspace.");
   }
-
-  try {
-    let research: Prisma.ResearchProjectWhereInput;
-    let historyWhere: Prisma.ConsultationWhereInput = {};
-    const history = workspace === "dean" && req.query.view === "history";
-    if (workspace === "dean") {
-      research = { collegeId: deanCollege(user) };
-      if (history) {
-        const filters = historyFilters.safeParse(req.query);
-        if (!filters.success) {
-          return void res.status(400).json({ error: filters.error.issues[0]?.message || "Invalid history filters." });
-        }
-        const { from, to, search, status } = filters.data;
-        if (search) {
-          research.OR = [
-            { groupName: { contains: search, mode: "insensitive" } },
-            { title: { contains: search, mode: "insensitive" } },
-          ];
-        }
-        const unresolved: Prisma.ConsultationWhereInput = {
-          scheduledEnd: { lte: new Date() },
-          status: { in: ["REQUESTED", "SCHEDULED", "ONGOING"] },
-        };
-        historyWhere = {
-          ...(from || to ? { scheduledStart: dateBounds({ from, to }) } : {}),
-          ...(status === "UNRECORDED" ? unresolved : status ? { status } : {
-            OR: [{ status: { in: ["COMPLETED", "CANCELLED"] } }, unresolved],
-          }),
-        };
-      }
-    } else if (workspace === "coordinator" && user.collegeId && user.roles.some((role) => coordinatorRoles.includes(role))) {
-      research = coordinatorProjects(user.id, user.collegeId);
-    } else if (workspace === "panelist" && user.collegeId && user.roles.includes("PANELIST")) {
-      research = {
-        collegeId: user.collegeId,
-        members: { some: { userId: user.id, leftAt: null, projectRole: "PANELIST" } },
+  const pageSize = 25;
+  const requestedId = req.query.consultationId === undefined ? undefined : id(req.query.consultationId);
+  const scope = isDean ? { research: audience.research } : audience;
+  const history = isDean && req.query.view === "history";
+  const historyWhere: Prisma.ConsultationWhereInput = {};
+  if (history) {
+    const filters = historyFilters.safeParse(req.query);
+    if (!filters.success) {
+      throw consultationError(400, filters.error.issues[0]?.message || "Invalid history filters.");
+    }
+    const { from, to, search, status } = filters.data;
+    if (search) {
+      historyWhere.research = {
+        ...audience.research,
+        OR: [
+          { groupName: { contains: search, mode: "insensitive" } },
+          { title: { contains: search, mode: "insensitive" } },
+        ],
       };
-    } else {
-      return void res.status(403).json({ error: "You cannot open this consultation workspace." });
     }
-
-    const pageSize = 25;
-    const rows = await prisma.consultation.findMany({
-      where: { research, ...historyWhere },
-      select: {
-        id: true,
+    if (from || to) historyWhere.scheduledStart = dateBounds({ from, to });
+    const unresolved: Prisma.ConsultationWhereInput = {
+      scheduledEnd: { lte: new Date() },
+      status: { in: ["REQUESTED", "PROVISIONING", "SCHEDULED", "ONGOING"] },
+    };
+    if (status === "UNRECORDED") Object.assign(historyWhere, unresolved);
+    else if (status) historyWhere.status = status;
+    else historyWhere.OR = [{ status: { in: ["COMPLETED", "CANCELLED"] } }, unresolved];
+  }
+  const rows = await prisma.consultation.findMany({
+    where: { ...scope, ...historyWhere, ...(requestedId ? { id: requestedId } : {}) },
+    select: {
+      id: true, title: true, status: true, scheduledStart: true, scheduledEnd: true,
+      meetingKind: true, meetingUrl: !history, conferenceState: true, revision: true, researchId: true,
+      approverId: true, createdBy: true, pendingCalendarUpdate: true,
+      participants: {
+        where: workspace === "coordinator" ? undefined : { userId: user.id },
+        select: { userId: true, attendanceStatus: true, user: { select: { firstName: true, lastName: true } } },
+      },
+      research: { select: {
         title: true,
-        status: true,
-        scheduledStart: true,
-        scheduledEnd: true,
-        meetingUrl: workspace !== "dean",
-        research: { select: {
-          title: true,
-          groupName: true,
-          members: history ? consultationInclude.research.select.members : false,
-        } },
-      },
-      orderBy: [{ scheduledStart: "desc" }, { id: "desc" }],
-      skip: (page - 1) * pageSize,
-      take: pageSize + 1,
-    });
-    res.setHeader("Cache-Control", "private, no-store");
-    res.json({ consultations: rows.slice(0, pageSize), hasNextPage: rows.length > pageSize });
-  } catch (error) {
-    next(error);
+        groupName: true,
+        members: history ? {
+          where: consultationInclude.research.select.members.where,
+          select: { user: consultationInclude.research.select.members.select.user },
+        } : false,
+      } },
+    },
+    orderBy: [{ scheduledStart: "desc" }, { id: "desc" }],
+    skip: (page - 1) * pageSize,
+    take: pageSize + 1,
+  });
+  res.json({
+    consultations: rows.slice(0, pageSize).map(({ participants, ...row }) => {
+      const { id, title, status, scheduledStart, scheduledEnd, research } = row;
+      const summary = { id, title, status, scheduledStart, scheduledEnd, research };
+      if (history) return summary;
+      const invitation = participants.find(({ userId }) => userId === user.id);
+      const canManage = Boolean(invitation) && workspace === "coordinator" && (row.approverId || row.createdBy) === user.id;
+      return {
+        ...summary,
+        ...(invitation ? {
+          meetingKind: row.meetingKind, conferenceState: row.conferenceState,
+          meetingUrl: joinableConsultationUrl(row), attendanceStatus: invitation.attendanceStatus,
+        } : {}),
+        ...(canManage ? {
+          canManage, researchId: row.researchId, createdBy: row.createdBy, participants, revision: row.revision,
+          calendarUpdatePending: Boolean(row.pendingCalendarUpdate),
+        } : {}),
+      };
+    }),
+    hasNextPage: rows.length > pageSize,
+  });
+}));
+
+router.get("/recipients", requireAuth, asyncHandler(async (req, res) => {
+  const researchId = id(req.query.researchId);
+  const { project, access } = await consultationProjectAccess(req.user!, researchId);
+  const adviserOnly = req.query.adviser === "true";
+  if (!project || project.status === "ARCHIVED" || !access.canRequest || (!access.canApprove && !adviserOnly && req.query.instant !== "true")) {
+    throw consultationError(403, "You cannot invite participants for this project.");
   }
-});
+  const search = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 80) : "";
+  const users = await findConsultationRecipients(project, !adviserOnly && access.canApprove, {
+    id: { not: req.user!.id },
+    ...(adviserOnly ? {
+      memberships: { some: { researchId, projectRole: "ADVISER", leftAt: null } },
+      collegeMemberships: { some: { collegeId: project.collegeId, roleNames: { has: "ADVISER" } } },
+    } : {}),
+    ...(search ? { AND: search.split(/\s+/).map((word) => ({ OR: [
+      { firstName: { contains: word, mode: "insensitive" } },
+      { lastName: { contains: word, mode: "insensitive" } },
+      { email: { contains: word, mode: "insensitive" } },
+    ] })) } : {}),
+  }, 30);
+  res.json({ recipients: users.map((user) => ({
+    id: user.id, name: `${user.firstName} ${user.lastName}`.trim(),
+    roles: recipientWorkspaces(user, project.collegeId).map(({ label }) => label),
+  })) });
+}));
 
-router.get("/", requireAuth, async (req, res) => {
-  try {
-    const researchId = req.query.researchId ? String(req.query.researchId) : null;
-    if (researchId) {
-      const { project, access } = await consultationProjectAccess(req.user!, researchId);
-      if (!project) return void res.status(404).json({ error: "Research project not found." });
-      if (!access.canView) return void res.status(403).json({ error: "You cannot view consultations for this project." });
-    }
+router.get("/", requireAuth, asyncHandler(async (req, res) => {
+  const user = req.user!;
+  const researchId = req.query.researchId === undefined ? undefined : id(req.query.researchId);
+  const audience = consultationAudience(user);
+  const rows = await prisma.consultation.findMany({
+    where: {
+      researchId,
+      AND: [{ OR: [
+        audience,
+        ...(!user.researcherPanel && user.roles.includes("ADVISER") ? [{
+          conferenceState: "LEGACY" as const, status: "REQUESTED" as const,
+          research: { ...audience.research, members: { some: { userId: user.id, projectRole: "ADVISER" as const, leftAt: null } } },
+        }] : []),
+      ] }],
+    },
+    include: consultationInclude,
+    orderBy: [{ scheduledStart: "desc" }, { id: "desc" }],
+  });
+  res.json({ consultations: rows.map((row) => {
+    const invited = row.participants.some(({ userId }) => userId === user.id);
+    const legacyRequest = row.status === "REQUESTED" && row.conferenceState === "LEGACY" &&
+      row.research.members.some(({ userId }) => userId === user.id);
+    return {
+      ...serializeConsultation(invited ? row : { ...row, notes: [], participants: [], meetingUrl: null }),
+      canManage: (row.meetingKind === "INSTANT" && row.createdBy === user.id) ||
+        (!user.researcherPanel && ((row.approverId || row.createdBy) === user.id || legacyRequest)),
+    };
+  }) });
+}));
 
-    const memberships = researchId
-      ? [researchId]
-      : (
-          await prisma.researchProject.findMany({
-            where: req.user!.researcherPanel
-              ? { members: { some: { userId: req.user!.id, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } } } }
-              : req.user!.roles.includes("SYSTEM_ADMIN")
-              ? {}
-              : {
-                  OR: [
-                    { members: { some: { userId: req.user!.id, leftAt: null } } },
-                    { workflowInstance: { is: { workflow: { createdBy: req.user!.id } } } },
-                  ],
-                },
-            select: { id: true },
-          })
-        ).map((project) => project.id);
+function provisioningResponse(res: Response, result: Awaited<ReturnType<typeof provisionConsultation>>, status = 200) {
+  res.status(result.failed ? 502 : result.warning ? 202 : status).json({
+    success: !result.warning,
+    consultation: serializeConsultation(result.row),
+    ...(result.warning ? { warning: result.warning, error: result.warning } : {}),
+  });
+}
 
-    const consultations = await prisma.consultation.findMany({
-      where: { researchId: { in: memberships }, ...(!req.user!.roles.includes("SYSTEM_ADMIN") ? { research: { collegeId: req.user!.collegeId || "00000000-0000-0000-0000-000000000000" } } : {}) },
-      include: consultationInclude,
-      orderBy: { scheduledStart: "desc" },
-    });
-    res.json({ consultations: consultations.map(serializeConsultation) });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to load consultations." });
+router.post("/", requireAuth, asyncHandler(async (req, res) => {
+  const user = req.user!;
+  const researchId = id(req.body?.researchId);
+  const title = typeof req.body.title === "string" ? req.body.title.trim() : "";
+  const description = typeof req.body.description === "string" ? req.body.description.trim() || null : null;
+  if (!title || title.length > 200 || (description?.length || 0) > 5000) {
+    throw consultationError(400, "Enter a topic up to 200 characters and a description up to 5,000 characters.");
   }
-});
-
-router.post("/", requireAuth, async (req, res) => {
-  try {
-    const researchId = String(req.body.researchId || "");
-    const title = String(req.body.title || "").trim().slice(0, 200);
-    const range = validDateRange(req.body.scheduledStart, req.body.scheduledEnd);
-    if (!researchId || !title || !range.valid) {
-      return void res.status(400).json({ error: "A valid project, title, start, and end time are required." });
+  const instant = req.body.instant === true;
+  const now = new Date();
+  const range = instant ? { start: now, end: new Date(now.getTime() + 60 * 60_000) }
+    : dateRange(req.body.scheduledStart, req.body.scheduledEnd, false);
+  const { project, access } = await consultationProjectAccess(user, researchId);
+  if (!project || project.status === "ARCHIVED" || !access.canRequest) {
+    throw consultationError(403, "You cannot create consultations for this project.");
+  }
+  const request = !instant && !access.canApprove;
+  if (request && !project.members.some(({ projectRole }) => projectRole === "LEADER" || projectRole === "MEMBER")) {
+    throw consultationError(403, "Only current researchers can request a meeting with the assigned adviser.");
+  }
+  const selected = participantIds(req.body.participantIds).filter((userId) => userId !== user.id);
+  const manualUrl = req.body.meetingUrl ? googleMeetUrl(req.body.meetingUrl) : null;
+  if (req.body.meetingUrl && (!manualUrl || request || instant)) {
+    throw consultationError(400, "Only faculty scheduling in advance may provide an existing Google Meet room link.");
+  }
+  const adviserId = request ? id(req.body.adviserId) : null;
+  if (request && selected.length) throw consultationError(400, "A student request goes to the selected assigned adviser.");
+  if (!request && !selected.length) throw consultationError(400, "Select at least one participant.");
+  const requestHash = digest(JSON.stringify([researchId, title, description, instant,
+    instant ? null : range, selected, adviserId, manualUrl]));
+  const clientKey = req.body.requestKey === undefined ? requestHash : id(req.body.requestKey);
+  const requestKey = digest(`${user.id}:${clientKey}`);
+  const existing = () => prisma.consultation.findUnique({ where: { requestKey }, include: consultationInclude });
+  let row = await existing();
+  if (!row) {
+    if (range.end <= now) throw consultationError(400, "Choose a consultation end time in the future.");
+    if (adviserId) {
+      const advisers = await findConsultationRecipients(project, false, {
+        id: adviserId,
+        collegeMemberships: { some: { collegeId: project.collegeId, roleNames: { has: "ADVISER" } } },
+        memberships: { some: { researchId, projectRole: "ADVISER", leftAt: null } },
+      });
+      if (!advisers.length) throw consultationError(400, "Choose an active adviser assigned to this research group.");
+    } else {
+      const allowed = await findConsultationRecipients(project, access.canApprove, { id: { in: selected } });
+      if (allowed.length !== selected.length) throw consultationError(403, "One or more selected participants cannot be invited to this project.");
     }
-    const { project, access } = await consultationProjectAccess(req.user!, researchId);
-    if (!project) return void res.status(404).json({ error: "Research project not found." });
-    if (!access.canRequest) return void res.status(403).json({ error: "You cannot request consultations for this project." });
-
-    const requestedParticipantIds = Array.isArray(req.body.participantIds)
-      ? req.body.participantIds.map(String)
-      : [];
-    const allowedParticipants = requestedParticipantIds.length
-      ? await prisma.researchMember.findMany({
-          where: { researchId, userId: { in: requestedParticipantIds }, leftAt: null },
-          select: { userId: true },
-        })
-      : [];
-    const participantIds = new Set([
-      req.user!.id,
-      ...allowedParticipants.map((member) => member.userId),
-    ]);
-    const providedMeetingUrl = String(req.body.meetingUrl || "").trim() || null;
-    const created = await prisma.consultation.create({
-      data: {
-        researchId,
-        createdBy: req.user!.id,
-        title,
-        description: String(req.body.description || "").trim() || null,
-        scheduledStart: range.start,
-        scheduledEnd: range.end,
-        meetingUrl: providedMeetingUrl,
-        status: access.canApprove ? ConsultationStatus.SCHEDULED : ConsultationStatus.REQUESTED,
-        participants: {
-          create: Array.from(participantIds).map((userId) => ({ userId })),
-        },
-      },
-      include: consultationInclude,
-    });
-
-    let consultation = created;
-    let calendarWarning: string | undefined;
-    if (!providedMeetingUrl) {
-      try {
-        const meet = await googleCalendarService.createMeetConsultation({
-          title: `Advisio Consultation: ${title}`,
-          description: created.description || "Research advising consultation",
-          scheduledStart: range.start.toISOString(),
-          scheduledEnd: range.end.toISOString(),
-          attendees: [{ email: req.user!.email, displayName: `${req.user!.firstName || ""} ${req.user!.lastName || ""}`.trim() }],
-        });
-        consultation = await prisma.consultation.update({
-          where: { id: created.id },
-          data: { meetingUrl: meet.meetingUrl || null },
+    const consultationId = randomUUID();
+    try {
+      row = await prisma.$transaction(async (tx) => {
+        const created = await tx.consultation.create({
+          data: {
+            id: consultationId, researchId, createdBy: user.id, title, description,
+            scheduledStart: range.start, scheduledEnd: range.end,
+            meetingKind: instant ? "INSTANT" : "SCHEDULED", meetingUrl: manualUrl,
+            conferenceState: request ? "AWAITING_APPROVAL" : "PENDING",
+            status: request ? "REQUESTED" : "PROVISIONING", approverId: adviserId,
+            googleEventId: request ? null : googleEventKey(consultationId), requestKey, requestHash,
+            participants: { create: [user.id, ...(adviserId ? [adviserId] : selected)].map((userId) => ({ userId })) },
+          },
           include: consultationInclude,
         });
-      } catch {
-        calendarWarning = "The consultation was saved, but a Google Meet link could not be created yet.";
-      }
+        if (adviserId) await notifyConsultation(tx, created, [adviserId], "New consultation request");
+        return created;
+      });
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") throw error;
+      row = await existing();
+      if (!row) throw error;
     }
-
-    res.status(201).json({
-      success: true,
-      consultation: serializeConsultation(consultation),
-      meetingUrl: consultation.meetingUrl || "",
-      ...(calendarWarning ? { warning: calendarWarning } : {}),
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to schedule consultation." });
   }
-});
+  if (row.requestHash !== requestHash) throw consultationError(409, "This submission key belongs to another consultation. Reopen the form to submit changed details.");
+  assertParticipant(row, user);
+  if (["CANCELLED", "COMPLETED", "DECLINED"].includes(row.status)) {
+    throw consultationError(409, `This consultation is already ${row.status.toLowerCase()}.`);
+  }
+  if (row.status !== "PROVISIONING" || request) {
+    res.status(201).json({ success: true, consultation: serializeConsultation(row) });
+    return;
+  }
+  provisioningResponse(res, await provisionConsultation(row.id, user), 201);
+}));
 
-// One-time, idempotent import for legacy browser-only consultation links.
-router.post("/import", requireAuth, async (req, res) => {
-  try {
-    const researchId = String(req.body.researchId || "");
-    const items = Array.isArray(req.body.consultations) ? req.body.consultations.slice(0, 50) : [];
-    const { project, access } = await consultationProjectAccess(req.user!, researchId);
-    if (!project) return void res.status(404).json({ error: "Research project not found." });
-    if (!access.canRequest) return void res.status(403).json({ error: "You cannot import consultations for this project." });
+// Preserve browser records created before consultations were stored in PostgreSQL.
+router.post("/import", requireAuth, asyncHandler(async (req, res) => {
+  const researchId = id(req.body?.researchId);
+  const { access } = await consultationProjectAccess(req.user!, researchId);
+  if (!access.canRequest) throw consultationError(403, "You cannot import consultations for this project.");
+  const items = Array.isArray(req.body.consultations) ? req.body.consultations.slice(0, 50) : [];
+  const receipts = [];
+  for (const item of items) {
+    if (!item || typeof item !== "object") continue;
+    const clientId = String(item.id || item.clientId || "").trim();
+    const title = String(item.topic || item.title || "").trim().slice(0, 200);
+    const start = new Date(item.scheduledStart || `${item.date || ""}T${item.time || "09:00"}:00+08:00`);
+    const end = new Date(item.scheduledEnd || new Date(start.getTime() + 60 * 60_000));
+    if (!clientId || !title || !Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) continue;
+    const legacyImportKey = legacyConsultationImportKey({ userId: req.user!.id, researchId, clientId });
+    try {
+      const created = await prisma.consultation.create({
+        data: {
+          researchId, createdBy: req.user!.id, legacyImportKey, title,
+          description: String(item.description || "").trim().slice(0, 5000) || null,
+          scheduledStart: start, scheduledEnd: end, status: "REQUESTED",
+          meetingUrl: googleMeetUrl(item.meetingUrl), participants: { create: { userId: req.user!.id } },
+        },
+        select: { id: true },
+      });
+      receipts.push({ clientId, consultationId: created.id, imported: true });
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") throw error;
+      const existing = await prisma.consultation.findUniqueOrThrow({ where: { legacyImportKey }, select: { id: true } });
+      receipts.push({ clientId, consultationId: existing.id, imported: false });
+    }
+  }
+  res.json({ success: true, receipts });
+}));
 
-    const receipts: Array<{ clientId: string; consultationId: string; imported: boolean }> = [];
-    for (const item of items) {
-      const clientId = String(item.id || item.clientId || "").trim();
-      const title = String(item.topic || item.title || "").trim().slice(0, 200);
-      const start = new Date(item.scheduledStart || `${item.date || ""}T${item.time || "09:00"}`);
-      const end = new Date(item.scheduledEnd || new Date(start.getTime() + 60 * 60 * 1000));
-      if (!clientId || !title || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) continue;
-      const legacyImportKey = legacyConsultationImportKey({ userId: req.user!.id, researchId, clientId });
-      const existing = await prisma.consultation.findUnique({ where: { legacyImportKey }, select: { id: true } });
-      if (existing) {
-        receipts.push({ clientId, consultationId: existing.id, imported: false });
-        continue;
+router.patch("/:id/approve", requireAuth, asyncHandler(async (req, res) => {
+  const range = req.body?.scheduledStart || req.body?.scheduledEnd
+    ? dateRange(req.body.scheduledStart, req.body.scheduledEnd) : undefined;
+  provisioningResponse(res, await provisionConsultation(id(req.params.id), req.user!, range));
+}));
+
+router.patch("/:id", requireAuth, asyncHandler(async (req, res) => {
+  const consultationId = id(req.params.id);
+  const user = req.user!;
+  const action = req.body?.action;
+  if (!["decline", "cancel", "complete", "reschedule"].includes(action)) throw consultationError(400, "Choose a consultation action.");
+  let updated = await withConsultationLock(consultationId, async (tx, row) => {
+    if (action === "cancel" && ["REQUESTED", "CANCELLED"].includes(row.status) && row.createdBy === user.id) assertParticipant(row, user);
+    else await assertOrganizer(tx, row, user, true);
+    const previousIds = row.participants.map(({ userId }) => userId);
+    if (action === "reschedule") {
+      if (row.status !== "SCHEDULED" || row.meetingKind === "INSTANT" || row.research.status === "ARCHIVED") {
+        throw consultationError(409, "Only scheduled consultations in active projects can be edited.");
       }
-      try {
-        const created = await prisma.consultation.create({
-          data: {
-            researchId,
-            createdBy: req.user!.id,
-            legacyImportKey,
-            title,
-            description: String(item.description || "").trim() || null,
-            scheduledStart: start,
-            scheduledEnd: end,
-            meetingUrl: String(item.meetingUrl || "").trim() || null,
-            status: ConsultationStatus.REQUESTED,
-            participants: { create: { userId: req.user!.id } },
-          },
-        });
-        receipts.push({ clientId, consultationId: created.id, imported: true });
-      } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002"
-        ) {
-          const raced = await prisma.consultation.findUniqueOrThrow({
-            where: { legacyImportKey },
-            select: { id: true },
-          });
-          receipts.push({ clientId, consultationId: raced.id, imported: false });
-          continue;
+      const range = dateRange(req.body.scheduledStart, req.body.scheduledEnd);
+      let nextIds = previousIds;
+      if (req.body.participantIds !== undefined) {
+        const selected = participantIds(req.body.participantIds).filter((userId) => userId !== user.id);
+        const { project, access } = await consultationProjectAccess(user, row.researchId, tx);
+        if (!project || !access.canApprove) throw consultationError(403, "You cannot change these participants.");
+        const required = [row.createdBy, user.id];
+        const optional = selected.filter((userId) => !required.includes(userId));
+        const allowed = await findConsultationRecipients(project, true, { id: { in: optional } }, undefined, tx);
+        if (allowed.length !== optional.length) throw consultationError(403, "One or more selected participants cannot be invited to this project.");
+        nextIds = [...new Set([...required, ...optional])];
+        if (nextIds.length < 2) throw consultationError(400, "Select at least one participant.");
+      }
+      const operation = { start: range.start.toISOString(), end: range.end.toISOString(), participantIds: [...nextIds].sort() };
+      if (row.pendingCalendarUpdate) {
+        const pending = pendingCalendarUpdate.parse(row.pendingCalendarUpdate);
+        if (JSON.stringify(pending) !== JSON.stringify(operation)) {
+          throw consultationError(409, "An earlier edit is still syncing to Google Calendar. Wait for it to finish before submitting another edit.");
         }
-        throw error;
+        return row;
       }
+      const moved = +range.start !== +row.scheduledStart || +range.end !== +row.scheduledEnd;
+      if (!moved && previousIds.length === nextIds.length && previousIds.every((userId) => nextIds.includes(userId))) return row;
+      if (req.body.revision !== undefined && req.body.revision !== row.revision) {
+        throw consultationError(409, "This consultation changed while you were editing. Reopen it to review the latest details.");
+      }
+      const activeCount = await tx.user.count({
+        where: { id: { in: nextIds }, status: "ACTIVE" },
+      });
+      if (activeCount !== nextIds.length) throw consultationError(409, "Remove inactive participants before updating this consultation.");
+      return tx.consultation.update({
+        where: { id: row.id },
+        data: { pendingCalendarUpdate: operation, googleEventId: row.googleEventId || googleEventKey(row.id) },
+        include: consultationInclude,
+      });
     }
-    res.json({ success: true, receipts });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to import consultations." });
-  }
-});
-
-router.patch("/:id/approve", requireAuth, async (req, res) => {
-  try {
-    const context = await accessibleConsultation(String(req.params.id), req.user!);
-    if (!context.consultation) return void res.status(404).json({ error: "Consultation not found." });
-    if (!context.access?.canApprove) return void res.status(403).json({ error: "Only assigned faculty can approve this consultation." });
-    const consultation = await prisma.consultation.update({
-      where: {
-        id: context.consultation.id,
-        status: { in: [ConsultationStatus.REQUESTED, ConsultationStatus.SCHEDULED] },
+    const target = action === "decline" ? "DECLINED" : action === "complete" ? "COMPLETED" : "CANCELLED";
+    if (row.status === target) return row;
+    const valid = action === "decline" ? row.status === "REQUESTED"
+      : action === "complete" ? row.status === "ONGOING" || (row.status === "SCHEDULED" && row.scheduledStart <= new Date())
+      : ["REQUESTED", "PROVISIONING", "SCHEDULED", "ONGOING"].includes(row.status);
+    if (!valid || (row.pendingCalendarUpdate && action === "complete")) {
+      throw consultationError(409, "That action is unavailable for the current consultation status.");
+    }
+    const changed = await tx.consultation.update({
+      where: { id: row.id },
+      data: {
+        status: target,
+        revision: { increment: 1 },
+        ...(action === "cancel" ? {
+          pendingCalendarUpdate: Prisma.DbNull, calendarCancellationPending: Boolean(row.googleEventId),
+        } : {}),
       },
-      data: { status: ConsultationStatus.SCHEDULED },
       include: consultationInclude,
     });
-    res.json({ success: true, consultation: serializeConsultation(consultation) });
-  } catch (error: any) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
-      return void res.status(409).json({ error: "This consultation is no longer awaiting approval." });
+    await notifyConsultation(tx, changed, previousIds, action === "complete" ? "Advisio consultation completed"
+      : action === "decline" ? "Consultation request declined" : "Consultation cancelled");
+    return changed;
+  });
+  let warning: string | undefined;
+  if (action === "reschedule" && updated.pendingCalendarUpdate) {
+    try {
+      updated = await syncConsultationUpdate(updated.id);
+      if (updated.status === "CANCELLED") throw consultationError(409, "This consultation was cancelled while the edit was pending.");
+    } catch (error) {
+      if (!(error instanceof ConsultationCalendarError)) throw error;
+      warning = `${error.message} The edit is queued for retry.`;
     }
-    res.status(500).json({ error: error.message || "Failed to approve consultation." });
   }
-});
+  if (action === "cancel" && updated.calendarCancellationPending) {
+    try {
+      await syncConsultationCancellation(updated.id);
+    } catch {
+      warning = "Cancelled in Advisio. Google Calendar cancellation is awaiting retry.";
+    }
+  }
+  res.status(warning ? 202 : 200).json({
+    success: action === "cancel" || !warning,
+    consultation: serializeConsultation(updated),
+    ...(warning ? { warning } : {}),
+  });
+}));
 
-router.post("/:id/notes", requireAuth, async (req, res) => {
-  try {
-    const context = await accessibleConsultation(String(req.params.id), req.user!);
-    if (!context.consultation) return void res.status(404).json({ error: "Consultation not found." });
-    if (!context.access?.canView) return void res.status(403).json({ error: "You cannot update this consultation." });
-    const notes = String(req.body.notes || "").trim();
-    const actionItems = Array.isArray(req.body.actionItems) ? req.body.actionItems : [];
-    const transcript = Array.isArray(req.body.transcript) ? req.body.transcript : [];
-    const saved = await prisma.consultationNote.create({
-      data: { consultationId: context.consultation.id, authorId: req.user!.id, notes, actionItems, transcript },
+router.get("/:id/notes", requireAuth, asyncHandler(async (req, res) => {
+  const row = await prisma.consultation.findUnique({ where: { id: id(req.params.id) }, include: consultationInclude });
+  if (!row) throw consultationError(404, "Consultation not found.");
+  assertParticipant(row, req.user!);
+  const note = row.notes[0];
+  res.json({ success: true, notes: note?.notes || "", actionItems: note?.actionItems || [], transcript: note?.transcript || [] });
+}));
+
+router.post("/:id/notes", requireAuth, asyncHandler(async (req, res) => {
+  const note = await withConsultationLock(id(req.params.id), async (tx, row) => {
+    assertParticipant(row, req.user!);
+    return tx.consultationNote.create({
+      data: {
+        consultationId: row.id, authorId: req.user!.id, notes: String(req.body.notes || "").trim(),
+        actionItems: Array.isArray(req.body.actionItems) ? req.body.actionItems : [],
+        transcript: Array.isArray(req.body.transcript) ? req.body.transcript : [],
+      },
     });
-    res.status(201).json({ success: true, consultationId: context.consultation.id, notes: saved.notes, actionItems: saved.actionItems || [], transcript: saved.transcript || [] });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to save consultation notes." });
-  }
-});
+  });
+  res.status(201).json({ success: true, consultationId: note.consultationId, notes: note.notes, actionItems: note.actionItems, transcript: note.transcript });
+}));
 
-router.get("/:id/notes", requireAuth, async (req, res) => {
-  try {
-    const context = await accessibleConsultation(String(req.params.id), req.user!);
-    if (!context.consultation) return void res.status(404).json({ error: "Consultation not found." });
-    if (!context.access?.canView) return void res.status(403).json({ error: "You cannot view this consultation." });
-    const note = await prisma.consultationNote.findFirst({ where: { consultationId: context.consultation.id }, orderBy: { createdAt: "desc" } });
-    res.json({ success: true, notes: note?.notes || "", actionItems: note?.actionItems || [], transcript: note?.transcript || [] });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to get consultation notes." });
-  }
-});
-
-router.post("/:id/join", requireAuth, async (req, res) => {
-  try {
-    const context = await accessibleConsultation(String(req.params.id), req.user!);
-    if (!context.consultation) return void res.status(404).json({ error: "Consultation not found." });
-    if (!context.access?.canView) return void res.status(403).json({ error: "You cannot join this consultation." });
-    await prisma.consultationParticipant.upsert({
-      where: { consultationId_userId: { consultationId: context.consultation.id, userId: req.user!.id } },
-      create: { consultationId: context.consultation.id, userId: req.user!.id, attendanceStatus: AttendanceStatus.JOINED, joinedAt: new Date() },
-      update: { attendanceStatus: AttendanceStatus.JOINED, joinedAt: new Date(), leftAt: null },
+router.post("/:id/join", requireAuth, asyncHandler(async (req, res) => {
+  const meetingUrl = await withConsultationLock(id(req.params.id), async (tx, row) => {
+    assertParticipant(row, req.user!);
+    const url = joinableConsultationUrl(row);
+    if (!url) throw consultationError(409, "This consultation has no available meeting link.");
+    await tx.consultationParticipant.update({
+      where: { consultationId_userId: { consultationId: row.id, userId: req.user!.id } },
+      data: { attendanceStatus: "JOINED", joinedAt: new Date(), leftAt: null },
     });
-    const participants = await prisma.consultationParticipant.findMany({
-      where: { consultationId: context.consultation.id },
-      include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } },
+    if (row.status === "SCHEDULED" && !row.pendingCalendarUpdate && row.scheduledStart.getTime() <= Date.now() && row.scheduledEnd.getTime() > Date.now()) {
+      await tx.consultation.update({ where: { id: row.id }, data: { status: "ONGOING", revision: { increment: 1 } } });
+    }
+    return url;
+  });
+  res.json({ success: true, meetingUrl });
+}));
+
+router.post("/:id/leave", requireAuth, asyncHandler(async (req, res) => {
+  await withConsultationLock(id(req.params.id), async (tx, row) => {
+    assertParticipant(row, req.user!);
+    await tx.consultationParticipant.updateMany({
+      where: { consultationId: row.id, userId: req.user!.id, attendanceStatus: "JOINED" },
+      data: { attendanceStatus: "LEFT", leftAt: new Date() },
     });
-    res.json({ success: true, participants });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to record consultation join." });
-  }
-});
-
-router.post("/:id/leave", requireAuth, async (req, res) => {
-  try {
-    const context = await accessibleConsultation(String(req.params.id), req.user!);
-    if (!context.consultation) return void res.status(404).json({ error: "Consultation not found." });
-    if (!context.access?.canView) return void res.status(403).json({ error: "You cannot access this consultation." });
-    await prisma.consultationParticipant.updateMany({
-      where: { consultationId: context.consultation.id, userId: req.user!.id },
-      data: { attendanceStatus: AttendanceStatus.LEFT, leftAt: new Date() },
-    });
-    res.json({ success: true });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to record consultation leave." });
-  }
-});
-
-type ActiveStream = {
-  groupId: string;
-  groupName: string;
-  topic: string;
-  meetingUrl: string;
-  isActive: boolean;
-  startedBy: string;
-  startedAt: string;
-  participants: Array<{ id: string; name: string; role: string; email: string; joinedAt: string }>;
-};
-const activeStreams: Record<string, ActiveStream> = {};
-
-router.get("/active-stream", requireAuth, async (req, res) => {
-  try {
-    const groupId = String(req.query.groupId || "");
-    const { project, access } = await consultationProjectAccess(req.user!, groupId);
-    if (!project) return void res.status(404).json({ error: "Research project not found." });
-    if (!access.canView) return void res.status(403).json({ error: "You cannot access this conference." });
-    res.json({ success: true, stream: activeStreams[groupId] || { groupId, groupName: project.title, topic: "Group Conferencing", meetingUrl: "", isActive: false, startedBy: "", startedAt: "", participants: [] } });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to load active conference." });
-  }
-});
-
-router.post("/active-stream", requireAuth, async (req, res) => {
-  try {
-    const groupId = String(req.body.groupId || "");
-    const meetingUrl = String(req.body.meetingUrl || "").trim();
-    const { project, access } = await consultationProjectAccess(req.user!, groupId);
-    if (!project) return void res.status(404).json({ error: "Research project not found." });
-    if (!access.canView) return void res.status(403).json({ error: "You cannot access this conference." });
-    if (!meetingUrl) return void res.status(400).json({ error: "A meeting URL is required." });
-    const displayName = `${req.user!.firstName || ""} ${req.user!.lastName || ""}`.trim() || req.user!.email;
-    const previous = activeStreams[groupId];
-    const participant = { id: req.user!.id, name: displayName, role: access.isAssignedFaculty ? "Faculty Adviser" : "Student Researcher", email: req.user!.email, joinedAt: new Date().toISOString() };
-    activeStreams[groupId] = {
-      groupId,
-      groupName: String(req.body.groupName || project.title),
-      topic: String(req.body.topic || "Group Conferencing"),
-      meetingUrl,
-      isActive: true,
-      startedBy: previous?.startedBy || displayName,
-      startedAt: previous?.startedAt || new Date().toISOString(),
-      participants: [...(previous?.participants || []).filter((item) => item.id !== req.user!.id), participant],
-    };
-    res.json({ success: true, stream: activeStreams[groupId] });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to update active conference." });
-  }
-});
-
-router.post("/active-stream/end", requireAuth, async (req, res) => {
-  try {
-    const groupId = String(req.body.groupId || "");
-    const { project, access } = await consultationProjectAccess(req.user!, groupId);
-    if (!project) return void res.status(404).json({ error: "Research project not found." });
-    if (!access.canView) return void res.status(403).json({ error: "You cannot access this conference." });
-    if (activeStreams[groupId]) activeStreams[groupId] = { ...activeStreams[groupId], isActive: false, participants: [] };
-    res.json({ success: true });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to end active conference." });
-  }
-});
+  });
+  res.json({ success: true });
+}));
 
 export default router;

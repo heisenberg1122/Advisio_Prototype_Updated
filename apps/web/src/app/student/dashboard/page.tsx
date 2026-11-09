@@ -32,9 +32,9 @@ import {
 import { notificationLink } from "@/lib/notification-navigation";
 import { studentTaskDetailsHref } from "@/lib/student-task-navigation";
 import { StudentGroupChats } from "@/components/dashboards/student/StudentGroupChats";
-import { getStoredMeetingSession, saveMeetingSession, DEFAULT_SHARED_MEET_URL } from "@/lib/meeting-store";
+import { ConsultationMeetingForm } from "@/components/consultations/ConsultationMeetingForm";
 import { ConsultationBooking } from "@/components/consultations/ConsultationBooking";
-import { GoogleMeetConnectModal } from "@/components/consultations/GoogleMeetConnectModal";
+import { joinConsultation } from "@/components/consultations/ConsultationActions";
 import { GoogleMeetTranscriptModal, ParsedChatMessage } from "@/components/consultations/GoogleMeetTranscriptModal";
 import {
   getPendingConsultationImports,
@@ -89,122 +89,19 @@ function StudentDashboardContent() {
   >("INVITE_ONLY");
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
-  // Synchronized Floating Google Meet Conference Session State
-  const initialSession = getStoredMeetingSession();
-  const [isMeetingActive, setIsMeetingActive] = useState(initialSession.isActive);
-  const [meetingDuration, setMeetingDuration] = useState(0);
-  const [activeMeetingUrl, setActiveMeetingUrl] = useState(initialSession.meetingUrl || DEFAULT_SHARED_MEET_URL);
-  const [activeMeetingTopic, setActiveMeetingTopic] = useState(initialSession.topic || "Student Group Conferencing");
-  const [activeParticipants, setActiveParticipants] = useState(
-    initialSession.participants.length > 0 ? initialSession.participants : []
-  );
-  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [instantMeetingOpen, setInstantMeetingOpen] = useState(false);
   const [showTranscriptModal, setShowTranscriptModal] = useState(false);
   const [selectedConsultationForTranscript, setSelectedConsultationForTranscript] = useState<ConsultationItem | null>(null);
 
   // Live query for consultations with background refresh
   const { data: consultationsApiData, refetch: refetchConsultations } = useQuery({
-    queryKey: ["consultations"],
-    queryFn: () => apiClient.get<{ consultations: any[] }>("/api/consultations"),
+    queryKey: ["consultations", "researcher", user?.id, user?.college?.id],
+    queryFn: () => apiClient.get<{ consultations: ConsultationItem[] }>("/api/consultations"),
     refetchInterval: 15000,
     refetchOnWindowFocus: true,
   });
 
-  const [consultations, setConsultations] = useState<ConsultationItem[]>([]);
-
-  useEffect(() => {
-    if (consultationsApiData?.consultations) {
-      setConsultations(consultationsApiData.consultations);
-    }
-  }, [consultationsApiData]);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isMeetingActive) {
-      timer = setInterval(() => {
-        setMeetingDuration(prev => prev + 1);
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [isMeetingActive]);
-
-  const handleLaunchSyncedMeeting = async (targetUrl: string, selectedEmail: string) => {
-    setShowConnectModal(false);
-    setActiveMeetingUrl(targetUrl);
-    setIsMeetingActive(true);
-
-    const studentParticipant = {
-      id: "p2",
-      name: `${user?.firstName || "Student"} ${user?.lastName || "Researcher"}`.trim(),
-      role: "Lead Researcher",
-      email: selectedEmail,
-      joinedAt: "Just now",
-    };
-
-    const updatedParticipants = [
-      ...activeParticipants.filter(p => p.email !== selectedEmail),
-      studentParticipant,
-    ];
-
-    setActiveParticipants(updatedParticipants);
-
-    // Broadcast active stream to backend database so other browser receives exact same URL
-    try {
-      await apiClient.post("/api/consultations/active-stream", {
-        groupId: activeProject?.id || "default",
-        groupName: group?.name || activeProject?.title || "Research Group",
-        topic: activeMeetingTopic,
-        meetingUrl: targetUrl,
-        gmailAccount: selectedEmail,
-      });
-    } catch {
-      // Graceful fallback
-    }
-
-    saveMeetingSession({
-      groupId: activeProject?.id || "default",
-      groupName: group?.name || activeProject?.title || "Research Group",
-      topic: activeMeetingTopic,
-      meetingUrl: targetUrl,
-      isActive: true,
-      startedAt: Date.now(),
-      participants: updatedParticipants,
-    });
-
-    window.open(targetUrl, "GoogleMeetWindow", "width=1024,height=720,resizable=yes");
-  };
-
-  const handleStartConference = (url?: string, topicTitle: string = "Group Conferencing") => {
-    if (url) setActiveMeetingUrl(url);
-    if (topicTitle) setActiveMeetingTopic(topicTitle);
-    setShowConnectModal(true);
-  };
-
-  const handleReopenMeetingWindow = () => {
-    window.open(activeMeetingUrl, "GoogleMeetWindow", "width=1024,height=720,resizable=yes");
-  };
-
-  const handleEndConference = async () => {
-    setIsMeetingActive(false);
-    setMeetingDuration(0);
-    saveMeetingSession({
-      ...getStoredMeetingSession(),
-      isActive: false,
-      participants: [],
-    });
-    try {
-      if (activeProject?.id)
-        await apiClient.post("/api/consultations/active-stream/end", { groupId: activeProject.id });
-    } catch {
-      // Graceful fallback
-    }
-  };
-
-  const formatMeetingTime = (secs: number) => {
-    const mins = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${mins.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  };
+  const consultations = consultationsApiData?.consultations || [];
 
   // Query live projects from API
   const { data: researchData, isLoading: isResearchLoading, isError: isResearchError, refetch: refetchResearch } = useQuery({
@@ -264,37 +161,6 @@ function StudentDashboardContent() {
       cancelled = true;
     };
   }, [activeProject?.id, refetchConsultations]);
-  // Live conference presence is intentionally transient, but still scoped to
-  // the selected research project and an authenticated membership.
-  useEffect(() => {
-    if (!activeProject?.id) return;
-    const fetchActiveStream = async () => {
-      try {
-        const res = await apiClient.get<{ success: boolean; stream: any }>(
-          `/api/consultations/active-stream?groupId=${activeProject.id}`,
-        );
-        if (!res?.stream) return;
-        const stream = res.stream;
-        setIsMeetingActive(stream.isActive);
-        if (stream.meetingUrl) setActiveMeetingUrl(stream.meetingUrl);
-        if (stream.topic) setActiveMeetingTopic(stream.topic);
-        setActiveParticipants(stream.participants || []);
-        saveMeetingSession({
-          groupId: stream.groupId,
-          groupName: stream.groupName || activeProject.title,
-          topic: stream.topic,
-          meetingUrl: stream.meetingUrl,
-          isActive: stream.isActive,
-          participants: stream.participants || [],
-        });
-      } catch {
-        // Transient local presence remains available while the API is offline.
-      }
-    };
-    fetchActiveStream();
-    const interval = window.setInterval(fetchActiveStream, 3000);
-    return () => window.clearInterval(interval);
-  }, [activeProject?.id, activeProject?.title]);
   const { data: dashboardDocumentData, isLoading: documentsLoading, isError: documentsError } = useQuery({
     queryKey: ["student-dashboard-documents", activeProject?.id],
     queryFn: () =>
@@ -342,11 +208,11 @@ function StudentDashboardContent() {
   const upcomingConsultations = (activeProject ? projectConsultations : []).filter(
     (item: ConsultationItem) =>
       ["scheduled", "confirmed"].includes(item.status) && Date.parse(item.scheduledStart || "") >= now,
-  ).sort((a, b) => Date.parse(a.scheduledStart) - Date.parse(b.scheduledStart));
+  ).sort((a, b) => Date.parse(a.scheduledStart || "") - Date.parse(b.scheduledStart || ""));
   const upcomingConsultation = upcomingConsultations[0];
   const upcomingDefense = projectDefenseSessions.filter((session: { status: string; scheduledStart?: string }) =>
     session.status === "SCHEDULED" && Date.parse(session.scheduledStart || "") >= now,
-  ).sort((a, b) => Date.parse(a.scheduledStart) - Date.parse(b.scheduledStart))[0];
+  ).sort((a, b) => Date.parse(a.scheduledStart || "") - Date.parse(b.scheduledStart || ""))[0];
   const projectProgress = calculateMilestoneProgress(
     manuscriptWorkflowData?.milestones,
     Boolean(activeProject?.workflowInstance?.completedAt),
@@ -874,15 +740,20 @@ function StudentDashboardContent() {
     consultationRef.current?.scrollIntoView({ block: "nearest" });
   }, [activeTab, linkedConsultation?.id]);
 
+  const consultationProjects = (researchData?.projects || []).filter((project) =>
+    project.status !== "ARCHIVED" && project.members?.some((member: any) =>
+      member.user?.id === user?.id && !member.leftAt && ["LEADER", "MEMBER"].includes(member.projectRole),
+    ),
+  );
   const renderConsultationsHub = () => (
     <ConsultationsHub
       consultations={consultations}
       projectTitle={activeProject?.title}
       linkedId={linkedConsultation?.id}
       linkedRef={consultationRef}
-      booking={<ConsultationBooking key={activeProject?.id} projectId={activeProject?.id} firstName={user?.firstName} />}
-      onInstantMeet={() => handleStartConference(DEFAULT_SHARED_MEET_URL, "Advising Video Conference")}
-      onJoin={(c) => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic)}
+      booking={<ConsultationBooking key={activeProject?.id} projectId={activeProject?.id} projects={consultationProjects} />}
+      onInstantMeet={() => setInstantMeetingOpen(true)}
+      onJoin={(c) => void joinConsultation(c.id, triggerToast)}
       onNotes={(c) => handleOpenTranscriptModal(c)}
       onCopyLink={(c) => {
         if (!c.meetingUrl) return;
@@ -1874,99 +1745,7 @@ function StudentDashboardContent() {
                 </div>
               </div>
             ),
-            conferencing: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-lg">In-App Voice and Video Group Conferencing</h3>
-                <p className="text-base text-slate-400 font-bold">Coordinate with peers and advisers using localized sandbox stream channels.</p>
-                
-                {!isMeetingActive ? (
-                  <div className="bg-slate-50 p-6 border border-slate-200 rounded-xl text-center flex flex-col gap-4 shadow-sm">
-                    <div className="w-16 h-16 bg-[#1b4264]/10 rounded-full flex items-center justify-center mx-auto text-[#1b4264]">
-                      <i className="ti ti-video text-3xl animate-pulse" />
-                    </div>
-                    <div>
-                      <span className="font-bold text-[#1b4264] text-[14px] block">Live Stream Channels Ready</span>
-                      <span className="text-xs text-slate-400">Current Room ID: <strong>{group?.name || "Research Room"}</strong></span>
-                    </div>
-                    <button 
-                      onClick={() => handleStartConference("https://meet.google.com/new", `${group?.name || "Research"} Study Stream`)} 
-                      className="px-5 py-2.5 bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-dark)] font-extrabold rounded-lg shadow-xs border border-[var(--color-primary)] self-center cursor-pointer transition-colors flex items-center gap-2"
-                    >
-                      <i className="ti ti-video text-lg" />
-                      <span>Start Stream Conference</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50/60 p-6 border-2 border-emerald-400/80 rounded-xl text-center flex flex-col gap-4 shadow-md animate-fade-in">
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="relative flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                      </span>
-                      <span className="font-extrabold text-emerald-800 text-[15px] uppercase tracking-wider">Meeting in Progress</span>
-                    </div>
-
-                    <div className="flex flex-col items-center justify-center gap-1">
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Active Call Duration</span>
-                      <span className="font-mono text-3xl font-black text-[#1b4264] tracking-tight">{formatMeetingTime(meetingDuration)}</span>
-                      <span className="text-xs text-slate-500 mt-1">Google Meet session is running in floating window</span>
-                    </div>
-
-                    {/* LIVE ATTENDEES LIST */}
-                    <div className="bg-white/80 border border-emerald-200/80 rounded-xl p-3.5 max-w-lg mx-auto w-full text-left shadow-sm">
-                      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-emerald-100 pb-2">
-                        <span className="text-xs font-extrabold text-[#1b4264] flex items-center gap-1.5">
-                          <i className="ti ti-users text-emerald-600" />
-                          <span>Connected Attendees ({activeParticipants.length})</span>
-                        </span>
-                        <span className="text-xs font-bold text-emerald-600 bg-emerald-100/70 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Live Sync
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col gap-1.5">
-                        {activeParticipants.map((p) => (
-                          <div key={p.id} className="flex flex-col gap-1.5 rounded-lg p-1.5 text-xs transition hover:bg-emerald-50/50 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-[#1b4264] text-[#ffa400] text-xs font-black flex items-center justify-center">
-                                {p.name.split(" ").map(n => n[0]).slice(0, 2).join("")}
-                              </div>
-                              <div>
-                                <span className="font-bold text-slate-800 block leading-tight">{p.name}</span>
-                                <span className="break-all text-xs text-slate-500 sm:break-normal">{p.role} · {p.email}</span>
-                              </div>
-                            </div>
-                            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                              {p.joinedAt}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-                      <button
-                        onClick={handleReopenMeetingWindow}
-                        aria-label="Reopen meeting window"
-                        className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm font-bold text-[var(--color-text-primary)] shadow-sm transition hover:bg-[var(--color-surface-muted)]"
-                      >
-                        <i className="ti ti-external-link" />
-                        <span className="hidden sm:inline">Reopen Meeting Window</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleEndConference()}
-                        className="flex min-h-11 items-center gap-2 rounded-lg bg-rose-600 px-4 text-sm font-bold text-white shadow transition hover:bg-rose-700"
-                      >
-                        <i className="ti ti-phone-off" />
-                        <span>End Session</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ),
+            conferencing: renderConsultationsHub(),
             submissions: renderSubmissionsHub(),
             submission: renderSubmissionsHub(),
             "version-control": renderSubmissionsHub(),
@@ -2364,15 +2143,10 @@ function StudentDashboardContent() {
         </div>
       )}
 
-      <GoogleMeetConnectModal
-        isOpen={showConnectModal}
-        currentUrl={activeMeetingUrl}
-        defaultEmail={user?.email || ""}
-        defaultName={`${user?.firstName || "Student"} ${user?.lastName || "Researcher"}`.trim()}
-        role="Lead Researcher"
-        onClose={() => setShowConnectModal(false)}
-        onLaunch={handleLaunchSyncedMeeting}
-      />
+      {instantMeetingOpen && (
+        <ConsultationMeetingForm instant projects={consultationProjects} initialProjectId={activeProject?.id}
+          onClose={() => setInstantMeetingOpen(false)} onResult={triggerToast} />
+      )}
 
       <GoogleMeetTranscriptModal
         isOpen={showTranscriptModal}

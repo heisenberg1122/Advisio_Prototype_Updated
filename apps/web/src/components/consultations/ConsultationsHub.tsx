@@ -3,6 +3,7 @@ import type { ConsultationItem } from "@/lib/consultation-store";
 import { relativeDays } from "@/lib/researcher-home";
 import { useAuth } from "@/hooks/use-auth";
 import { getAcademicIdentity } from "@/lib/academic-identity";
+import { ConsultationActions } from "./ConsultationActions";
 import "./consultations-hub.css";
 
 const TZ = "Asia/Manila";
@@ -33,12 +34,14 @@ function statusOf(item: ConsultationItem, past: boolean) {
   const status = (item.status || "").toLowerCase();
   if (CLOSED.has(status)) return { tone: "closed", label: status === "declined" || status === "rejected" ? "Declined" : "Cancelled" };
   if (PENDING.has(status)) return { tone: "pending", label: past ? "Request not confirmed" : "Pending approval" };
-  if (past || status === "completed") return { tone: "done", label: "Completed" };
-  return { tone: "confirmed", label: "Confirmed" };
+  if (status === "provisioning") return { tone: "pending", label: item.conferenceState === "failed" ? "Calendar setup failed" : "Preparing Google Meet" };
+  if (status === "completed") return { tone: "done", label: "Completed" };
+  if (past) return { tone: "past", label: "Past" };
+  return { tone: "confirmed", label: status === "ongoing" ? "In progress" : "Confirmed" };
 }
 
 function placeOf(item: ConsultationItem) {
-  if (item.meetingUrl) return "Google Meet";
+  if (item.meetingUrl) return item.conferenceState === "manual" || item.conferenceState === "legacy" ? "Existing Meet link" : "Google Meet";
   if (item.mode && !/to be confirmed/i.test(item.mode)) return item.mode;
   return null;
 }
@@ -73,7 +76,7 @@ export function ConsultationsHub({
   const now = Date.now();
   const rows = (consultations as HubItem[]).map((item) => {
     const start = consultationStart(item);
-    const past = start ? start.getTime() + 60 * 60 * 1000 < now : false;
+    const past = item.status === "completed" || (item.scheduledEnd ? Date.parse(item.scheduledEnd) < now : start ? start.getTime() + 3_600_000 < now : false);
     return { item, start, past, status: statusOf(item, past) };
   });
   type Row = (typeof rows)[number];
@@ -110,13 +113,13 @@ export function ConsultationsHub({
       .join(" · ");
 
   const actions = ({ item, past: isPast, status }: Row) => {
-    const canJoin = !isPast && status.tone === "confirmed";
+    const canJoin = !isPast && status.tone === "confirmed" && Boolean(item.meetingUrl);
     return (
-      <span className="ch-actions">
+      <div className="ch-actions">
         <button type="button" className="ch-btn" onClick={() => onNotes(item)}>
           <i className="ti ti-notes" aria-hidden="true" /> Notes &amp; chat
         </button>
-        {canJoin && item.meetingUrl && (
+        {canJoin && (
           <button type="button" className="ch-btn ch-icon" aria-label="Copy meeting link" title="Copy meeting link" onClick={() => onCopyLink(item)}>
             <i className="ti ti-copy" aria-hidden="true" />
           </button>
@@ -126,7 +129,9 @@ export function ConsultationsHub({
             <i className="ti ti-video" aria-hidden="true" /> Join Meet
           </button>
         )}
-      </span>
+        <ConsultationActions item={{ ...item, title: item.topic }} viewerId={user?.id}
+          canWithdraw={item.createdBy === user?.id} />
+      </div>
     );
   };
 

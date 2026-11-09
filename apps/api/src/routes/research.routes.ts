@@ -2,6 +2,7 @@ import { removeResearcherMembership, transferResearchLeadership } from "../servi
 import { inviteTeamMember, queueTeamJoined } from "../services/team-email.service.js";
 import { assignResearchMember } from "../services/member-assignment.service.js";
 import { resolveRegistrationWorkflow } from "../services/registration-workflow.service.js";
+import { cancelWithdrawnAdviserConsultations } from "../services/consultation-lifecycle.service.js";
 import { jsonSafe } from "../lib/json-response.js";
 import { Router, Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
@@ -1732,6 +1733,10 @@ router.post(
         return void res
           .status(404)
           .json({ error: "Research group not found." });
+      if (!req.user.roles.includes("ADVISER") || project.collegeId !== req.user.collegeId)
+        return void res
+          .status(403)
+          .json({ error: "Only the assigned adviser in the active college can withdraw." });
       const adviserMembership = project.members.find(
         (member) =>
           member.userId === req.user!.id && member.projectRole === "ADVISER",
@@ -1764,14 +1769,7 @@ router.post(
           where: { id: adviserMembership.id },
           data: { leftAt: new Date() },
         });
-        const cancelledConsultations = await tx.consultation.updateMany({
-          where: {
-            researchId,
-            status: "SCHEDULED",
-            scheduledStart: { gt: new Date() },
-          },
-          data: { status: "CANCELLED" },
-        });
+        const cancelledConsultations = await cancelWithdrawnAdviserConsultations(tx, researchId, req.user!.id);
         if (recipients.length) {
           await tx.notification.createMany({
             data: recipients.map(({ recipientId, audience }) => ({ audience, recipientId,
@@ -1800,7 +1798,7 @@ router.post(
         });
         return {
           membership,
-          cancelledConsultations: cancelledConsultations.count,
+          cancelledConsultations,
         };
       });
 

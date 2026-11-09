@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
+import type { Prisma } from "../lib/prisma.js";
 import { prisma } from "../lib/prisma.js";
 import type { AuthenticatedUser } from "../middleware/auth.js";
+import { googleMeetUrl } from "./google-calendar.service.js";
 
 export type ConsultationAccessContext = {
   collegeId: string | null;
@@ -14,7 +16,7 @@ export function consultationAccessPolicy(
   user: AuthenticatedUser,
   context: ConsultationAccessContext,
 ) {
-  if (!user.roles.includes("SYSTEM_ADMIN") && user.collegeId !== context.collegeId) return { exists: context.exists, canView: false, canRequest: false, canApprove: false, isAssignedFaculty: false };
+  if (user.collegeId !== context.collegeId) return { exists: context.exists, canView: false, canRequest: false, canApprove: false, isAssignedFaculty: false };
   const institutionalRoles = new Set(user.roles);
   const projectRoles = new Set(context.activeProjectRoles);
   if (user.researcherPanel) {
@@ -36,9 +38,9 @@ export function consultationAccessPolicy(
     "COORDINATOR",
   ].some((role) => projectRoles.has(role));
   const isAssignedFaculty =
-    context.isWorkflowOwner ||
-    projectRoles.has("ADVISER") ||
-    projectRoles.has("COORDINATOR");
+    (institutionalRoles.has("ADVISER") && projectRoles.has("ADVISER")) ||
+    (institutionalRoles.has("RESEARCH_COORDINATOR") &&
+      (context.isWorkflowOwner || projectRoles.has("COORDINATOR")));
 
   return {
     exists: context.exists,
@@ -52,12 +54,15 @@ export function consultationAccessPolicy(
 export async function consultationProjectAccess(
   user: AuthenticatedUser,
   researchId: string,
+  db: Pick<Prisma.TransactionClient, "researchProject"> = prisma,
 ) {
-  const project = await prisma.researchProject.findUnique({
+  const project = await db.researchProject.findUnique({
     where: { id: researchId },
     select: {
       id: true,
       title: true,
+      groupName: true,
+      status: true,
       collegeId: true,
       createdBy: true,
       members: {
@@ -92,14 +97,18 @@ export function legacyConsultationImportKey(input: {
 
 export function serializeConsultation(consultation: any) {
   const latestNote = consultation.notes?.[0] || null;
+  const meetingUrl = joinableConsultationUrl(consultation);
+  const requester = consultation.participants?.find((participant: { userId: string }) => participant.userId === consultation.createdBy)?.user;
   return {
     id: consultation.id,
     researchId: consultation.researchId,
-    groupName: consultation.research?.title || "Research Group",
+    groupName: consultation.research?.groupName || consultation.research?.title || "Research Group",
     topic: consultation.title,
     title: consultation.title,
-    adviser: consultation.research?.members?.map((member: any) => `${member.user.firstName} ${member.user.lastName}`.trim()).join(", ") || "Assigned faculty",
+    adviser: consultation.research?.members?.filter((member: any) => !consultation.approverId || consultation.approverId === member.userId)
+      .map((member: any) => `${member.user.firstName} ${member.user.lastName}`.trim()).join(", ") || "Assigned faculty",
     description: consultation.description,
+    requesterName: requester ? `${requester.firstName} ${requester.lastName}`.trim() : undefined,
     date: new Date(consultation.scheduledStart).toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }),
     time: new Date(consultation.scheduledStart).toLocaleTimeString("en-PH", {
       timeZone: "Asia/Manila",
@@ -108,8 +117,13 @@ export function serializeConsultation(consultation: any) {
     }),
     scheduledStart: consultation.scheduledStart,
     scheduledEnd: consultation.scheduledEnd,
-    mode: consultation.meetingUrl ? "Google Meet" : "To be confirmed",
-    meetingUrl: consultation.meetingUrl || "",
+    mode: meetingUrl ? "Google Meet" : "To be confirmed",
+    meetingUrl: meetingUrl || "",
+    meetingKind: String(consultation.meetingKind || "SCHEDULED").toLowerCase(),
+    conferenceState: String(consultation.conferenceState || "LEGACY").toLowerCase(),
+    calendarUpdatePending: Boolean(consultation.pendingCalendarUpdate),
+    createdBy: consultation.createdBy,
+    revision: consultation.revision,
     status: String(consultation.status).toLowerCase(),
     participants: consultation.participants || [],
     notes: latestNote?.notes || "",
@@ -121,7 +135,7 @@ export function serializeConsultation(consultation: any) {
 }
 
 export const consultationInclude = {
-  research: { select: { title: true, members: { where: { projectRole: "ADVISER" as const, leftAt: null }, select: { user: { select: { firstName: true, lastName: true } } } } } },
+  research: { select: { title: true, groupName: true, collegeId: true, status: true, members: { where: { projectRole: "ADVISER" as const, leftAt: null }, select: { userId: true, user: { select: { firstName: true, lastName: true } } } } } },
   participants: {
     include: {
       user: { select: { id: true, firstName: true, lastName: true, email: true } },
@@ -129,3 +143,22 @@ export const consultationInclude = {
   },
   notes: { orderBy: { createdAt: "desc" as const }, take: 1 },
 };
+
+export function consultationAudience(user: AuthenticatedUser) {
+  return {
+    research: { collegeId: user.collegeId || "00000000-0000-0000-0000-000000000000" },
+    participants: { some: { userId: user.id } },
+  } satisfies Prisma.ConsultationWhereInput;
+}
+
+export function joinableConsultationUrl(consultation: {
+  status: string;
+  meetingUrl?: string | null;
+  meetingKind?: string;
+  scheduledEnd?: Date | string;
+}, now = Date.now()) {
+  if (!["SCHEDULED", "ONGOING"].includes(consultation.status)) return null;
+  if (consultation.meetingKind === "INSTANT" && consultation.scheduledEnd &&
+      new Date(consultation.scheduledEnd).getTime() <= now) return null;
+  return googleMeetUrl(consultation.meetingUrl);
+}
