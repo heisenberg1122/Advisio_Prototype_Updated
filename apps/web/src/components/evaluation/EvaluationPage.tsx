@@ -112,7 +112,7 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
         {!print && (
           <a
             className="evaluation-official-site"
-            href="https://advisio-prototype-updated.vercel.app"
+            href="https://advisio-ua.com/"
             target="_blank"
             rel="noopener noreferrer"
           >
