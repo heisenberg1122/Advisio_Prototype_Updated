@@ -726,4 +726,28 @@
   .phone-brand-header > div:first-child > div:first-child {
     flex: none;
   }
+
+  /* ---------- Dean Home hero ---------- */
+  .app-workspace .dean-hero .au-band-side { align-items: stretch; width: 100%; }
+  .app-workspace .dean-hero .au-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .app-workspace .dean-hero .au-band-actions { display: flex; gap: 8px; }
+  .app-workspace .dean-hero .au-band-actions > * { width: auto; min-height: 44px; }
+  .app-workspace .dean-hero .au-band-actions > :first-child { flex: 1; }
+  .app-workspace .dean-hero .au-on-home,
+  .app-workspace .dean-hero .phone-filter-button {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    border-radius: 12px;
+    background: transparent;
+    color: #ffffff;
+    font-size: 0;
+  }
+  .app-workspace .dean-hero .au-on-home i { font-size: 20px; }
+  .app-workspace .dean-hero .phone-filter-button svg { width: 20px; height: 20px; }
+  .app-workspace .dean-hero .phone-filter-count { font-size: 11px; }
 }
