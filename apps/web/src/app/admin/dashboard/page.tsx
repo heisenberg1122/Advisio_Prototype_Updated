@@ -2,7 +2,7 @@
 
 import React, { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -24,7 +24,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
-import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
+import { formatAdminLink } from "@/lib/dashboard-navigation";
+import { CountStrip, PageBand } from "@/components/ui/advisio";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/providers/auth-provider";
 import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
@@ -173,6 +174,8 @@ function ExistingDeanDashboardContent() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const activeView = searchParams.get("tab") || "overview";
+  const router = useRouter();
+  const openTab = (tab: string) => router.push(formatAdminLink(`/admin/dashboard?tab=${tab}`, "dean"));
   const [programId, setProgramId] = useState("all");
   const [academicYearId, setAcademicYearId] = useState("all");
   const [search, setSearch] = useState("");
@@ -315,13 +318,51 @@ function ExistingDeanDashboardContent() {
 
       <div className={`workspace-page flex w-full flex-col gap-6 ${activeView === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
         {activeView === "overview" && (
-          <DashboardWelcome
-            firstName={user?.firstName}
-            fallbackName="Dean"
-            summary="Here's an overview of research progress, programs, and academic activity across your college."
+          <PageBand
+            variant="home"
+            className="dean-hero"
+            titleId="dean-greeting"
+            eyebrow="Dean workspace"
+            title={`Good day, ${user?.firstName || "Dean"}`}
+            meta={deanHeroStatus(data.metrics)}
+            counts={
+              <CountStrip
+                label="College research summary"
+                items={[
+                  { label: "Students", value: data.metrics.students, onClick: () => openTab("students") },
+                  { label: "Groups", value: data.metrics.projects, onClick: () => openTab("research") },
+                  { label: "On track", value: data.metrics.onTrack, onClick: () => openTab("progress") },
+                  { label: "High risk", value: data.metrics.atRisk, tone: "waiting", onClick: () => openTab("progress") },
+                ]}
+              />
+            }
+            actions={
+              <>
+                <Button size="sm" variant="secondary" onClick={() => openTab("progress")}>
+                  Progress &amp; Risk <ArrowRight className="ml-1.5 inline h-4 w-4" aria-hidden="true" />
+                </Button>
+                {isPhone ? (
+                  <>
+                    <Button size="icon" variant="ghost" className="au-on-home" aria-label="Reports" icon={<i className="ti ti-report-analytics" aria-hidden="true" />} onClick={() => openTab("reports")} />
+                    <PhoneFilters activeCount={scopeFilterCount} onClear={clearScopeFilters}>
+                      {scopeFilterFields}
+                    </PhoneFilters>
+                  </>
+                ) : (
+                  <>
+                    <Button size="sm" variant="ghost" className="au-on-home" icon={<i className="ti ti-report-analytics" aria-hidden="true" />} onClick={() => openTab("reports")}>
+                      Reports
+                    </Button>
+                    <Button size="sm" variant="ghost" className="au-on-home" icon={<i className="ti ti-gavel" aria-hidden="true" />} onClick={() => openTab("defenses")}>
+                      Defenses
+                    </Button>
+                  </>
+                )}
+              </>
+            }
           />
         )}
-        {activeView !== "messages" && activeView !== "announcements" && !(isPhone && isRegistryView) && (
+        {activeView !== "messages" && activeView !== "announcements" && !(isPhone && (isRegistryView || activeView === "overview")) && (
           <div className="flex flex-wrap items-center justify-end gap-3">
             <PhoneFilters activeCount={scopeFilterCount} onClear={clearScopeFilters}>
               {scopeFilterFields}
@@ -332,68 +373,6 @@ function ExistingDeanDashboardContent() {
         {/* OVERVIEW TAB */}
         {activeView === "overview" && (
           <div className="space-y-6">
-            {/* KEY METRICS GRID */}
-            <section className="phone-metric-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                {
-                  label: "Research Students",
-                  value: data.metrics.students,
-                  suffix: `${data.metrics.withoutProject} unassigned`,
-                  icon: UserRound,
-                  tone: "text-[#0B3A53] dark:text-[#C9A227] bg-[#0B3A53]/5 dark:bg-white/10",
-                },
-                {
-                  label: "Research Groups",
-                  value: data.metrics.projects,
-                  suffix: `${data.metrics.withoutAdviser} no adviser`,
-                  icon: UsersRound,
-                  tone: "text-blue-600 dark:text-blue-400 bg-blue-500/10",
-                },
-                {
-                  label: "On-Track Groups",
-                  value: data.metrics.onTrack,
-                  suffix: "within timeline",
-                  icon: TrendingUp,
-                  tone: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10",
-                },
-                {
-                  label: "High-Risk Groups",
-                  value: data.metrics.atRisk,
-                  suffix: "require attention",
-                  icon: AlertTriangle,
-                  tone: "text-rose-600 dark:text-rose-400 bg-rose-500/10",
-                },
-              ].map((metric) => (
-                <div
-                  key={metric.label}
-                  className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all duration-200 hover:shadow-md hover:border-slate-300 dark:border-white/10 dark:bg-[#101b2b]"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${metric.tone} transition-transform duration-200 group-hover:scale-105`}>
-                      <metric.icon className="h-6 w-6" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 block truncate">
-                        {metric.label}
-                      </span>
-                      <div className="mt-1 flex items-baseline gap-1.5">
-                        <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-                          {metric.value}
-                        </span>
-                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">
-                          · {metric.suffix}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-white/5 pt-2.5">
-                    <span className="text-xs font-medium text-slate-400 dark:text-slate-500">Live college tally</span>
-                    <ArrowRight className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600 transition-transform group-hover:translate-x-0.5" />
-                  </div>
-                </div>
-              ))}
-            </section>
-
             {/* PERFORMANCE & PIPELINE */}
             <section className="grid gap-6 xl:grid-cols-[1.25fr_.75fr]">
               <article className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
@@ -1140,6 +1119,12 @@ function RegistryView({
       )}
     </div>
   );
+}
+
+function deanHeroStatus({ projects, onTrack, atRisk }: { projects: number; onTrack: number; atRisk: number }) {
+  if (atRisk > 0) return `${atRisk} high-risk ${atRisk === 1 ? "group needs" : "groups need"} attention · ${onTrack} on track`;
+  if (!projects) return "No research groups in this scope yet";
+  return onTrack === projects ? `All ${projects} groups on track · no high-risk groups` : `${onTrack} of ${projects} groups on track · no high-risk groups`;
 }
 
 export default function AdminDashboardPage() {
