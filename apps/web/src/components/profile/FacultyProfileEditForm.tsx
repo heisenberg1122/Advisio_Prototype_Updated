@@ -493,9 +493,9 @@ export function FacultyProfileEditForm() {
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-5xl mx-auto pb-12">
+    <div className="phone-page-inset flex flex-col gap-6 w-full max-w-5xl mx-auto pb-12">
       {/* Top Action Bar */}
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-4">
+      <div className="phone-stack-header flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-[#17212B] dark:text-white">
             Edit Faculty Professional Profile

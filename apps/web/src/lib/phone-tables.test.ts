@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { enhancePhoneLayout, resetPhoneLayout } from "./phone-tables";
+import { enhancePhoneLayout, resetPhoneLayout, revealPhoneRowTarget } from "./phone-tables";
 
 function table(attributes = "") {
   document.body.innerHTML = `<table ${attributes}>
@@ -75,5 +75,34 @@ describe("phone table rows", () => {
     enhancePhoneLayout(document.body);
     resetPhoneLayout(document.body);
     expect(element.outerHTML).toBe(before);
+  });
+
+  it("lets a Guide step aimed at a hidden header point at the table", () => {
+    const element = table();
+    element.querySelector("th")!.setAttribute("data-guide", "matrix");
+    const before = element.outerHTML;
+    enhancePhoneLayout(document.body);
+    expect(element.getAttribute("data-guide")).toBe("matrix");
+    resetPhoneLayout(document.body);
+    expect(element.outerHTML).toBe(before);
+  });
+
+  it("opens the collapsed row holding a Guide target", () => {
+    const element = table();
+    element.querySelector("td button")!.setAttribute("data-guide", "row-action");
+    enhancePhoneLayout(document.body);
+    const row = element.querySelector("tbody tr")!;
+    const toggle = row.querySelector(".phone-row-toggle")!;
+    expect(revealPhoneRowTarget("row-action")).toBe(true);
+    expect(row.hasAttribute("data-phone-open")).toBe(true);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(toggle.getAttribute("aria-label")).toMatch(/^Hide/);
+    expect(revealPhoneRowTarget("row-action")).toBe(false);
+  });
+
+  it("ignores Guide targets outside phone rows", () => {
+    table();
+    expect(revealPhoneRowTarget("row-action")).toBe(false);
+    expect(revealPhoneRowTarget("css:main h1")).toBe(false);
   });
 });

@@ -11,6 +11,7 @@ const STATUS_HEADING = /status|risk|result|decision|state/i;
 const ACTION_HEADING = /^(actions?|details?)$/i;
 const TOGGLE_CLASS = "phone-row-toggle";
 const CARD_ROLES = "data-phone-role";
+const GUIDE_COPY = "data-phone-guide-copy";
 
 function headingLabels(table: HTMLTableElement) {
   const rows = table.tHead?.rows;
@@ -61,6 +62,12 @@ function enhanceTable(table: HTMLTableElement) {
   const lastIndex = labels.length - 1;
 
   setAttribute(table, "data-phone-cards", "");
+  // Card layout hides the header, so a Guide step aimed at it points at the table.
+  const headerTarget = table.tHead?.querySelector<HTMLElement>("[data-guide]")?.dataset.guide;
+  if (headerTarget && !table.dataset.guide) {
+    table.dataset.guide = headerTarget;
+    table.setAttribute(GUIDE_COPY, "");
+  }
   for (const body of Array.from(table.tBodies)) {
     for (const row of Array.from(body.rows)) {
       if (row.cells.length === 1 && row.cells[0].colSpan > 1) {
@@ -107,7 +114,25 @@ export function enhancePhoneLayout(root: ParentNode) {
   revealActiveTabs(root);
 }
 
+/** Opens the collapsed phone row holding a Guide target, so the step can point at it. */
+export function revealPhoneRowTarget(key: string | undefined, root: ParentNode = document) {
+  if (!key || key.includes(":")) return false;
+  const matches = Array.from(root.querySelectorAll<HTMLElement>(`table[data-phone-cards] tbody [data-guide="${key}"]`));
+  if (matches.length === 0 || matches.some((match) => match.getClientRects().length > 0)) return false;
+  const row = matches[0].closest("tr");
+  const toggle = row?.querySelector<HTMLButtonElement>(`.${TOGGLE_CLASS}`);
+  if (!row || !toggle || row.hasAttribute("data-phone-open")) return false;
+  row.setAttribute("data-phone-open", "");
+  toggle.setAttribute("aria-expanded", "true");
+  toggle.setAttribute("aria-label", (toggle.getAttribute("aria-label") ?? "").replace(/^Show/, "Hide"));
+  return true;
+}
+
 export function resetPhoneLayout(root: ParentNode) {
+  root.querySelectorAll(`[${GUIDE_COPY}]`).forEach((table) => {
+    table.removeAttribute("data-guide");
+    table.removeAttribute(GUIDE_COPY);
+  });
   root.querySelectorAll(`.${TOGGLE_CLASS}`).forEach((toggle) => toggle.remove());
   root.querySelectorAll("[data-phone-cards]").forEach((table) => table.removeAttribute("data-phone-cards"));
   root.querySelectorAll("[data-phone-open]").forEach((row) => row.removeAttribute("data-phone-open"));
