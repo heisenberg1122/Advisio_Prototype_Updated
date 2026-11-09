@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, Video } from "lucide-react";
+import { CalendarClock, History, Search, Video } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Input, Select } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { apiClient } from "@/lib/api-client";
@@ -20,6 +21,13 @@ const statusLabels = {
   CANCELLED: "Cancelled",
 };
 
+const historyOutcomes = {
+  COMPLETED: { label: "Completed", tone: "done" },
+  CANCELLED: { label: "Cancelled", tone: "attention" },
+  UNRECORDED: { label: "Outcome unrecorded", tone: "waiting" },
+} as const;
+const emptyHistoryFilters = { search: "", from: "", to: "", status: "" };
+
 type Consultation = {
   id: string;
   title: string;
@@ -27,7 +35,9 @@ type Consultation = {
   scheduledStart: string;
   scheduledEnd: string;
   meetingUrl?: string | null;
-  research: Omit<Project, "id">;
+  research: Omit<Project, "id"> & {
+    members?: { user: { firstName: string; lastName: string } }[];
+  };
 };
 
 const descriptions: Record<Workspace, string> = {
@@ -58,6 +68,7 @@ const dateTime = new Intl.DateTimeFormat("en-PH", {
   timeStyle: "short",
   timeZone: "Asia/Manila",
 });
+const historyDay = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeZone: "Asia/Manila" });
 
 const timeOnly = new Intl.DateTimeFormat("en-PH", {
   hour: "numeric",
@@ -182,14 +193,42 @@ function ScheduleConsultation({ scope, onClose, onScheduled }: {
 function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; scope: string }) {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
+  const [history, setHistory] = useState(false);
+  const [draftFilters, setDraftFilters] = useState(emptyHistoryFilters);
+  const [filters, setFilters] = useState(emptyHistoryFilters);
   const [scheduling, setScheduling] = useState(false);
   const [notice, setNotice] = useState("");
+  const params = history ? {
+    page,
+    view: "history",
+    search: filters.search || undefined,
+    from: filters.from || undefined,
+    to: filters.to || undefined,
+    status: filters.status || undefined,
+  } : { page };
   const consultations = useQuery({
-    queryKey: ["faculty-consultations", scope, workspace, page],
+    queryKey: ["faculty-consultations", scope, workspace, params],
     queryFn: () => apiClient.get<{ consultations: Consultation[]; hasNextPage: boolean }>(
-      `/api/consultations/workspace/${workspace}`, { params: { page } },
+      `/api/consultations/workspace/${workspace}`, { params },
     ),
   });
+
+  function showHistory(value: boolean) {
+    setHistory(value);
+    setPage(1);
+  }
+
+  function applyFilters(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFilters({ ...draftFilters, search: draftFilters.search.trim() });
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setDraftFilters(emptyHistoryFilters);
+    setFilters(emptyHistoryFilters);
+    setPage(1);
+  }
 
   function refreshLists() {
     for (const key of ["faculty-consultations", "consultations", "universal-calendar"]) {
@@ -205,7 +244,7 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
 
   const items = consultations.data?.consultations ?? [];
   // Counts only describe the whole list when it fits on one page.
-  const showCounts = consultations.isSuccess && page === 1 && !consultations.data.hasNextPage;
+  const showCounts = !history && consultations.isSuccess && page === 1 && !consultations.data.hasNextPage;
   const count = (...statuses: Consultation["status"][]) => items.filter((item) => statuses.includes(item.status)).length;
 
   return (
@@ -233,9 +272,72 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
         actions={workspace === "coordinator" ? <Button onClick={() => setScheduling(true)}>Schedule consultation</Button> : undefined}
       />
 
+      {workspace === "dean" && (
+        <div role="group" aria-label="Consultation view" className="flex flex-wrap gap-2 self-start rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
+          <Button size="sm" variant={history ? "ghost" : "primary"} aria-pressed={!history} onClick={() => showHistory(false)} icon={<CalendarClock aria-hidden="true" className="size-4" />}>
+            All consultations
+          </Button>
+          <Button size="sm" variant={history ? "primary" : "ghost"} aria-pressed={history} onClick={() => showHistory(true)} icon={<History aria-hidden="true" className="size-4" />}>
+            History
+          </Button>
+        </div>
+      )}
+
       {notice && <InlineFeedback tone="ok">{notice}</InlineFeedback>}
       {approval.error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{approval.error.message}</p>}
-      <SectionCard title="Project consultations" titleId="consultations-list" count={consultations.isSuccess ? items.length : undefined}>
+      <SectionCard title={history ? "Consultation history" : "Project consultations"} titleId="consultations-list" count={!history && consultations.isSuccess ? items.length : undefined}>
+        {history && (
+          <form className="au-card-body space-y-3 border-b border-[var(--color-border)]" onSubmit={applyFilters}>
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              Review completed, cancelled, and past sessions with no recorded outcome. Dates refer to the scheduled start.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))]">
+              <div className="grid min-w-0 gap-1.5 text-sm font-semibold">
+                <label htmlFor="consultation-history-search">Group or project</label>
+                <Input
+                  id="consultation-history-search"
+                  type="search"
+                  value={draftFilters.search}
+                  onChange={(event) => setDraftFilters({ ...draftFilters, search: event.target.value })}
+                  maxLength={160}
+                  placeholder="Search groups or projects"
+                  leftIcon={<Search aria-hidden="true" className="size-4" />}
+                />
+              </div>
+              <div className="grid min-w-0 gap-1.5 text-sm font-semibold">
+                <label htmlFor="consultation-history-from">From date</label>
+                <Input
+                  id="consultation-history-from"
+                  type="date"
+                  value={draftFilters.from}
+                  max={draftFilters.to || undefined}
+                  onChange={(event) => setDraftFilters({ ...draftFilters, from: event.target.value })}
+                />
+              </div>
+              <div className="grid min-w-0 gap-1.5 text-sm font-semibold">
+                <label htmlFor="consultation-history-to">To date</label>
+                <Input
+                  id="consultation-history-to"
+                  type="date"
+                  value={draftFilters.to}
+                  min={draftFilters.from || undefined}
+                  onChange={(event) => setDraftFilters({ ...draftFilters, to: event.target.value })}
+                />
+              </div>
+              <div className="grid min-w-0 gap-1.5 text-sm font-semibold">
+                <label htmlFor="consultation-history-outcome">Outcome</label>
+                <Select id="consultation-history-outcome" value={draftFilters.status} onChange={(event) => setDraftFilters({ ...draftFilters, status: event.target.value })}>
+                  <option value="">All outcomes</option>
+                  {Object.entries(historyOutcomes).map(([value, { label }]) => <option key={value} value={value}>{label}</option>)}
+                </Select>
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>Clear filters</Button>
+              <Button type="submit" size="sm">Apply filters</Button>
+            </div>
+          </form>
+        )}
         {consultations.isPending && <p role="status" className="au-card-body text-sm text-[var(--color-text-secondary)]">Loading consultations…</p>}
         {consultations.isError && (
           <div className="au-card-body space-y-3">
@@ -244,13 +346,20 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
           </div>
         )}
         {consultations.isSuccess && items.length === 0 && (
-          <EmptyNote layout="row" icon="ti-calendar-time" title="No consultations yet" text={emptyText[workspace]} />
+          <EmptyNote
+            layout="row"
+            icon="ti-calendar-time"
+            title={history ? "No matching consultations" : "No consultations yet"}
+            text={history ? "Try another date, group, or outcome." : emptyText[workspace]}
+          />
         )}
         {items.length > 0 && (
           <ul className="au-list">
             {items.map((item) => {
               const meeting = item.status === "SCHEDULED" || item.status === "ONGOING" ? httpsUrl(item.meetingUrl) : null;
               const start = new Date(item.scheduledStart);
+              const outcome = item.status === "COMPLETED" || item.status === "CANCELLED" ? historyOutcomes[item.status] : historyOutcomes.UNRECORDED;
+              const advisers = item.research.members?.map(({ user }) => `${user.firstName} ${user.lastName}`.trim()).join(", ");
               return (
                 <li key={item.id}>
                   <ListRow
@@ -266,15 +375,16 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
                     titleHint={item.title}
                     meta={
                       <>
-                        {projectLabel(item.research)} · {dayLabel(start)},{" "}
+                        {projectLabel(item.research)} · {history ? historyDay.format(start) : dayLabel(start)},{" "}
                         <time dateTime={item.scheduledStart}>{timeOnly.format(start)}</time>
                         {" – "}
                         <time dateTime={item.scheduledEnd}>{timeOnly.format(new Date(item.scheduledEnd))}</time>
+                        {history && <span className="mt-1 block">Current adviser · {advisers || "Unassigned"}</span>}
                       </>
                     }
                     end={
                       <span className="flex flex-wrap items-center justify-end gap-2">
-                        <StatusDot tone={statusTones[item.status]}>{statusLabels[item.status]}</StatusDot>
+                        <StatusDot tone={history ? outcome.tone : statusTones[item.status]}>{history ? outcome.label : statusLabels[item.status]}</StatusDot>
                         {workspace === "coordinator" && item.status === "REQUESTED" && (
                           <Button size="sm" variant="secondary" disabled={approval.isPending} isLoading={approval.isPending && approval.variables === item.id} onClick={() => {
                             setNotice("");
