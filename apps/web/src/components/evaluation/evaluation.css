@@ -145,13 +145,26 @@
   font-weight: 700;
 }
 .evaluation-banner {
+  --evaluation-banner-default-right: 18px;
+  --evaluation-banner-default-bottom: 14px;
   position: fixed;
-  bottom: 14px;
-  right: 18px;
-  z-index: 1001;
-  display: flex;
+  right: clamp(
+    0px,
+    var(--evaluation-banner-right, var(--evaluation-banner-default-right)),
+    max(0px, 100% - var(--evaluation-banner-width, 0px))
+  );
+  bottom: clamp(
+    0px,
+    var(--evaluation-banner-bottom, var(--evaluation-banner-default-bottom)),
+    max(0px, 100% - var(--evaluation-banner-height, 0px))
+  );
+  z-index: 2101;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  width: max-content;
+  max-width: calc(100% - 36px);
   border: 1px solid #b8cfe6;
   border-radius: 12px;
   padding: 12px 16px;
@@ -161,6 +174,12 @@
   font:
     13px Arial,
     sans-serif;
+}
+.evaluation-banner-controls:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
 }
 .evaluation-banner small {
   display: block;
@@ -174,9 +193,54 @@
   border-radius: 7px;
   cursor: pointer;
 }
-.evaluation-banner {
-  max-width: calc(100vw - 36px);
-  flex-wrap: wrap;
+.evaluation-banner .evaluation-banner-toggle {
+  display: grid;
+  place-items: center;
+  touch-action: manipulation;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  background: #eaf0f6;
+  color: #193653;
+}
+.evaluation-banner-actions {
+  display: flex;
+  gap: 4px;
+}
+.evaluation-banner .evaluation-banner-grip,
+.evaluation-banner.is-collapsed .evaluation-banner-toggle {
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+.evaluation-banner .evaluation-banner-grip:active,
+.evaluation-banner.is-collapsed .evaluation-banner-toggle:active {
+  cursor: grabbing;
+}
+.evaluation-banner.is-collapsed {
+  --evaluation-banner-default-bottom: 24%;
+  right: 0;
+  width: max-content;
+  grid-template-columns: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 10px 0 0 10px;
+}
+.evaluation-banner.is-collapsed .evaluation-banner-toggle {
+  gap: 6px;
+  padding: 10px 0;
+  border-radius: inherit;
+  background: #1959a5;
+  color: white;
+}
+.evaluation-banner.is-collapsed .evaluation-banner-toggle span {
+  writing-mode: vertical-rl;
+  font-weight: 700;
+}
+@media (max-width: 767px) {
+  .evaluation-banner.is-collapsed .evaluation-banner-toggle span {
+    display: none;
+  }
 }
 .evaluation-role-switcher {
   display: grid;
@@ -200,9 +264,9 @@
 }
 .evaluation-switch-error {
   position: fixed;
-  bottom: 110px;
+  bottom: calc(var(--evaluation-controls-height, 0px) + 24px);
   right: 18px;
-  z-index: 1002;
+  z-index: 2102;
   max-width: min(440px, 90vw);
   background: white;
   color: #a32727;
@@ -211,9 +275,6 @@
   border-radius: 8px;
 }
 @media (max-width: 600px) {
-  .evaluation-banner {
-    max-width: none;
-  }
   .evaluation-role-switcher {
     flex: 1 1 100%;
   }
@@ -225,7 +286,7 @@
   position: fixed;
   inset: 0;
   background: #10253db3;
-  z-index: 2000;
+  z-index: 2130;
   display: grid;
   place-items: center;
   padding: 20px;
@@ -338,6 +399,9 @@
   outline: 3px solid #eea32b;
   outline-offset: 3px;
 }
+.evaluation-banner.is-collapsed .evaluation-banner-toggle:focus-visible {
+  outline-offset: -4px;
+}
 .evaluation-logo {
   display: block;
   width: 96px;
@@ -439,14 +503,22 @@
     font-size: 25px;
   }
   .evaluation-banner {
-    right: 10px;
-    left: 10px;
-    bottom: 8px;
+    --evaluation-banner-default-right: 10px;
+    --evaluation-banner-default-bottom: 8px;
+    width: calc(100% - 20px);
+    max-width: none;
+    align-items: start;
     padding: 10px;
     gap: 8px;
   }
   .evaluation-banner button {
     font-size: 12px;
+  }
+  .evaluation-banner-controls:not([hidden]) {
+    gap: 8px;
+  }
+  .evaluation-banner-actions {
+    flex-direction: column;
   }
   .evaluation-dialog {
     padding: 20px;
@@ -638,7 +710,7 @@
   .evaluation-banner small {
     font-size: 11px;
   }
-  .evaluation-banner > span {
+  .evaluation-banner-controls > span {
     min-width: 0;
   }
   .evaluation-banner button {
@@ -647,10 +719,10 @@
 }
 
 /* Keep native page actions scrollable above the fixed demo controls. */
-html:has(.evaluation-banner) {
+html:has(.evaluation-banner:not(.is-collapsed)) {
   scroll-padding-bottom: calc(var(--evaluation-controls-height, 90px) + 32px);
 }
-body:has(.evaluation-banner) .app-workspace::after {
+body:has(.evaluation-banner:not(.is-collapsed)) .app-workspace::after {
   content: "";
   display: block;
   flex: 0 0 calc(var(--evaluation-controls-height, 90px) + 32px);

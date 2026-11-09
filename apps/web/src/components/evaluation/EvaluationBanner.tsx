@@ -2,7 +2,13 @@ import {
   beginEvaluationIdentityChange,
   cancelEvaluationIdentityChange,
 } from "@/lib/evaluation-identity";
-import { CircleCheck, Info } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CircleCheck,
+  GripVertical,
+  Info,
+} from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
@@ -17,6 +23,14 @@ import {
 } from "./evaluation-progress";
 import { EvaluationSteps, EvaluationSupport } from "./EvaluationShared";
 
+function bannerInsets(element: HTMLElement) {
+  const bounds = element.getBoundingClientRect();
+  return {
+    right: document.documentElement.clientWidth - bounds.right,
+    bottom: document.documentElement.clientHeight - bounds.bottom,
+  };
+}
+
 export function EvaluationBanner() {
   const location = useLocation();
   const [session, setSession] = useState<EvaluationSession | null>(null);
@@ -24,36 +38,61 @@ export function EvaluationBanner() {
     phase: "activities",
     checked: [],
   });
+  const [collapsed, setCollapsed] = useState(false);
+  const [position, setPosition] = useState<{
+    right?: number;
+    bottom: number;
+  }>();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const banner = useRef<HTMLElement>(null);
+  const drag = useRef<{
+    pointerId: number;
+    x: number;
+    y: number;
+    right: number;
+    bottom: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressToggleClick = useRef(false);
+  const collapseToggle = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const endTrigger = useRef<HTMLButtonElement>(null);
   const endConfirmation = useRef<HTMLDivElement>(null);
   const active = localStorage.getItem("advisio_token") === "__evaluation__";
   useEffect(() => {
-    if (!banner.current) return;
-    const measure = () =>
-      document.documentElement.style.setProperty(
-        "--evaluation-controls-height",
-        `${banner.current?.offsetHeight || 0}px`,
+    const element = banner.current;
+    if (!element) return;
+    const measure = () => {
+      const height = `${element.offsetHeight}px`;
+      element.style.setProperty(
+        "--evaluation-banner-width",
+        `${element.offsetWidth}px`,
       );
+      element.style.setProperty("--evaluation-banner-height", height);
+      if (!collapsed) {
+        document.documentElement.style.setProperty(
+          "--evaluation-controls-height",
+          height,
+        );
+      }
+    };
     measure();
     const observer =
       typeof ResizeObserver === "undefined"
         ? null
         : new ResizeObserver(measure);
-    observer?.observe(banner.current);
+    observer?.observe(element);
     return () => {
       observer?.disconnect();
       document.documentElement.style.removeProperty(
         "--evaluation-controls-height",
       );
     };
-  }, [active, session, location.pathname]);
+  }, [active, collapsed, session, location.pathname]);
   useEffect(() => {
     const show = () => setOpen(true);
     window.addEventListener("advisio:evaluation-activities", show);
@@ -93,7 +132,7 @@ export function EvaluationBanner() {
       if (event.key === "Escape") {
         setOpen(false);
         setConfirmEnd(false);
-        trigger.current?.focus();
+        (collapsed ? collapseToggle : trigger).current?.focus();
       }
       if (event.key !== "Tab") return;
       const items = dialog.current?.querySelectorAll<HTMLElement>(
@@ -119,13 +158,66 @@ export function EvaluationBanner() {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", listener);
     };
-  }, [open, progress.phase]);
+  }, [collapsed, open, progress.phase]);
   useEffect(() => {
     if (open && confirmEnd) endConfirmation.current?.focus();
   }, [open, confirmEnd]);
   if (!active || !session || location.pathname.startsWith("/evaluate"))
     return null;
   const completed = progress.phase === "complete";
+  function moveBanner(right: number, bottom: number) {
+    const element = banner.current!;
+    const viewport = document.documentElement;
+    setPosition((previous) => ({
+      right: collapsed
+        ? previous?.right
+        : Math.max(
+            0,
+            Math.min(right, viewport.clientWidth - element.offsetWidth),
+          ),
+      bottom: Math.max(
+        0,
+        Math.min(bottom, viewport.clientHeight - element.offsetHeight),
+      ),
+    }));
+  }
+  const moveHandle: React.HTMLAttributes<HTMLButtonElement> = {
+    onPointerDown(event) {
+      if (!event.isPrimary || event.button !== 0 || drag.current) return;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      suppressToggleClick.current = false;
+      drag.current = {
+        ...bannerInsets(banner.current!),
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        moved: false,
+      };
+    },
+    onPointerMove(event) {
+      const start = drag.current;
+      if (!start || start.pointerId !== event.pointerId) return;
+      const dx = collapsed ? 0 : event.clientX - start.x;
+      const dy = event.clientY - start.y;
+      if (!start.moved && Math.hypot(dx, dy) < 5) return;
+      start.moved = true;
+      suppressToggleClick.current = collapsed;
+      moveBanner(start.right - dx, start.bottom - dy);
+    },
+    onLostPointerCapture(event) {
+      if (drag.current?.pointerId === event.pointerId) drag.current = null;
+    },
+    onKeyDown(event) {
+      const horizontal =
+        event.key === "ArrowLeft" ? 24 : event.key === "ArrowRight" ? -24 : 0;
+      const vertical =
+        event.key === "ArrowUp" ? 24 : event.key === "ArrowDown" ? -24 : 0;
+      if (!(vertical || (!collapsed && horizontal))) return;
+      event.preventDefault();
+      const { right, bottom } = bannerInsets(banner.current!);
+      moveBanner(right + horizontal, bottom + vertical);
+    },
+  };
   function update(next: EvaluationProgress) {
     setProgress(next);
     saveProgress(session!.progressKey || session!.projectId, next);
@@ -141,7 +233,7 @@ export function EvaluationBanner() {
   function close() {
     setOpen(false);
     setConfirmEnd(false);
-    trigger.current?.focus();
+    (collapsed ? collapseToggle : trigger).current?.focus();
   }
   async function end() {
     setBusy(true);
@@ -196,63 +288,147 @@ export function EvaluationBanner() {
     <>
       <aside
         ref={banner}
-        className="evaluation-banner"
+        className={`evaluation-banner${collapsed ? " is-collapsed" : ""}`}
+        style={
+          {
+            "--evaluation-banner-right":
+              position?.right === undefined ? undefined : `${position.right}px`,
+            "--evaluation-banner-bottom": position
+              ? `${position.bottom}px`
+              : undefined,
+          } as React.CSSProperties
+        }
         aria-label="Evaluation controls"
       >
-        <span>
-          <strong>Step {completed ? 3 : 2} of 3</strong>
-          <small>
-            {session.roleLabel} · {session.collegeCode || session.college}
-          </small>
-        </span>
-        {!!session.roles?.length && (
-          <label className="evaluation-role-switcher">
-            <span>Demo role</span>
-            <select
-              aria-label="Switch demo role"
-              value={session.role}
-              disabled={busy}
-              onChange={(e) => void switchRole(e.target.value)}
-            >
-              {session.roles.map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {!!session.scenarios?.length && (
-          <label className="evaluation-role-switcher">
-            <span>Demo scenario</span>
-            <select
-              aria-label="Switch demo scenario"
-              value={session.scenario || ""}
-              disabled={busy}
-              onChange={(e) => void switchScenario(e.target.value)}
-            >
-              {session.scenarios.map((scenario) => (
-                <option key={scenario.id} value={scenario.id}>
-                  {scenario.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <button
-          ref={trigger}
-          onClick={() => {
-            setProgress(
-              readProgress(
-                session.progressKey || session.projectId,
-                session.tasks.length,
-              ),
-            );
-            setOpen(true);
-          }}
+        <div
+          id="evaluation-banner-controls"
+          className="evaluation-banner-controls"
+          hidden={collapsed}
         >
-          Evaluation activities
-        </button>
+          <span>
+            <strong>Step {completed ? 3 : 2} of 3</strong>
+            <small>
+              {session.roleLabel} · {session.collegeCode || session.college}
+            </small>
+          </span>
+          {!!session.roles?.length && (
+            <label className="evaluation-role-switcher">
+              <span>Demo role</span>
+              <select
+                aria-label="Switch demo role"
+                value={session.role}
+                disabled={busy}
+                onChange={(e) => void switchRole(e.target.value)}
+              >
+                {session.roles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {!!session.scenarios?.length && (
+            <label className="evaluation-role-switcher">
+              <span>Demo scenario</span>
+              <select
+                aria-label="Switch demo scenario"
+                value={session.scenario || ""}
+                disabled={busy}
+                onChange={(e) => void switchScenario(e.target.value)}
+              >
+                {session.scenarios.map((scenario) => (
+                  <option key={scenario.id} value={scenario.id}>
+                    {scenario.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <button
+            ref={trigger}
+            onClick={() => {
+              setProgress(
+                readProgress(
+                  session.progressKey || session.projectId,
+                  session.tasks.length,
+                ),
+              );
+              setOpen(true);
+            }}
+          >
+            Evaluation activities
+          </button>
+        </div>
+        <div className="evaluation-banner-actions">
+          {!collapsed && (
+            <button
+              {...moveHandle}
+              type="button"
+              className="evaluation-banner-toggle evaluation-banner-grip"
+              aria-label="Move evaluation controls with arrow keys"
+              title="Drag or use arrow keys to move the evaluation controls"
+            >
+              <GripVertical size={18} aria-hidden="true" />
+            </button>
+          )}
+          <button
+            {...(collapsed ? moveHandle : {})}
+            ref={collapseToggle}
+            type="button"
+            className="evaluation-banner-toggle"
+            aria-label={
+              collapsed
+                ? "Expand evaluation controls"
+                : "Collapse evaluation controls"
+            }
+            aria-expanded={!collapsed}
+            aria-controls="evaluation-banner-controls"
+            title={
+              collapsed
+                ? "Open evaluation controls or drag to move"
+                : "Collapse evaluation controls"
+            }
+            onPointerDown={(event) => {
+              if (!event.isPrimary) return;
+              suppressToggleClick.current = false;
+              if (collapsed) moveHandle.onPointerDown?.(event);
+            }}
+            onPointerUp={(event) => {
+              if (
+                event.pointerType !== "touch" ||
+                !event.isPrimary ||
+                suppressToggleClick.current
+              )
+                return;
+              const { left, right, top, bottom } =
+                event.currentTarget.getBoundingClientRect();
+              if (
+                event.clientX < left ||
+                event.clientX > right ||
+                event.clientY < top ||
+                event.clientY > bottom
+              )
+                return;
+              suppressToggleClick.current = true;
+              setCollapsed(!collapsed);
+            }}
+            onClick={(event) => {
+              if (event.detail === 0 || !suppressToggleClick.current) {
+                setCollapsed(!collapsed);
+              }
+            }}
+          >
+            {collapsed ? (
+              <>
+                <ChevronLeft size={16} aria-hidden="true" />
+                <span>Evaluation</span>
+              </>
+            ) : (
+              <ChevronRight size={18} aria-hidden="true" />
+            )}
+          </button>
+        </div>
       </aside>
       {error && !open && (
         <p className="evaluation-switch-error" role="alert">
