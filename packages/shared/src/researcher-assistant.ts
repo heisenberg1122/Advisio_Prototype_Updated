@@ -407,11 +407,14 @@ export function resolveAssistantQuestion(
   return { kind: "ai", relevant: ranked.map((item) => item.topic).slice(0, 5) };
 }
 export type AssistantAIProvider = "openai" | "groq";
+export const assistantLanguages = ["en", "tl"] as const;
+export type AssistantLanguage = (typeof assistantLanguages)[number];
 
 export interface AssistantReply {
   text: string;
   source: "local" | "ai" | "fallback" | "clarification";
   topicIds: AssistantTopicId[];
+  language?: AssistantLanguage;
   needsConsent?: boolean;
   consentProvider?: AssistantAIProvider;
   retryable?: boolean;

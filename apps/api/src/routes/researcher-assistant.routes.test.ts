@@ -72,6 +72,37 @@ describe("Authenticated workspace help API", () => {
     expect((await post({ message: "help" }, "")).status).toBe(401);
     expect((await post({ message: "help" }, "ADVISER")).status).toBe(403);
   });
+  it("requires provider consent and the matching workspace role for translations", async () => {
+    const translate = vi
+      .spyOn(service, "translate")
+      .mockResolvedValue({ text: "Buksan ang Guide." });
+    const body = {
+      workspace: "panelist",
+      text: "Open the Guide.",
+      translateTo: "tl",
+      allowAI: true,
+      aiProvider: "groq",
+    };
+    try {
+      expect((await post(body, "")).status).toBe(401);
+      expect((await post(body, "RESEARCHER")).status).toBe(403);
+      expect((await post({ ...body, allowAI: false }, "PANELIST")).status).toBe(
+        400,
+      );
+      expect(translate).not.toHaveBeenCalled();
+
+      const response = await post(body, "PANELIST");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ text: "Buksan ang Guide." });
+      expect(translate).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ id: "test-panelist" }),
+        body,
+        expect.any(AbortSignal),
+      );
+    } finally {
+      translate.mockRestore();
+    }
+  });
   it("rejects forged authority, unknown pages and oversized messages", async () => {
     expect(
       (await post({ message: "help", roles: ["SYSTEM_ADMIN"] })).status,

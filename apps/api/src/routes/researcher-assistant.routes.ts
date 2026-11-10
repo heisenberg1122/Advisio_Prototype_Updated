@@ -6,6 +6,7 @@ import {
   AssistantRateError,
   ResearcherAssistantService,
   assistantRequestSchema,
+  assistantTranslationRequestSchema,
 } from "../services/researcher-assistant.service.js";
 import {
   assistantTopic,
@@ -31,13 +32,16 @@ export function createResearcherAssistantRouter(
       });
       return;
     }
-    const parsed = assistantRequestSchema.safeParse(req.body);
+    const parsed = assistantRequestSchema
+      .or(assistantTranslationRequestSchema)
+      .safeParse(req.body);
     if (
       !parsed.success ||
-      (parsed.data.page &&
-        !assistantTopic(parsed.data.page, parsed.data.workspace)) ||
-      (parsed.data.previousTopic &&
-        !assistantTopic(parsed.data.previousTopic, parsed.data.workspace))
+      ("message" in parsed.data &&
+        ((parsed.data.page &&
+          !assistantTopic(parsed.data.page, parsed.data.workspace)) ||
+          (parsed.data.previousTopic &&
+            !assistantTopic(parsed.data.previousTopic, parsed.data.workspace))))
     ) {
       res.status(400).json({
         error: "Use a supported question, page and short conversation.",
@@ -62,15 +66,19 @@ export function createResearcherAssistantRouter(
     };
     res.on("close", close);
     try {
-      const reply = await service.answer(
-        {
-          id: req.user!.id,
-          collegeId: req.user!.collegeId,
-          permissions: req.user!.permissions,
-        },
-        parsed.data as AssistantRequest,
-        controller.signal,
-      );
+      const identity = {
+        id: req.user!.id,
+        collegeId: req.user!.collegeId,
+        permissions: req.user!.permissions,
+      };
+      const reply =
+        "translateTo" in parsed.data
+          ? await service.translate(identity, parsed.data, controller.signal)
+          : await service.answer(
+              identity,
+              parsed.data as AssistantRequest,
+              controller.signal,
+            );
       if (!res.destroyed) res.json(reply);
     } catch (error) {
       if (res.destroyed) return;
