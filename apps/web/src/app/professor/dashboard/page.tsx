@@ -3712,7 +3712,13 @@ function ProfessorDashboardContent() {
                     <span><b>Before scheduling:</b> approve eligibility, then get the Dean’s signed letter.</span>
                   </p>
                 )}
-                {liveDefense?.packet?.evaluationMode === "STRUCTURED" && <ConsolidatedEvaluations sessionId={liveDefense.id}/>}
+                {liveDefense?.packet?.evaluationMode === "STRUCTURED" && (
+                  <ConsolidatedEvaluations
+                    key={liveDefense.id}
+                    sessionId={liveDefense.id}
+                    canReleaseWithoutScores={user?.roles.includes("RESEARCH_COORDINATOR")}
+                  />
+                )}
                 {liveDefense && liveDefense.packet?.evaluationMode !== "STRUCTURED" && (
                   <section className="rounded-[17px] border-2 border-emerald-200 bg-emerald-50 p-5">
                     <div className="grid gap-5 lg:grid-cols-[1fr_300px]">

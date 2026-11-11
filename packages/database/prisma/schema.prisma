@@ -2129,6 +2129,8 @@ model DefenseSession {
   startedBy      String?              @map("started_by") @db.Uuid
   endedAt        DateTime?            @map("ended_at")
   releasedAt     DateTime?            @map("released_at")
+  decisionAndFeedbackOnly Boolean     @default(false) @map("decision_and_feedback_only")
+  releasedFeedback String?            @map("released_feedback")
   releasedBy     String?              @map("released_by") @db.Uuid
   createdAt      DateTime             @default(now()) @map("created_at")
   updatedAt      DateTime             @updatedAt @map("updated_at")

@@ -90,6 +90,8 @@ export type IntegrityState = {
   decision: string | null;
   releasedAt: Date | null;
   releasedBy: string | null;
+  decisionAndFeedbackOnly?: boolean;
+  releasedFeedback?: string | null;
   packet: {
     structuredForm: unknown;
     mappingVersion: number;
@@ -133,6 +135,10 @@ export function releasePayload(
     releasedAt: state.releasedAt?.toISOString() ?? null,
     releasedBy: state.releasedBy,
     revisionInstructions: instructions,
+    ...(state.decisionAndFeedbackOnly && {
+      decisionAndFeedbackOnly: true,
+      releasedFeedback: state.releasedFeedback ?? null,
+    }),
     report: consolidatedScores(
       readForm(state.packet!.structuredForm),
       state.structuredEvaluations,
