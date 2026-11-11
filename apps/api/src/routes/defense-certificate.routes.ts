@@ -9,6 +9,8 @@ import {
   issueDefenseCertificates,
 } from "../services/defense-certificate.service.js";
 import { renderDefenseCertificate } from "../services/defense-certificate-pdf.js";
+import { evaluationContext } from "../evaluation/context.js";
+import { publishEvaluationCertificate } from "../evaluation/certificate-verification.js";
 
 const router = Router();
 const id = z.string().uuid();
@@ -68,6 +70,7 @@ router.get([previewPath, `${previewPath}/pdf`], requireAuth, async (req, res, ne
       });
     }
     const url = verificationUrl(certificate.id);
+    if (evaluationContext.getStore()) publishEvaluationCertificate(certificate);
     if (/\/pdf\/?$/i.test(req.path)) {
       const pdf = await renderDefenseCertificate(certificate, url);
       res.type("application/pdf").set("Content-Disposition", 'attachment; filename="final-defense-certificate.pdf"').send(pdf);

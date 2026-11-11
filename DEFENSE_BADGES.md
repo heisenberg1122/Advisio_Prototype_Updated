@@ -42,6 +42,9 @@ issuing production certificates. Each QR points to that frontend's verification
 page. Anyone with the link can verify the recipient name, college, and award
 date. The PDF and research details require authenticated certificate access.
 
+In the disposable QR evaluation environment, opening a certificate makes its
+verification link available for up to one hour on that running instance.
+
 ## Database rollout
 
 Apply `20261026020000_defense_badges` and all preceding migrations before running
