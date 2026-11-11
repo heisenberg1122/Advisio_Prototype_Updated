@@ -9,7 +9,7 @@ import {
   issueDefenseCertificates,
 } from "../services/defense-certificate.service.js";
 import { renderDefenseCertificate } from "../services/defense-certificate-pdf.js";
-import { evaluationContext } from "../evaluation/context.js";
+import { evaluationContext, evaluationProjectWhere } from "../evaluation/context.js";
 import { publishEvaluationCertificate } from "../evaluation/certificate-verification.js";
 
 const router = Router();
@@ -45,6 +45,7 @@ router.get([previewPath, `${previewPath}/pdf`], requireAuth, async (req, res, ne
         defenseSessionId: sessionId.data,
         session: {
           research: {
+            ...evaluationProjectWhere(),
             members: {
               some: { userId: user.id, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } },
             },
@@ -125,7 +126,11 @@ async function handleIssuance(
   try {
     const result = await prisma.$transaction(async (tx) => {
       const badge = await tx.defenseBadge.findFirst({
-        where: { ...finalBadge, defenseSessionId: sessionId.data, session: { research: { collegeId } } },
+        where: {
+          ...finalBadge,
+          defenseSessionId: sessionId.data,
+          session: { research: { collegeId, ...evaluationProjectWhere() } },
+        },
         include: {
           ...certificateBadgeInclude,
           session: { include: { research: { include: certificateResearchInclude } } },
