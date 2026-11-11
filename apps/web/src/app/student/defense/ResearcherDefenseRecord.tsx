@@ -148,6 +148,12 @@ export function ResearcherOfficialResult({
           <p className="rdf-secondary">
             Released {new Date(session.releasedAt).toLocaleString()}
           </p>
+          {session.releasedFeedback && (
+            <div className="rdf-feedback-body">
+              <h3>Feedback and revision instructions</h3>
+              <p className="whitespace-pre-line">{session.releasedFeedback}</p>
+            </div>
+          )}
           <p className="rdf-caption">
             Panelist recommendations and averages do not automatically determine
             the official decision.
@@ -412,11 +418,13 @@ export function ResearcherDefenseRecord({
   packet: any;
   packetHistoryData: any;
   documents: any[];
+  researcherId?: string;
   projectHref: (path: string) => string;
 }) {
   const showEvaluations = Boolean(
     selectedSession?.packet?.evaluationMode === "STRUCTURED" &&
-    selectedSession?.releasedAt,
+    selectedSession?.releasedAt &&
+    !selectedSession?.decisionAndFeedbackOnly,
   );
   // Same key, endpoint, release gate and researcher polling policy as the
   // original student ConsolidatedEvaluations instance. No additional sources.
@@ -434,11 +442,7 @@ export function ResearcherDefenseRecord({
       {selectedSession && (
         <ResearcherOfficialResult
           session={selectedSession}
-          revisionClearance={
-            showEvaluations && !query.isPending && !query.isError
-              ? query.data?.revisionClearance
-              : undefined
-          }
+          revisionClearance={query.data?.revisionClearance ?? selectedSession.revisionClearance}
         />
       )}
       {sessions.some((session: any) => session.badge) && (

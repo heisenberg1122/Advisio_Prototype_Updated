@@ -76,6 +76,14 @@ function DefenseGrades() {
     );
   if (!grades) return <p data-guide="defense-grade-state" className="p-6">No defense grades are available for this project.</p>;
 
+  if (grades.status === "private")
+    return (
+      <section className="cr-panel dg-card" data-guide="defense-grade-state">
+        <h2>Decision and feedback released</h2>
+        <Link to={withProjectContext("/student/defense", projectId)}>View your defense result and feedback</Link>
+      </section>
+    );
+
   const isReleased = grades.status === "released";
   const structuredSessionId = (grades as any).structuredSessionId;
   if (structuredSessionId)

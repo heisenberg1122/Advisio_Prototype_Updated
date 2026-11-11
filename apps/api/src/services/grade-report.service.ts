@@ -42,6 +42,13 @@ export async function getReleasedGradeReport(
       status: "pending",
       panelistScores: [],
     };
+  if (session.decisionAndFeedbackOnly)
+    return {
+      finalGrade: null,
+      gpa: null,
+      status: "private",
+      panelistScores: [],
+    };
   if (session.packet?.evaluationMode === "STRUCTURED") {
     const snapshot = readForm(session.packet.structuredForm);
     const evaluations = await prisma.structuredEvaluation.findMany({

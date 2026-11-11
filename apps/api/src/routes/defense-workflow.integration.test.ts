@@ -1856,6 +1856,17 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
     const tampered = await apiWrite(`/api/defense-sessions/${group.session.id}/release`, fixture.professor.token, "POST", { decision: "APPROVED", evaluationCheckpoint: integrity.head });
     expect(tampered.status).toBe(409);
     await prisma.structuredEvaluation.update({ where: { id: evaluation.id }, data: { totals: evaluation.totals! } });
+    const deanRelease = await apiWrite(
+      `/api/defense-sessions/${group.session.id}/release`,
+      fixture.dean.token,
+      "POST",
+      {
+        decision: "APPROVED",
+        evaluationCheckpoint: integrity.head,
+        decisionAndFeedbackOnly: true,
+      },
+    );
+    expect(deanRelease.status).toBe(403);
     const release = await apiWrite(
       `/api/defense-sessions/${group.session.id}/release`,
       fixture.professor.token,
@@ -1865,6 +1876,8 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
         evaluationCheckpoint: integrity.head,
         revisionInstructions:
           "Clarify the sampling method before final clearance.",
+        decisionAndFeedbackOnly: true,
+        researcherFeedback: "Include the revised sample size rationale.",
       },
     );
     expect(release.status, JSON.stringify(await readJson(release))).toBe(200);
@@ -1880,7 +1893,29 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
       `/api/defense-sessions/${group.session.id}/structured-results`,
       fixture.projects.online.student.token,
     );
-    expect(studentReport.status).toBe(200);
+    expect(studentReport.status).toBe(403);
+    const studentSession = await request(
+      `/api/defense-sessions/${group.session.id}`,
+      fixture.projects.online.student.token,
+    );
+    expect(studentSession.status).toBe(200);
+    expect(await readJson(studentSession)).toMatchObject({
+      session: {
+        decision: "APPROVED_WITH_MINOR_REVISIONS",
+        decisionAndFeedbackOnly: true,
+        releasedFeedback: "Clarify the sampling method before final clearance.\n\nInclude the revised sample size rationale.",
+        evaluations: [],
+        structuredEvaluations: [],
+      },
+    });
+    const studentGrades = await request(
+      `/api/research/${group.project.id}/grades`,
+      fixture.projects.online.student.token,
+    );
+    expect(studentGrades.status).toBe(200);
+    expect(await readJson(studentGrades)).toEqual({
+      grades: { status: "private", finalGrade: null, gpa: null, panelistScores: [] },
+    });
     const revised = await guardedWrite(() =>
       prisma.$transaction(async (tx) => {
         const version = await tx.documentVersion.create({

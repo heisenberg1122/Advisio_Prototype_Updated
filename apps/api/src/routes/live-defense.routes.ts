@@ -1087,6 +1087,7 @@ router.get(
         sessions.forEach((session) => {
           session.evaluations = [];
           session.structuredEvaluations = [];
+          session.pdfEvaluations = [];
         });
       } else if (!facilitator && panelist) {
         sessions.forEach((session) => {
@@ -1851,7 +1852,11 @@ router.get(
         include: sessionInclude,
         orderBy: { startedAt: "desc" },
       });
-      if (session && isPanelist) {
+      if (session && isResearcher && !hasDefenseFacilitatorAccess(req.user!)) {
+        session.evaluations = [];
+        session.structuredEvaluations = [];
+        session.pdfEvaluations = [];
+      } else if (session && isPanelist) {
         session.structuredEvaluations = session.structuredEvaluations.filter(
           (item) => item.panelistId === req.user!.id,
         );
@@ -2298,6 +2303,24 @@ router.post(
   requireFacilitator,
   async (req: Request, res: Response) => {
     try {
+      const { decisionAndFeedbackOnly = false, researcherFeedback = "" } = req.body;
+      if (
+        typeof decisionAndFeedbackOnly !== "boolean" ||
+        typeof researcherFeedback !== "string" ||
+        researcherFeedback.length > 4000
+      ) {
+        return void res.status(400).json({
+          error: "Choose a valid release option and keep feedback within 4,000 characters.",
+        });
+      }
+      if (
+        decisionAndFeedbackOnly &&
+        !req.user!.roles.includes("RESEARCH_COORDINATOR")
+      ) {
+        return void res.status(403).json({
+          error: "Only research coordinators can release a decision without scores.",
+        });
+      }
       const decision = String(req.body.decision || "").toUpperCase();
       if (!DECISIONS.has(decision)) {
         res.status(400).json({ error: "Select a valid official decision." });
@@ -2354,6 +2377,16 @@ router.post(
         });
       }
       const publishedPacket = session.packet;
+      if (decisionAndFeedbackOnly && publishedPacket.evaluationMode !== "STRUCTURED") {
+        return void res.status(400).json({
+          error: "This release option is for structured evaluations.",
+        });
+      }
+      const releasedFeedback = decisionAndFeedbackOnly
+        ? [revisionsRequired ? revisionInstructions : "", researcherFeedback.trim()]
+            .filter(Boolean)
+            .join("\n\n") || null
+        : null;
       const structuredSubmissions =
         session.packet.evaluationMode === "STRUCTURED"
           ? await prisma.structuredEvaluation.findMany({
@@ -2449,6 +2482,8 @@ router.post(
             decision: decision as any,
             endedAt: releasedAt,
             releasedAt,
+            decisionAndFeedbackOnly,
+            releasedFeedback,
             releasedBy: req.user!.id,
           },
         });
@@ -2464,13 +2499,30 @@ router.post(
             sessionId: session.id, eventType: "RESULT_RELEASED",
             actorId: req.user!.id, actorRoles: req.user!.roles,
             operationId: `release:${session.id}`,
-            payload: releasePayload({ ...ledger.state, decision, releasedAt, releasedBy: req.user!.id }, ledger.events, revisionInstructions),
+            payload: releasePayload(
+              {
+                ...ledger.state,
+                decision,
+                releasedAt,
+                releasedBy: req.user!.id,
+                decisionAndFeedbackOnly,
+                releasedFeedback,
+              },
+              ledger.events,
+              revisionInstructions,
+            ),
           });
         }
         await tx.auditLog.create({ data: {
           userId: req.user!.id, action: "PUBLISH", entityType: "DefenseSession", entityId: session.id,
           eventType: "DefenseResultReleased", researchId: session.researchId,
-          newValues: { decision, releasedAt: releasedAt.toISOString(), researchStatus },
+          newValues: {
+            decision,
+            releasedAt: releasedAt.toISOString(),
+            researchStatus,
+            decisionAndFeedbackOnly,
+            releasedFeedback,
+          },
         } });
         await consumeDefenseEligibility(tx, session, decision, releasedAt);
         await tx.researchProject.update({

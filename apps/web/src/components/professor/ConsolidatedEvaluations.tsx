@@ -25,13 +25,17 @@ const PdfDocumentPreview = lazy(() =>
 export function ConsolidatedEvaluations({
   sessionId,
   student = false,
+  canReleaseWithoutScores = false,
 }: {
   sessionId: string;
   student?: boolean;
+  canReleaseWithoutScores?: boolean;
 }) {
   const queryClient = useQueryClient(),
     [decision, setDecision] = useState<DefenseResult | "">(""),
     [instructions, setInstructions] = useState(""),
+    [decisionAndFeedbackOnly, setDecisionAndFeedbackOnly] = useState(false),
+    [researcherFeedback, setResearcherFeedback] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [checkpoint, setCheckpoint] = useState<EvaluationCheckpoint | undefined>(),
@@ -88,6 +92,10 @@ export function ConsolidatedEvaluations({
         decision,
         revisionInstructions: instructions,
         evaluationCheckpoint: checkpoint,
+        ...(canReleaseWithoutScores && decisionAndFeedbackOnly && {
+          decisionAndFeedbackOnly: true,
+          researcherFeedback,
+        }),
       });
       await query.refetch();
       await verify();
@@ -270,6 +278,30 @@ export function ConsolidatedEvaluations({
                   />
                 </label>
               )}
+            {canReleaseWithoutScores && (
+              <>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={decisionAndFeedbackOnly}
+                    onChange={(e) => setDecisionAndFeedbackOnly(e.target.checked)}
+                  />
+                  Decision and feedback only
+                </label>
+                {decisionAndFeedbackOnly && (
+                  <label className="block text-sm">
+                    Additional feedback to share with researchers (optional)
+                    <textarea
+                      rows={3}
+                      maxLength={4000}
+                      className={`${evaluationInput} mt-2`}
+                      value={researcherFeedback}
+                      onChange={(e) => setResearcherFeedback(e.target.value)}
+                    />
+                  </label>
+                )}
+              </>
+            )}
             <button
               disabled={
                 !report.final ||

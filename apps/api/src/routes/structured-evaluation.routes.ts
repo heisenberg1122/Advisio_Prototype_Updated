@@ -722,13 +722,16 @@ router.get(
   "/defense-sessions/:id/structured-results",
   requireAuth,
   run(async (req, res) => {
-    const a = await access(req),
-      snapshot = formFor(a);
-    if (!a.facilitator && (!a.researcher || !a.session.releasedAt))
+    const a = await access(req);
+    if (
+      !a.facilitator &&
+      (!a.researcher || !a.session.releasedAt || a.session.decisionAndFeedbackOnly)
+    )
       throw new Conflict(
-        "Consolidated results are available to facilitators and to researchers after release.",
+        "Consolidated scores are available to researchers only when shared with them.",
         403,
       );
+    const snapshot = formFor(a);
     const submissions = await prisma.structuredEvaluation.findMany({
       where: { defenseSessionId: a.session.id },
       select: { panelistId: true, lockedAt: true, answers: true },

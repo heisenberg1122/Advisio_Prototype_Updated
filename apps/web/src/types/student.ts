@@ -154,7 +154,7 @@ export interface PanelistScore {
 export interface GradeReport {
   finalGrade: string | null;
   gpa: number | null;
-  status: "pending" | "released";
+  status: "pending" | "released" | "private";
   panelistScores: PanelistScore[];
 }
 
