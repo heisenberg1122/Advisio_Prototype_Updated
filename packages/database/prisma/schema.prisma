@@ -2234,9 +2234,28 @@ model DefenseBadge {
 
   session DefenseSession @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
   issuer  User           @relation(fields: [issuedBy], references: [id], onDelete: Restrict)
+  certificates DefenseCertificate[]
 
   @@index([issuedBy])
   @@map("defense_badges")
+}
+
+model DefenseCertificate {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  badgeId        String   @map("badge_id") @db.Uuid
+  recipientId    String   @map("recipient_id") @db.Uuid
+  recipientName  String   @map("recipient_name")
+  coordinator    String
+  dean           String
+  collegeName    String   @map("college_name")
+  collegeCode    String   @map("college_code")
+  researchTitle  String   @map("research_title")
+  awardedAt      DateTime @map("awarded_at")
+
+  badge DefenseBadge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([badgeId, recipientId])
+  @@map("defense_certificates")
 }
 
 // Each reviewer owns a separate source snapshot and editable annotation draft.

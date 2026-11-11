@@ -249,6 +249,7 @@ export default function DefensePage() {
         packet={packet}
         packetHistoryData={packetHistoryData}
         documents={data.documents}
+        researcherId={user?.id}
         projectHref={projectSelection.projectHref}
       />
     </div>

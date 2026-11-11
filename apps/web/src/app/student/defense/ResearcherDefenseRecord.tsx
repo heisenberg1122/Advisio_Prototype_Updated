@@ -6,6 +6,7 @@ import {
 } from "@research-management/validations";
 import { apiClient } from "@/lib/api-client";
 import { DefenseBadgeCard } from "@/components/defense/DefenseBadgeCard";
+import { ViewDefenseCertificate } from "@/components/defense/ViewDefenseCertificate";
 import { SharedManuscriptFeedback } from "@/components/documents/SharedManuscriptFeedback";
 import { DefenseEvaluationsSkeleton } from "@/components/ui/Skeleton";
 
@@ -411,6 +412,7 @@ export function ResearcherDefenseRecord({
   packet,
   packetHistoryData,
   documents,
+  researcherId,
   projectHref,
 }: {
   selectedSession: any;
@@ -454,7 +456,16 @@ export function ResearcherDefenseRecord({
           {sessions
             .filter((session: any) => session.badge)
             .map((session: any) => (
-              <DefenseBadgeCard key={session.id} badge={session.badge} />
+              <DefenseBadgeCard
+                key={session.id}
+                badge={session.badge}
+                action={
+                  session.badge.kind === "FINAL_DEFENSE" && researcherId &&
+                  session.badge.recipients.some((recipient: { userId: string }) => recipient.userId === researcherId)
+                    ? <ViewDefenseCertificate sessionId={session.id} researcherId={researcherId} />
+                    : undefined
+                }
+              />
             ))}
         </section>
       )}
