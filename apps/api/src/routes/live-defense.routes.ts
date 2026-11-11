@@ -27,6 +27,12 @@ import {
   defenseBadgeKind,
 } from "../services/defense-badge-policy.js";
 import {
+  certificateBadgeInclude,
+  certificateDeans,
+  certificateResearchInclude,
+  issueDefenseCertificates,
+} from "../services/defense-certificate.service.js";
+import {
   currentPanelInvitation,
   EvaluationScoreError,
   liveDefenseConflictScope,
@@ -298,7 +304,7 @@ const sessionInclude = {
     select: { panelistId: true, lockedAt: true, revision: true },
   },
   badge: {
-    include: { issuer: { select: { firstName: true, lastName: true } } },
+    include: certificateBadgeInclude,
   },
   pdfEvaluations: {
     select: {
@@ -2206,6 +2212,7 @@ router.post(
             defenseEvent: true,
             research: {
               include: {
+                ...certificateResearchInclude,
                 members: {
                   where: {
                     leftAt: null,
@@ -2256,9 +2263,17 @@ router.post(
         });
         const badge = await tx.defenseBadge.findUniqueOrThrow({
           where: { defenseSessionId: session.id },
-          include: { issuer: { select: { firstName: true, lastName: true } } },
+          include: certificateBadgeInclude,
         });
         if (inserted.count) {
+          if (kind === "FINAL_DEFENSE") {
+            const deans = await certificateDeans(tx, session.research.collegeId);
+            if (deans.length === 1) {
+              badge._count.certificates = await issueDefenseCertificates(
+                tx, badge, session.research, deans[0],
+              );
+            }
+          }
           await tx.auditLog.create({
             data: {
               userId: req.user!.id,

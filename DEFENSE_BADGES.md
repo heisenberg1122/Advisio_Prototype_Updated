@@ -23,6 +23,25 @@ session; retries and concurrent requests return the original award without
 duplicate notifications or audit entries. Existing defense read permissions
 govern visibility, including active project membership for students.
 
+## Final Defense certificates
+
+The **View Certificate** action opens the personalized certificate for an active
+researcher who was included on a Final Defense badge. The preview and download
+use the same PDF, with the university and college seals and a QR verification
+link. Title Defense badges retain the group badge only.
+
+New Final Defense badges issue certificates automatically when exactly one
+active dean is assigned to the research project's college. For existing badges
+and badges with an unresolved dean, the college Research Coordinator can use
+**Confirm certificate dean** on the issued badge. Issuance records each award
+recipient and both signatory names. Repeated issuance requests preserve those
+records and verification links.
+
+Configure the API's `WEB_URL` as the canonical HTTPS Advisio frontend before
+issuing production certificates. Each QR points to that frontend's verification
+page. Anyone with the link can verify the recipient name, college, and award
+date. The PDF and research details require authenticated certificate access.
+
 ## Database rollout
 
 Apply `20261026020000_defense_badges` and all preceding migrations before running
@@ -36,6 +55,10 @@ npx prisma migrate deploy --schema packages/database/prisma/schema.prisma
 The migration adds only the `defense_badges` table, constraints and indexes. It
 does not modify existing defense results. Roll back the application with the
 table retained to preserve issued awards.
+
+The certificate feature also requires `20261112090000_final_defense_certificates`.
+It adds the certificate records and leaves prior defense badges available for
+coordinator confirmation.
 
 ## Validation
 
