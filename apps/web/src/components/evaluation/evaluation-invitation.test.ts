@@ -68,6 +68,6 @@ test("generated links keep only the selected role/program and use the requested 
     evaluationLink(config.entryUrl, { role: "dean" }, "/evaluate/guide"),
   ).toBe("https://evaluation.example.org/evaluate/guide?role=dean");
   expect(
-    evaluationLink("https://advisio-prototype-updated.vercel.app/evaluate/start", { role: "dean", course: "BSIT" }, "/evaluate/start"),
-  ).toBe("https://advisio-prototype-updated.vercel.app/evaluate/start?role=dean&course=BSIT");
+    evaluationLink("https://advisio-ua.com/evaluate/start", { role: "dean", course: "BSIT" }, "/evaluate/start"),
+  ).toBe("https://advisio-ua.com/evaluate/start?role=dean&course=BSIT");
 });

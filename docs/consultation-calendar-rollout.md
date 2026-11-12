@@ -52,7 +52,7 @@ References. [Google OAuth consent setup](https://developers.google.com/workspace
 ## Staging isolation and live acceptance
 
 1. Keep the existing Render staging API suspended. Create or identify a new database dedicated to staging in the staging environment. Use only synthetic Advisio data. Verify that staging runtime and Prisma migration URLs both identify the new database and differ from the production host/database pair. Keep production connection and secret settings unchanged.
-2. Identify the non-Vercel staging frontend origin and keep its publish root separate from production. Prepare its build with the staging API URL and verify the API's CORS response. Stage the dedicated Calendar configuration using the four keys above. Once approved, deploy the exact reviewed API and frontend candidate through a staging-only source revision. Confirm the staging health revision and database identity before signing in.
+2. Identify the staging frontend origin and keep its publish root separate from production. Prepare its build with the staging API URL and verify the API's CORS response. Stage the dedicated Calendar configuration using the four keys above. Once approved, deploy the exact reviewed API and frontend candidate through a staging-only source revision. Confirm the staging health revision and database identity before signing in.
 3. Use separate Google addresses and matching active synthetic Advisio accounts for the roles below. The one address already supplied is an invitee and still needs a role assignment. The dedicated organizer remains separate so the test measures invitation delivery to each Advisio participant.
 
    | Account | Required setup |

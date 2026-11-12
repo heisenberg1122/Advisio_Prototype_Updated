@@ -41,7 +41,7 @@ Record the baseline in the table below **before coding**:
 | Researcher Guide / AI implementation present? | Verified: shared drawer, walkthrough, assistant endpoint and visibility preference |
 | Package manager and test commands | npm workspaces; see the acceptance matrix for commands and evidence |
 
-**Important:** Do not infer the development branch from a Render/Vercel service name. A deployment can point somewhere else.
+Verify the source branch in the deployment settings. A service name can point to a different branch.
 
 ## Teammate workflow
 

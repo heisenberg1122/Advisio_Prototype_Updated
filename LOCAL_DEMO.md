@@ -13,7 +13,7 @@ This environment is intentionally isolated from `advisio_local`, integration tes
 - Dataset marker: `ADVISIO-DEMO-LOCAL-V1`
 - Storage provider: `LOCAL` under `apps/api/uploads/local/`
 
-The demo environment explicitly requires all Google credentials to be blank. It never reads or updates the normal `.env`, Render, Vercel, staging, or the existing Google Drive connection. Its API uses `127.0.0.1:5055`, avoiding the normal local API port.
+The demo environment explicitly requires all Google credentials to be blank. It never reads or updates the normal `.env`, hosted environments, or the existing Google Drive connection. Its API uses `127.0.0.1:5055`, avoiding the normal local API port.
 
 ## First-time setup
 

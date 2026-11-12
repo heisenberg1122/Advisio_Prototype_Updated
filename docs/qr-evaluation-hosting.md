@@ -4,7 +4,7 @@
 
 Updated 5 November 2026. The evaluation is hosted at [the shared entry page](https://advisio-tam-evaluation-2026.onrender.com/evaluate). The researcher confirmed it opens on a phone. This evaluation uses its own branch, database and fictional records; the official backend remains separate.
 
-The main website is [ADVISIO on Vercel](https://advisio-prototype-updated.vercel.app/). The Render address is for evaluation only. Its `/` and `/index.html` entries redirect to `/evaluate`, preserving any role/program query parameters. The role portals are still needed for the guided activities and use only the temporary evaluation workspace. These redirects take effect when this update is deployed.
+The main website is hosted on Namecheap. The separate evaluation service on Render redirects `/` and `/index.html` to `/evaluate`, preserving role and program query parameters. Its role portals use the temporary evaluation workspace. [Official Advisio website](https://advisio-ua.com/)
 
 ## Respondent flow
 
@@ -37,7 +37,7 @@ Assignments are conveniences, not permissions or eligibility controls. Every adm
 
 Public fields: role `entry.1428349663`, student program `entry.874351903`. Group values are Researchers/Students, Research professors, Research advisers, Evaluation panelists, College Deans. All ratings/comments remain blank; no session identifier is sent. Google may offer an old saved draft to signed-in users; check the current assignment before answering. Session counts and Form responses must be tracked separately. The shared QR does not prove one response per unique respondent.
 
-- [Official website](https://advisio-prototype-updated.vercel.app).
+- [Official website](https://advisio-ua.com/).
 - Video walkthrough: Coming soon; no external video link yet.
 - Support: [advisio.main@gmail.com](mailto:advisio.main@gmail.com).
 
@@ -45,14 +45,14 @@ Public fields: role `entry.1428349663`, student program `entry.874351903`. Group
 
 ### Branded startup page
 
-Render serves its own loading screen before the evaluation container starts; application CSS cannot replace that response. A static starter page on the main Vercel website avoids showing it to respondents:
+The static starter page on Namecheap gives respondents a branded loading screen while the Render evaluation service starts.
 
-- Entry: `https://advisio-prototype-updated.vercel.app/evaluate/start` (supports role/program invitations).
+- The starter accepts role and program invitations. [Evaluation starter](https://advisio-ua.com/evaluate/start)
 - It displays the ADVISIO logo and “Starting your evaluation environment…”, checks the evaluation service, and opens the Render entry only after health confirms evaluation mode and a connected database.
-- The Vercel rewrite `/evaluate/status` forwards only to the evaluation service’s public `/api/health`. It disables caching; the browser sends no account credentials. No production database or session is used. Role/program details carry through to Render, where the original session cookie and permissions still apply.
+- Namecheap serves `/evaluate/status` through `deploy/namecheap/evaluation-status.php`. It checks the evaluation service's public `/api/health` and returns an uncached readiness response. Role and program details carry through to Render, where the evaluation session cookie and permissions apply.
 - Checks stop after two minutes and offer **Try again** and the support email. They also stop when the visitor leaves. This is a visitor startup flow, not an always-running keep-alive service.
 
-Deploy `apps/web/public/evaluation-launcher.{html,css,js}` and `apps/web/vercel.json` on the main Vercel site first. Verify the starter page and uncached health rewrite there. Only then set `EVALUATION_LAUNCH_URL=https://advisio-prototype-updated.vercel.app/evaluate/start` on the existing evaluation service and deploy its updated API. New organizer QR codes and their printed invitation links will use the starter. Leave the variable unset until Vercel is ready; existing Render links continue to work but can still show Render’s startup screen. Existing printed QR codes must be regenerated to use the starter.
+The Namecheap GitHub Actions workflow publishes the launcher files and readiness endpoint. Verify both on the official site before setting `EVALUATION_LAUNCH_URL=https://advisio-ua.com/evaluate/start` on the evaluation service. New organizer QR codes will then use the starter. Regenerate printed QR codes when changing the destination.
 
 Render service `srv-dbkes34ipgvc73apmh6g`: Free web + Free Postgres, Singapore, no persistent disk. `render.evaluation.yaml` targets branch `codex/qr-evaluation-local`; draft [PR #7](https://github.com/heisenberg1122/Advisio_Prototype_Updated/pull/7) remains separate from main. No card or paid resource was added.
 

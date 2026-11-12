@@ -8,10 +8,7 @@ export function evaluationEntryUrl(origin: string, launcher?: string) {
   if (!launcher) return new URL("/evaluate", origin).toString();
   // The launcher checks availability only; sessions remain on the evaluation
   // origin. Never accept a visitor-supplied redirect destination.
-  if (
-    launcher !== "https://advisio-ua.com/evaluate/start" &&
-    launcher !== "https://advisio-prototype-updated.vercel.app/evaluate/start"
-  )
+  if (launcher !== "https://advisio-ua.com/evaluate/start")
     throw new Error(
       "EVALUATION_LAUNCH_URL must use the official ADVISIO starter page.",
     );

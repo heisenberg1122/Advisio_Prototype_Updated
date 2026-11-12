@@ -15,7 +15,7 @@ variables and restart the API:
 EMAIL_PROVIDER="gmail"
 GMAIL_SENDER_EMAIL="advisio.main@gmail.com"
 NOTIFICATION_EMAILS_ENABLED="true"
-WEB_URL="https://advisio-prototype-updated.vercel.app"
+WEB_URL="https://advisio-ua.com"
 ```
 
 The Gmail client ID, secret, and refresh token are also required. They stay on
@@ -158,10 +158,10 @@ Run `npm run email:preview` to generate all fifteen examples plus a desktop/mobi
 gallery at `.local/email-previews/index.html`. Open that file locally. This sends
 no messages. The examples use sample names and links based on
 `EMAIL_PREVIEW_WEB_URL` (falling back to `WEB_URL`) from the root `.env`.
-Set `EMAIL_PREVIEW_WEB_URL=https://advisio-prototype-updated.vercel.app` to preview
+Set `EMAIL_PREVIEW_WEB_URL=https://advisio-ua.com` to preview
 live application links while keeping local development on localhost. Real delivery
 uses the API host's `WEB_URL` and the event's destination; set that production
-variable to `https://advisio-prototype-updated.vercel.app` before enabling email.
+variable to `https://advisio-ua.com` before enabling email.
 
 The isolated database suite includes transaction rollback, deduplication, competing
 lease claims, and provider retry tests. The provider is mocked; integration tests
