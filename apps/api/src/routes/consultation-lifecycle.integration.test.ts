@@ -18,6 +18,7 @@ const links = ["abc-defg-hij", "bcd-efgh-ijk", "cde-fghi-jkl", "def-ghij-klm", "
 type Account = { id: string; token: string; email: string };
 let student: Account, peer: Account, adviser: Account, panelist: Account, dean: Account, coordinator: Account, oversight: Account, outsider: Account;
 let projectId: string;
+const otherGroups: { researchId: string; researcher: Account }[] = [];
 let server: Server;
 let origin: string;
 
@@ -46,6 +47,10 @@ async function request(user: Account, path = "/consultations", method = "GET", b
 
 const schedule = (title: string, participantIds: string[], extra = {}) => ({
   title, researchId: projectId, participantIds, ...dates, requestKey: randomUUID(), ...extra,
+});
+const slot = (hour: number) => ({
+  scheduledStart: new Date(Date.UTC(2098, 6, 12, hour)).toISOString(),
+  scheduledEnd: new Date(Date.UTC(2098, 6, 12, hour + 1)).toISOString(),
 });
 const add = (user: Account, payload: object) => request(user, "/consultations", "POST", payload);
 const change = (user: Account, id: string, body: object) => request(user, `/consultations/${id}`, "PATCH", body);
@@ -99,6 +104,20 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
         { researchId: projectId, userId: peer.id, projectRole: "MEMBER" },
         { researchId: projectId, userId: adviser.id, projectRole: "ADVISER" },
       ] });
+      for (const group of ["Second", "Third"]) {
+        const researcher = await createUser(group, "RESEARCHER");
+        const { id: researchId } = await tx.researchProject.create({ data: {
+          title: `${marker} ${group}`, status: "APPROVED", collegeId: own.id, programId: program.id,
+          researchTypeId: researchType.id, academicYearId: year.id, createdBy: researcher.id,
+        } });
+        fixture.projectIds.push(researchId);
+        otherGroups.push({ researchId, researcher });
+        await tx.researchMember.createMany({ data: [
+          { researchId, userId: researcher.id, projectRole: "LEADER" },
+          { researchId, userId: adviser.id, projectRole: "ADVISER" },
+          { researchId, userId: coordinator.id, projectRole: "COORDINATOR" },
+        ] });
+      }
     });
     await startApi();
   });
@@ -156,7 +175,7 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     expect((await request(outsider, recipientPath)).status).toBe(403);
     expect((await request(adviser, "/calendar", "POST", { type: "CONSULTATION" })).status).toBe(400);
     expect((await add(adviser, schedule("Cross-college", [outsider.id]))).status).toBe(403);
-    const payload = schedule("Research proposal consultation", guests.map(({ id }) => id));
+    const payload = schedule("Research proposal consultation", guests.map(({ id }) => id), slot(3));
     const created = await Promise.all([add(adviser, payload), add(adviser, payload)]);
     expect(created.map(({ status }) => status)).toEqual([201, 201]);
     const { id, meetingUrl } = created[0].data.consultation;
@@ -184,12 +203,14 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     vi.mocked(googleCalendarService.createMeetConsultation)
       .mockRejectedValueOnce(new ConsultationCalendarError("Google Calendar is not configured."))
       .mockRejectedValueOnce(new ConsultationCalendarError("Still preparing.", true));
-    const payload = schedule("Retryable consultation", [student.id]);
+    const payload = schedule("Retryable consultation", [student.id], slot(4));
     const failed = await add(adviser, payload);
     expect(failed.status).toBe(502);
     expect(failed.data.consultation).toMatchObject({ status: "provisioning", conferenceState: "failed", meetingUrl: "" });
     const id = failed.data.consultation.id;
     expect((await join(student, id)).status).toBe(409);
+    expect((await add(adviser, schedule("Conflicts while preparing", [student.id], slot(4)))).status).toBe(409);
+    expect(googleCalendarService.createMeetConsultation).toHaveBeenCalledTimes(1);
     const pending = await add(adviser, payload);
     expect(pending.status).toBe(202);
     expect(pending.data.consultation).toMatchObject({ id, status: "provisioning", conferenceState: "pending", meetingUrl: "" });
@@ -200,7 +221,8 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
   });
 
   it("updates the existing event and participant access, then queues a failed cancellation for retry", async () => {
-    const result = await add(adviser, schedule("Reschedule and cancel", [student.id, panelist.id]));
+    const original = slot(5);
+    const result = await add(adviser, schedule("Reschedule and cancel", [student.id, panelist.id], original));
     const { id, revision, meetingUrl } = result.data.consultation;
     const before = await prisma.consultation.findUniqueOrThrow({ where: { id } });
     const edited = {
@@ -210,11 +232,16 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     vi.mocked(googleCalendarService.updateConsultation).mockRejectedValueOnce(new ConsultationCalendarError("Temporary failure"));
     const queued = await change(adviser, id, edited);
     expect(queued.status).toBe(202);
-    expect(queued.data.consultation).toMatchObject({ id, meetingUrl, scheduledStart: dates.scheduledStart, calendarUpdatePending: true });
+    expect(queued.data.consultation).toMatchObject({ id, meetingUrl, scheduledStart: original.scheduledStart, calendarUpdatePending: true });
+    expect((await add(adviser, schedule("Current slot still reserved", [student.id], original))).status).toBe(409);
+    expect((await add(adviser, schedule("New slot already reserved", [student.id], {
+      scheduledStart: edited.scheduledStart, scheduledEnd: edited.scheduledEnd,
+    }))).status).toBe(409);
     const changed = await syncConsultationUpdate(id);
     expect(changed).toMatchObject({ id, meetingUrl, scheduledStart: new Date(edited.scheduledStart), pendingCalendarUpdate: null });
     expect((await change(adviser, id, edited)).status).toBe(200);
     expect(googleCalendarService.updateConsultation).toHaveBeenCalledTimes(2);
+    expect((await add(adviser, schedule("Previous slot released", [student.id], original))).status).toBe(201);
     expect(googleCalendarService.updateConsultation).toHaveBeenCalledWith(before.googleEventId, expect.objectContaining({
       scheduledStart: new Date(edited.scheduledStart), attendees: expect.arrayContaining([expect.objectContaining({ email: dean.email })]),
     }), meetingUrl);
@@ -233,7 +260,7 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
   });
 
   it("isolates concurrent instant sessions from each other and a scheduled meeting", async () => {
-    const scheduled = (await add(adviser, schedule("Scheduled", [student.id]))).data.consultation;
+    const scheduled = (await add(adviser, schedule("Scheduled", [student.id], slot(6)))).data.consultation;
     const one = schedule("Student instant", [adviser.id], { instant: true });
     const two = schedule("Adviser instant", [student.id], { instant: true });
     const [studentMeeting, adviserMeeting] = await Promise.all([add(student, one), add(adviser, two)]);
@@ -258,13 +285,44 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     const range = { scheduledStart: "2098-07-13T04:00:00.000Z", scheduledEnd: "2098-07-13T05:00:00.000Z" };
     expect((await approve(adviser, proposed.data.consultation.id, range)).data.consultation.scheduledStart).toBe(range.scheduledStart);
     const manual = "https://meet.google.com/xyz-abcd-efg";
-    const existing = await add(adviser, schedule("Existing room", [student.id], { meetingUrl: manual }));
+    const existing = await add(adviser, schedule("Existing room", [student.id], { ...slot(7), meetingUrl: manual }));
     expect(existing.data.consultation).toMatchObject({ meetingUrl: manual, conferenceState: "manual" });
     expect((await add(adviser, schedule("Invalid room", [student.id], { meetingUrl: "https://meet.google.com/new" }))).status).toBe(400);
   });
 
+  it("keeps simultaneous requests from three groups separate and books one adviser slot", async () => {
+    const groups = [{ researchId: projectId, researcher: student }, ...otherGroups];
+    const submitted = await Promise.all(groups.map(({ researchId, researcher }) =>
+      add(researcher, schedule("Same adviser time", [], { ...slot(10), researchId, adviserId: adviser.id })),
+    ));
+    expect(submitted.map(({ status }) => status)).toEqual([201, 201, 201]);
+    expect(submitted.every(({ data }) => data.consultation.status === "requested")).toBe(true);
+    expect(googleCalendarService.createMeetConsultation).not.toHaveBeenCalled();
+
+    const ids = submitted.map(({ data }) => data.consultation.id);
+    const approved = await Promise.all(ids.map((id) => approve(adviser, id)));
+    expect(approved.map(({ status }) => status).sort()).toEqual([200, 409, 409]);
+    expect(googleCalendarService.createMeetConsultation).toHaveBeenCalledTimes(1);
+    const denied = ids.filter((_, index) => approved[index].status === 409);
+    expect(await prisma.consultation.count({ where: { id: { in: denied }, status: "REQUESTED" } })).toBe(2);
+
+    const next = await approve(adviser, denied[0], slot(11));
+    expect(next.status).toBe(200);
+    expect(next.data.consultation.scheduledStart).toBe(slot(10).scheduledEnd);
+    const overlap = await change(adviser, next.data.consultation.id, {
+      action: "reschedule", scheduledStart: "2098-07-12T10:30:00.000Z", scheduledEnd: slot(11).scheduledEnd,
+    });
+    expect(overlap.status).toBe(409);
+    expect(googleCalendarService.updateConsultation).not.toHaveBeenCalled();
+
+    const { researchId, researcher } = otherGroups[0];
+    const direct = { ...slot(10), researchId };
+    expect((await add(coordinator, schedule("Already booked adviser", [researcher.id, adviser.id], direct))).status).toBe(409);
+    expect((await add(coordinator, schedule("Separate appointment", [researcher.id], direct))).status).toBe(201);
+  });
+
   it("queues Calendar cancellation when the assigned adviser withdraws", async () => {
-    const result = await add(adviser, schedule("Adviser withdrawal", [student.id, dean.id]));
+    const result = await add(adviser, schedule("Adviser withdrawal", [student.id, dean.id], slot(8)));
     expect(result.status).toBe(201);
     const id = result.data.consultation.id;
     const withdrawal = await request(adviser, `/research/${projectId}/adviser-withdrawal`, "POST", {

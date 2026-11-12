@@ -12,7 +12,8 @@ import {
   legacyConsultationImportKey, serializeConsultation,
 } from "../services/consultation.service.js";
 import {
-  assertOrganizer, assertParticipant, consultationError, findConsultationRecipients, googleEventKey, notifyConsultation,
+  assertConsultationTimeAvailable, assertOrganizer, assertParticipant, consultationError, findConsultationRecipients,
+  googleEventKey, lockConsultationSchedules, notifyConsultation,
   pendingCalendarUpdate, provisionConsultation, recipientWorkspaces, syncConsultationCancellation, syncConsultationUpdate,
   uuid, withConsultationLock,
 } from "../services/consultation-lifecycle.service.js";
@@ -279,6 +280,12 @@ router.post("/", requireAuth, asyncHandler(async (req, res) => {
     const consultationId = randomUUID();
     try {
       row = await prisma.$transaction(async (tx) => {
+        if (!request && !instant) {
+          const userIds = await lockConsultationSchedules(tx, user.id, selected);
+          const retry = await tx.consultation.findUnique({ where: { requestKey }, include: consultationInclude });
+          if (retry) return retry;
+          await assertConsultationTimeAvailable(tx, userIds, range);
+        }
         const created = await tx.consultation.create({
           data: {
             id: consultationId, researchId, createdBy: user.id, title, description,
@@ -293,7 +300,7 @@ router.post("/", requireAuth, asyncHandler(async (req, res) => {
         });
         if (adviserId) await notifyConsultation(tx, created, [adviserId], "New consultation request");
         return created;
-      });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
     } catch (error) {
       if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") throw error;
       row = await existing();
@@ -396,6 +403,8 @@ router.patch("/:id", requireAuth, asyncHandler(async (req, res) => {
         where: { id: { in: nextIds }, status: "ACTIVE" },
       });
       if (activeCount !== nextIds.length) throw consultationError(409, "Remove inactive participants before updating this consultation.");
+      const userIds = await lockConsultationSchedules(tx, row.approverId ?? row.createdBy, nextIds);
+      await assertConsultationTimeAvailable(tx, userIds, range, row.id);
       return tx.consultation.update({
         where: { id: row.id },
         data: { pendingCalendarUpdate: operation, googleEventId: row.googleEventId || googleEventKey(row.id) },

@@ -16,6 +16,71 @@ export const consultationError = (statusCode: number, message: string) =>
 
 type Project = { id: string; collegeId: string };
 type Consultation = Prisma.ConsultationGetPayload<{ include: typeof consultationInclude }>;
+type ConsultationTime = { start: Date; end: Date };
+
+export async function lockConsultationSchedules(
+  tx: Prisma.TransactionClient,
+  organizerId: string,
+  participantIds: string[],
+) {
+  const advisers = await tx.collegeMembership.findMany({
+    where: {
+      userId: { in: participantIds },
+      roleNames: { has: "ADVISER" },
+      college: { isActive: true },
+    },
+    select: { userId: true },
+  });
+  const userIds = [...new Set([organizerId, ...advisers.map(({ userId }) => userId)])].sort();
+  // Different projects can share the same adviser. Lock people in a consistent order.
+  for (const userId of userIds) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`consultation-schedule:${userId}`}, 0))`;
+  }
+  return userIds;
+}
+
+export async function assertConsultationTimeAvailable(
+  tx: Prisma.TransactionClient,
+  userIds: string[],
+  { start, end }: ConsultationTime,
+  consultationId?: string,
+) {
+  const reservations = {
+    ...(consultationId && { id: { not: consultationId } }),
+    meetingKind: "SCHEDULED",
+    status: { in: ["PROVISIONING", "SCHEDULED", "ONGOING"] },
+  } satisfies Prisma.ConsultationWhereInput;
+  const unavailable = () => consultationError(409,
+    "A consultation is already booked for the organizer or an invited adviser at that time. Choose a different time.");
+  const existing = await tx.consultation.findFirst({
+    where: {
+      ...reservations,
+      scheduledStart: { lt: end },
+      scheduledEnd: { gt: start },
+      OR: [
+        { approverId: { in: userIds } },
+        { approverId: null, createdBy: { in: userIds } },
+        { participants: { some: { userId: { in: userIds } } } },
+      ],
+    },
+    select: { id: true },
+  });
+  if (existing) throw unavailable();
+
+  // The previous slot stays booked until the Calendar update succeeds.
+  const queued = await tx.consultation.findMany({
+    where: { ...reservations, pendingCalendarUpdate: { not: Prisma.DbNull } },
+    select: { pendingCalendarUpdate: true, approverId: true, createdBy: true },
+  });
+  for (const reservation of queued) {
+    const update = pendingCalendarUpdate.safeParse(reservation.pendingCalendarUpdate);
+    if (update.success && new Date(update.data.start) < end && new Date(update.data.end) > start &&
+        (userIds.includes(reservation.approverId ?? reservation.createdBy) ||
+         update.data.participantIds.some((userId) => userIds.includes(userId)))) {
+      throw unavailable();
+    }
+  }
+}
 
 export function recipientPolicy(project: Project, faculty: boolean): Prisma.UserWhereInput {
   const projectMembers: Prisma.UserWhereInput = {
@@ -90,7 +155,11 @@ export async function withConsultationLock<T>(
     const row = await tx.consultation.findUnique({ where: { id }, include: consultationInclude });
     if (!row) throw consultationError(404, "Consultation not found.");
     return operation(tx, row);
-  }, { timeout: 40_000, maxWait: 5_000 });
+  }, {
+    timeout: 40_000,
+    maxWait: 5_000,
+    isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+  });
 }
 
 export function assertParticipant(row: Consultation, user: AuthenticatedUser) {
@@ -134,7 +203,7 @@ export function consultationEventOptions(
   };
 }
 
-export async function provisionConsultation(id: string, user: AuthenticatedUser, range?: { start: Date; end: Date }) {
+export async function provisionConsultation(id: string, user: AuthenticatedUser, range?: ConsultationTime) {
   // Persist the Calendar identity and any approved time before contacting Google.
   await withConsultationLock(id, async (tx, row) => {
     await assertOrganizer(tx, row, user, true);
@@ -147,9 +216,12 @@ export async function provisionConsultation(id: string, user: AuthenticatedUser,
       throw consultationError(409, "Retry the current Google Calendar operation before changing its time.");
     }
     if (row.status === "REQUESTED") {
-      if ((range?.end || row.scheduledEnd).getTime() <= Date.now()) {
+      const time = range ?? { start: row.scheduledStart, end: row.scheduledEnd };
+      if (time.end.getTime() <= Date.now()) {
         throw consultationError(409, "Choose a new time for this request before approving.");
       }
+      const userIds = await lockConsultationSchedules(tx, user.id, row.participants.map(({ userId }) => userId));
+      await assertConsultationTimeAvailable(tx, userIds, time, row.id);
       await tx.consultation.update({
         where: { id },
         data: {
