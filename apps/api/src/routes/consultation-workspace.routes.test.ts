@@ -127,6 +127,24 @@ describe("faculty consultation workspaces", () => {
     });
   });
 
+  it("includes completed supervised projects in Coordinator history within the active college", async () => {
+    const { next } = await list("coordinator", ["RESEARCH_COORDINATOR"], "college-a", { view: "history", status: "COMPLETED" });
+    expect(next).not.toHaveBeenCalled();
+    expect(findConsultations).toHaveBeenCalledWith(expect.objectContaining({
+      where: { AND: [
+        { OR: [
+          { research: { collegeId: "college-a" }, participants: { some: { userId: "faculty-a" } } },
+          { status: "COMPLETED", research: { collegeId: "college-a", OR: [
+            { members: { some: { userId: "faculty-a", leftAt: null, projectRole: "COORDINATOR" } } },
+            { workflowInstance: { is: { workflow: { createdBy: "faculty-a" } } } },
+          ] } },
+        ] },
+        { status: "COMPLETED" },
+      ] },
+      select: expect.objectContaining({ meetingUrl: false }),
+    }));
+  });
+
   it.each([
     ["dean", ["PANELIST"]],
     ["coordinator", ["DEAN"]],

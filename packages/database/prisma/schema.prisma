@@ -2419,11 +2419,32 @@ model Consultation {
   research     ResearchProject           @relation(fields: [researchId], references: [id], onDelete: Cascade)
   participants ConsultationParticipant[]
   notes        ConsultationNote[]
+  record       ConsultationRecord?
 
   @@index([researchId])
   @@index([scheduledStart])
   @@index([calendarCancellationPending])
   @@map("consultations")
+}
+
+model ConsultationRecord {
+  consultationId String   @id @map("consultation_id") @db.Uuid
+  actualStart    DateTime @map("actual_start")
+  actualEnd      DateTime @map("actual_end")
+  summary        String   @db.Text
+  nextSteps      String   @map("next_steps") @db.Text
+  submittedById  String   @map("submitted_by_id") @db.Uuid
+  submittedBy    String   @map("submitted_by")
+  submittedAt    DateTime @map("submitted_at")
+  reviewerId     String   @map("reviewer_id") @db.Uuid
+  reviewer       String
+  reviewedAt     DateTime? @map("reviewed_at")
+  correction     String?  @db.Text
+  revision       Int
+
+  consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@map("consultation_records")
 }
 
 model ConsultationParticipant {

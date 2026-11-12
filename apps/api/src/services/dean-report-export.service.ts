@@ -36,7 +36,7 @@ export function reportCsv(report: DeanReport) {
   return "\uFEFF" + rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
 }
 let fontBytes: Promise<Buffer> | undefined;
-function reportFont() {
+export function reportFont() {
   return (fontBytes ??= readFile(
     new URL("../assets/fonts/LiberationSans-Regular.ttf", import.meta.url),
   ).catch(() =>

@@ -2,7 +2,9 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/Button";
+import type { ConsultationProof } from "@/lib/consultation-store";
 import { ConsultationMeetingForm, useRefreshConsultations, type ConsultationEdit } from "./ConsultationMeetingForm";
+import { ConsultationRecordButton } from "./ConsultationRecordButton";
 
 export async function joinConsultation(id: string, onError: (message: string) => void) {
   const meeting = window.open("about:blank", "_blank");
@@ -28,6 +30,7 @@ export type ManagedConsultation = Omit<ConsultationEdit, "scheduledStart" | "sch
   meetingKind?: string;
   canManage?: boolean;
   calendarUpdatePending?: boolean;
+  proof?: ConsultationProof | null;
 };
 
 export function ConsultationActions({ item, viewerId, canWithdraw = false, approvalVisible = true }: {
@@ -69,9 +72,11 @@ export function ConsultationActions({ item, viewerId, canWithdraw = false, appro
     setNotice("");
     action.mutate(value);
   };
-  if (!canManage && !canCancel) return null;
+  const record = <ConsultationRecordButton id={item.id} status={item.status} scheduledStart={item.scheduledStart} proof={item.proof} />;
+  if (!canManage && !canCancel) return record;
 
   return <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+    {record}
     {canManage && requested && <>
       {approvalVisible && <Button type="button" size="sm" disabled={action.isPending} onClick={() => command("approve")}>Approve</Button>}
       {dates && <Button type="button" size="sm" variant="secondary" disabled={action.isPending} onClick={() => openEdit("propose")}>Approve with new time</Button>}

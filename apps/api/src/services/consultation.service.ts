@@ -151,6 +151,18 @@ export function consultationAudience(user: AuthenticatedUser) {
   } satisfies Prisma.ConsultationWhereInput;
 }
 
+export const coordinatorConsultationRoles = ["PROFESSOR", "RESEARCH_COORDINATOR"];
+
+export function coordinatorConsultationProjects(userId: string, collegeId: string): Prisma.ResearchProjectWhereInput {
+  return {
+    collegeId,
+    OR: [
+      { members: { some: { userId, leftAt: null, projectRole: "COORDINATOR" } } },
+      { workflowInstance: { is: { workflow: { createdBy: userId } } } },
+    ],
+  };
+}
+
 export function joinableConsultationUrl(consultation: {
   status: string;
   meetingUrl?: string | null;

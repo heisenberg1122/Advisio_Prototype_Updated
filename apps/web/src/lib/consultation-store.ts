@@ -8,6 +8,20 @@ export interface ConsultationTranscriptMessage {
   content: string;
 }
 
+export type ConsultationProof =
+  | { status: "awaiting_confirmation" | "correction_requested" }
+  | {
+      status: "confirmed";
+      reference: string;
+      actualStart: string;
+      actualEnd: string;
+      durationMinutes: number;
+      submittedBy: string;
+      submittedAt: string;
+      confirmedBy: string;
+      confirmedAt: string;
+    };
+
 export interface ConsultationItem {
   id: string;
   researchId?: string;
@@ -27,6 +41,7 @@ export interface ConsultationItem {
   meetingKind?: string;
   conferenceState?: string;
   calendarUpdatePending?: boolean;
+  proof?: ConsultationProof | null;
   revision?: number;
   participants?: { userId: string; user: { firstName: string; lastName: string } }[];
   notes?: string;

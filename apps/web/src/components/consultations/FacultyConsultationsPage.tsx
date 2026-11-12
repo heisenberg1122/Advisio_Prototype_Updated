@@ -12,6 +12,7 @@ import { CountStrip, DateTile, EmptyNote, InlineFeedback, ListRow, PageBand, Sec
 import { useAuth } from "@/providers/auth-provider";
 import { ConsultationMeetingForm, type ConsultationProject } from "./ConsultationMeetingForm";
 import { ConsultationActions, joinConsultation, type ManagedConsultation } from "./ConsultationActions";
+import { ConsultationRecordButton } from "./ConsultationRecordButton";
 
 type Workspace = "coordinator" | "panelist" | "dean";
 
@@ -197,7 +198,7 @@ function ConsultationWorkspace({ workspace, scope, viewerId }: { workspace: Work
         </div> : undefined}
       />
 
-      {workspace === "dean" && (
+      {(workspace === "dean" || workspace === "coordinator") && (
         <div role="group" aria-label="Consultation view" className="flex flex-wrap gap-2 self-start rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
           <Button size="sm" variant={history ? "ghost" : "primary"} aria-pressed={!history} onClick={() => showHistory(false)} icon={<CalendarClock aria-hidden="true" className="size-4" />}>
             All consultations
@@ -317,7 +318,9 @@ function ConsultationWorkspace({ workspace, scope, viewerId }: { workspace: Work
                           <Video className="size-4" aria-hidden="true" /> Join Meet
                         </Button>}
                         {item.attendanceStatus === "INVITED" && meeting && <span className="text-xs">Invited</span>}
-                        {!history && <ConsultationActions item={item} viewerId={viewerId} approvalVisible={Date.parse(item.scheduledEnd) > Date.now()} />}
+                        {history
+                          ? <ConsultationRecordButton id={item.id} status={item.status} scheduledStart={item.scheduledStart} proof={item.proof} />
+                          : <ConsultationActions item={item} viewerId={viewerId} approvalVisible={Date.parse(item.scheduledEnd) > Date.now()} />}
                       </div>
                     }
                   />

@@ -35,6 +35,7 @@ import { StudentGroupChats } from "@/components/dashboards/student/StudentGroupC
 import { ConsultationMeetingForm } from "@/components/consultations/ConsultationMeetingForm";
 import { ConsultationBooking } from "@/components/consultations/ConsultationBooking";
 import { joinConsultation } from "@/components/consultations/ConsultationActions";
+import { ConsultationRecordButton } from "@/components/consultations/ConsultationRecordButton";
 import { GoogleMeetTranscriptModal, ParsedChatMessage } from "@/components/consultations/GoogleMeetTranscriptModal";
 import {
   getPendingConsultationImports,
@@ -1829,7 +1830,7 @@ function StudentDashboardContent() {
 
                 <div className="flex flex-col gap-4">
                   {consultations.length > 0 ? (
-                    consultations.map((c: any) => (
+                    consultations.map((c) => (
                       <div
                         key={c.id}
                         className="bg-slate-50 p-5 border border-slate-200 rounded-xl shadow-sm flex flex-col gap-3 hover:border-[#1b4264] transition"
@@ -1839,7 +1840,7 @@ function StudentDashboardContent() {
                             <div className="flex items-center gap-2">
                               <span className="font-extrabold text-[#1b4264] text-[14px]">{c.topic}</span>
                               <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
-                                {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
+                                <span className="capitalize">{c.status === "pending" || c.status === "requested" ? "Pending approval" : c.status}</span>
                               </Tag>
                             </div>
                             <span className="text-xs text-slate-500 font-medium block mt-0.5">
@@ -1847,13 +1848,16 @@ function StudentDashboardContent() {
                             </span>
                           </div>
 
-                          <button
-                            onClick={() => handleOpenTranscriptModal(c)}
-                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-sm shadow-sm cursor-pointer self-start sm:self-auto transition"
-                          >
-                            <i className="ti ti-file-text text-amber-500" />
-                            <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "View Notes & Chat" : "Import Google Meet Chat"}</span>
-                          </button>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <ConsultationRecordButton id={c.id} status={c.status} scheduledStart={c.scheduledStart} proof={c.proof} />
+                            <button
+                              onClick={() => handleOpenTranscriptModal(c)}
+                              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-sm shadow-sm cursor-pointer self-start sm:self-auto transition"
+                            >
+                              <i className="ti ti-file-text text-amber-500" />
+                              <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "View Notes & Chat" : "Import Google Meet Chat"}</span>
+                            </button>
+                          </div>
                         </div>
 
                         {c.notes && (

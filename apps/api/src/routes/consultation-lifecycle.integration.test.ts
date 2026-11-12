@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
+import { PDFDocument } from "pdf-lib";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import app from "../app.js";
 import { prisma, type InstitutionalRole } from "../lib/prisma.js";
@@ -337,5 +338,123 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     })).toBe(1);
     await syncConsultationCancellation(id);
     expect(googleCalendarService.cancelConsultation).toHaveBeenCalledWith(saved.googleEventId);
+  });
+
+  async function recordFixture(creator: Account, organizer: Account, invitees: Account[], status: "SCHEDULED" | "COMPLETED") {
+    const start = new Date(Date.now() - 120 * 60_000);
+    const end = new Date(+start + 28 * 60_000);
+    const { id } = await prisma.consultation.create({ data: {
+      researchId: otherGroups[0].researchId, createdBy: creator.id, approverId: organizer.id,
+      title: "Consultation for participant confirmation",
+      status, scheduledStart: start, scheduledEnd: new Date(+start + 60 * 60_000),
+      participants: { create: [...new Set([creator.id, organizer.id, ...invitees.map(({ id }) => id)])].map((userId) => ({ userId })) },
+    } });
+    return {
+      id, path: `/consultations/${id}/record`,
+      draft: { action: "submit", revision: 0, actualStart: start.toISOString(), actualEnd: end.toISOString(),
+        summary: "Private discussion summary", nextSteps: "Private agreed action" },
+    };
+  }
+
+  async function recordPdf(user: Account, path: string, format: "proof" | "full") {
+    return fetch(`${origin}${path}/pdf?format=${format}`, {
+      headers: { Authorization: `Bearer ${user.token}` },
+    });
+  }
+
+  it("confirms a corrected researcher record and limits oversight to proof", async () => {
+    const { researcher } = otherGroups[0];
+    const { id, path, draft } = await recordFixture(researcher, adviser, [], "SCHEDULED");
+    const submit = { ...draft, reviewerId: researcher.id };
+    expect((await request(peer, path)).status).toBe(404);
+    expect((await request(outsider, path)).status).toBe(404);
+    expect((await request(adviser, path, "PATCH", { ...submit, reviewerId: adviser.id })).status).toBe(400);
+    expect((await request(adviser, path, "PATCH", { ...submit, actualEnd: submit.actualStart })).status).toBe(400);
+
+    const filed = await request(adviser, path, "PATCH", submit);
+    expect(filed.status).toBe(200);
+    expect(filed.data.proof).toEqual({ status: "awaiting_confirmation" });
+    expect(filed.data.details.revision).toBe(1);
+    expect(await prisma.consultation.findUnique({ where: { id }, select: { status: true } }))
+      .toEqual({ status: "COMPLETED" });
+    expect((await request(oversight, path)).data.details).toBeNull();
+    expect((await recordPdf(researcher, path, "proof")).status).toBe(409);
+    expect((await request(adviser, path, "PATCH", { action: "confirm", revision: 1 })).status).toBe(403);
+
+    const correction = await request(researcher, path, "PATCH", {
+      action: "request_correction", revision: 1, correction: "Please update the summary.",
+    });
+    expect(correction.data.proof).toEqual({ status: "correction_requested" });
+    expect((await request(adviser, path)).data.details.correction).toBe("Please update the summary.");
+    expect((await request(oversight, path)).data.details).toBeNull();
+    const revised = await request(adviser, path, "PATCH", { ...submit, revision: 1, summary: "Revised private summary" });
+    expect(revised.data.details).toMatchObject({ revision: 2, correction: null });
+    expect((await request(researcher, path, "PATCH", { action: "confirm", revision: 1 })).status).toBe(409);
+
+    const confirmed = await request(researcher, path, "PATCH", { action: "confirm", revision: 2 });
+    expect(confirmed.data.proof).toMatchObject({
+      status: "confirmed", durationMinutes: 28, submittedBy: "Adviser Test",
+      confirmedBy: "Second Test", reference: `CR-${id.toUpperCase()}`,
+    });
+    expect((await request(researcher, path)).data.details.summary).toBe("Revised private summary");
+    expect((await request(adviser, path, "PATCH", { ...submit, revision: 2 })).status).toBe(409);
+    for (const viewer of [oversight, coordinator]) {
+      const summary = await request(viewer, path);
+      expect(summary.data.proof).toEqual(confirmed.data.proof);
+      expect(summary.data.details).toBeNull();
+      expect((await recordPdf(viewer, path, "full")).status).toBe(404);
+      const pdf = await recordPdf(viewer, path, "proof");
+      expect(pdf.status).toBe(200);
+      expect(pdf.headers.get("cache-control")).toBe("private, no-store");
+      expect((await PDFDocument.load(await pdf.arrayBuffer())).getTitle()).toBe("Proof of Consultation");
+    }
+    for (const [viewer, workspace] of [[oversight, "dean"], [coordinator, "coordinator"]] as const) {
+      const result = await request(viewer, `/consultations/workspace/${workspace}?view=history&consultationId=${id}`);
+      expect(result.data.consultations).toEqual([expect.objectContaining({ id, proof: confirmed.data.proof })]);
+      expect(result.data.consultations[0]).not.toHaveProperty("details");
+    }
+    expect((await recordPdf(outsider, path, "proof")).status).toBe(404);
+    const full = await recordPdf(researcher, path, "full");
+    expect(full.status).toBe(200);
+    expect((await PDFDocument.load(await full.arrayBuffer())).getTitle()).toBe("Consultation Record");
+  });
+
+  it("allows only the designated participant to confirm a faculty-only record", async () => {
+    const { path, draft } = await recordFixture(coordinator, coordinator, [panelist, dean], "COMPLETED");
+    expect((await request(coordinator, path)).data.reviewers).toEqual(expect.arrayContaining([
+      { id: panelist.id, name: "Panelist Test" }, { id: dean.id, name: "Dean Test" },
+    ]));
+    expect((await request(coordinator, path, "PATCH", { ...draft, reviewerId: dean.id })).status).toBe(200);
+    expect((await request(panelist, path)).data.details).toBeNull();
+    expect((await request(panelist, path, "PATCH", { action: "confirm", revision: 0 })).status).toBe(403);
+    expect((await request(dean, path, "PATCH", {
+      action: "request_correction", revision: 1, correction: "Check the summary.",
+    })).status).toBe(200);
+    expect((await request(coordinator, path)).data.reviewers).toEqual([{ id: dean.id, name: "Dean Test" }]);
+    expect((await request(coordinator, path, "PATCH", { ...draft, revision: 1, reviewerId: panelist.id })).status).toBe(400);
+    expect((await request(coordinator, path, "PATCH", { ...draft, revision: 1, reviewerId: dean.id })).status).toBe(200);
+    const approvals = await Promise.all([
+      request(dean, path, "PATCH", { action: "confirm", revision: 2 }),
+      request(dean, path, "PATCH", { action: "confirm", revision: 2 }),
+    ]);
+    expect(approvals.map(({ status }) => status)).toEqual([200, 200]);
+    expect(approvals[0].data.proof).toEqual(approvals[1].data.proof);
+    expect((await request(panelist, path)).data.details.summary).toBe(draft.summary);
+    expect((await recordPdf(dean, path, "full")).status).toBe(200);
+    expect((await recordPdf(oversight, path, "full")).status).toBe(404);
+  });
+
+  it("lets the assigned adviser file a record for a completed legacy consultation", async () => {
+    const { researcher } = otherGroups[0];
+    const { id, path, draft } = await recordFixture(researcher, adviser, [], "COMPLETED");
+    await prisma.consultation.update({
+      where: { id },
+      data: { approverId: null, conferenceState: "LEGACY", participants: { deleteMany: { userId: adviser.id } } },
+    });
+    const history = await request(adviser);
+    expect(history.data.consultations).toContainEqual(expect.objectContaining({ id, status: "completed" }));
+    expect((await request(adviser, path)).data.reviewers).toEqual([{ id: researcher.id, name: "Second Test" }]);
+    expect((await request(adviser, path, "PATCH", { ...draft, reviewerId: researcher.id })).status).toBe(200);
+    expect((await request(researcher, path, "PATCH", { action: "confirm", revision: 1 })).data.proof.status).toBe("confirmed");
   });
 });
