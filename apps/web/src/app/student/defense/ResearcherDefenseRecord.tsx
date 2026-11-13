@@ -155,6 +155,12 @@ export function ResearcherOfficialResult({
               <p className="whitespace-pre-line">{session.releasedFeedback}</p>
             </div>
           )}
+          {!revisionClearance && ["APPROVED_WITH_MINOR_REVISIONS", "MAJOR_REVISIONS_REQUIRED"].includes(session.decision) && (
+            <p className="rdf-secondary">
+              Submit the revised manuscript for faculty review. The professor or coordinator confirms clearance after the revised version is approved.{" "}
+              <Link to={`/student/tasks?projectId=${encodeURIComponent(session.researchId)}`}>Open Tasks & Requirements</Link>
+            </p>
+          )}
           <p className="rdf-caption">
             Panelist recommendations and averages do not automatically determine
             the official decision.
@@ -460,7 +466,7 @@ export function ResearcherDefenseRecord({
                 key={session.id}
                 badge={session.badge}
                 action={
-                  session.badge.kind === "FINAL_DEFENSE" && researcherId &&
+                  session.badge.kind === "FINAL_DEFENSE" && researcherId && session.badge._count?.certificates > 0 &&
                   session.badge.recipients.some((recipient: { userId: string }) => recipient.userId === researcherId)
                     ? <ViewDefenseCertificate sessionId={session.id} researcherId={researcherId} />
                     : undefined

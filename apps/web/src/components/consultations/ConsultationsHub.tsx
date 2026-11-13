@@ -84,6 +84,7 @@ export function ConsultationsHub({
   const upcoming = rows.filter((row) => !row.past && row.status.tone !== "closed").sort(byStart);
   const past = rows.filter((row) => row.past || row.status.tone === "closed").sort((a, b) => byStart(b, a));
   const completed = past.filter((row) => row.status.tone === "done");
+  const needsAction = rows.filter(({ item }) => item.proof && "needsAction" in item.proof && item.proof.needsAction);
   const lastMet = completed[0];
   const followUp = completed.find((row) => row.item.actionItems?.length);
   const nextSession = upcoming[0];
@@ -192,12 +193,23 @@ export function ConsultationsHub({
         </div>
       ) : (
         <>
+          {needsAction.length > 0 && <>
+            <h2 className="ch-section">Needs your action</h2>
+            <ul className="ch-thread">
+              {needsAction.map(({ item }) => <li key={item.id}>
+                <a className="ch-btn" href={`#consultation-${item.id}`}>
+                  {item.proof?.status === "correction_requested" ? "Revise record" : "Confirm record"} · {item.topic}
+                </a>
+              </li>)}
+            </ul>
+          </>}
           <h2 className="ch-section">Upcoming</h2>
           {upcoming.length ? (
             <ul className="ch-upcoming">
               {upcoming.map((row, index) => (
                 <li
                   key={row.item.id}
+                  id={`consultation-${row.item.id}`}
                   ref={row.item.id === linkedId ? linkedRef : undefined}
                   tabIndex={row.item.id === linkedId ? -1 : undefined}
                   className="ch-next"
@@ -237,6 +249,7 @@ export function ConsultationsHub({
                 {past.map((row) => (
                   <li
                     key={row.item.id}
+                    id={`consultation-${row.item.id}`}
                     ref={row.item.id === linkedId ? linkedRef : undefined}
                     tabIndex={row.item.id === linkedId ? -1 : undefined}
                     className="ch-past"

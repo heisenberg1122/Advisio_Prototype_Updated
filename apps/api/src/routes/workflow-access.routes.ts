@@ -254,7 +254,7 @@ export const requestWorkflow = route(async (req, res) => {
       "Workflow join request",
       `${req.user!.firstName || req.user!.email} requested to join ${w.name}.`,
       entry.id,
-      ownerUrl(w.id),
+      `${ownerUrl(w.id)}&accessRequestId=${entry.id}`,
     );
     await notify(
       tx,

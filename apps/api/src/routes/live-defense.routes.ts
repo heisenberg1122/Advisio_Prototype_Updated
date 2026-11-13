@@ -43,6 +43,7 @@ import {
   activeDefenseStatuses,
   approveDefenseEligibility,
   currentDefenseEligibility,
+  defenseRequirementsReady,
   requireDefenseEligibility,
   lockDefenseGroup,
   consumeDefenseEligibility,
@@ -98,12 +99,7 @@ router.get(
           ...project,
           milestone: gate,
           approved: grants.some((grant) => grant.milestoneId === gate.id),
-          canApprove:
-            !gate.isBlocked &&
-            (!gate.requiresDocument || gate.documentRequirementSatisfied) &&
-            gate.tasks.every(
-              (task) => !task.isRequired || task.status === "APPROVED",
-            ),
+          canApprove: defenseRequirementsReady(gate),
         });
       }
       res.json({ groups });

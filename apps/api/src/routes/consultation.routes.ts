@@ -14,7 +14,7 @@ import {
 } from "../services/consultation.service.js";
 import {
   assertConsultationTimeAvailable, assertOrganizer, assertParticipant, consultationError, findConsultationRecipients,
-  googleEventKey, lockConsultationSchedules, notifyConsultation,
+  consultationReservations, googleEventKey, lockConsultationSchedules, notifyConsultation,
   pendingCalendarUpdate, provisionConsultation, recipientWorkspaces, syncConsultationCancellation, syncConsultationUpdate,
   uuid, withConsultationLock,
 } from "../services/consultation-lifecycle.service.js";
@@ -150,7 +150,7 @@ router.get("/workspace/:workspace", requireAuth, asyncHandler(async (req, res) =
       const { id, title, status, scheduledStart, scheduledEnd, research } = row;
       const summary = {
         id, title, status, scheduledStart, scheduledEnd, research,
-        ...(row.record ? { proof: consultationProof(id, row.record) } : {}),
+        ...(row.record ? { proof: consultationProof(id, row.record, user.id) } : {}),
       };
       if (history) return summary;
       const invitation = participants.find(({ userId }) => userId === user.id);
@@ -215,6 +215,39 @@ router.get("/recipients", requireAuth, asyncHandler(async (req, res) => {
   })) });
 }));
 
+router.get("/availability", requireAuth, asyncHandler(async (req, res) => {
+  const researchId = id(req.query.researchId);
+  const adviserId = id(req.query.adviserId);
+  const date = monitoringDateSchema.safeParse(req.query.date);
+  const duration = Number(req.query.duration);
+  if (!date.success || !date.data || ![30, 45, 60].includes(duration)) {
+    throw consultationError(400, "Choose a date and consultation duration.");
+  }
+  const { project, access } = await consultationProjectAccess(req.user!, researchId);
+  if (!project || project.status === "ARCHIVED" || !access.canRequest) {
+    throw consultationError(403, "You cannot check consultation times for this project.");
+  }
+  const assigned = await findConsultationRecipients(project, false, {
+    id: adviserId,
+    memberships: { some: { researchId, projectRole: "ADVISER", leftAt: null } },
+    collegeMemberships: { some: { collegeId: project.collegeId, roleNames: { has: "ADVISER" }, college: { isActive: true } } },
+  }, 1);
+  if (!assigned.length) throw consultationError(404, "This adviser is not assigned to your project.");
+
+  const start = new Date(`${date.data}T08:00:00+08:00`);
+  const end = new Date(`${date.data}T17:00:00+08:00`);
+  const reservations = await consultationReservations(prisma, [adviserId], { start, end });
+  const slots = [];
+  const durationMs = duration * 60_000;
+  const now = Date.now();
+  for (let time = +start; time + durationMs <= +end; time += 30 * 60_000) {
+    if (time > now && !reservations.some((slot) => +slot.start < time + durationMs && +slot.end > time)) {
+      slots.push(new Date(time).toISOString());
+    }
+  }
+  res.json({ slots });
+}));
+
 router.get("/", requireAuth, asyncHandler(async (req, res) => {
   const user = req.user!;
   const researchId = req.query.researchId === undefined ? undefined : id(req.query.researchId);
@@ -245,7 +278,7 @@ router.get("/", requireAuth, asyncHandler(async (req, res) => {
       row.research.members.some(({ userId }) => userId === user.id);
     return {
       ...serializeConsultation(invited ? row : { ...row, notes: [], participants: [], meetingUrl: null }),
-      ...(row.record ? { proof: consultationProof(row.id, row.record) } : {}),
+      ...(row.record ? { proof: consultationProof(row.id, row.record, user.id) } : {}),
       canManage: (row.meetingKind === "INSTANT" && row.createdBy === user.id) ||
         (!user.researcherPanel && ((row.approverId || row.createdBy) === user.id || legacyRequest)),
     };

@@ -1030,6 +1030,10 @@ router.get("/join/:code/preview", requireAuth, async (req: Request, res: Respons
       (member) => member.projectRole === "ADVISER",
     );
     const adviser = memberAdviser?.user || project.adviserRequests[0]?.adviser || null;
+    const request = await prisma.researchJoinRequest.findUnique({
+      where: { researchId_requesterId: { researchId: project.id, requesterId: req.user.id } },
+      select: { status: true },
+    });
     res.json({
       project: {
         id: project.id,
@@ -1041,6 +1045,9 @@ router.get("/join/:code/preview", requireAuth, async (req: Request, res: Respons
         memberCount: researcherCount,
         leader: leader?.user || null,
         adviser,
+        requestStatus: request?.status ?? null,
+        alreadyJoined: project.members.some(({ userId, projectRole }) =>
+          userId === req.user!.id && (projectRole === "LEADER" || projectRole === "MEMBER")),
       },
     });
   } catch (error: any) {
@@ -1103,33 +1110,29 @@ router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
         error: "You are already an active member of this research group.",
       });
     if (project.accessMode === "PUBLIC_APPROVAL") {
-      const request = await prisma.researchJoinRequest.upsert({
-        where: {
-          researchId_requesterId: {
-            researchId: project.id,
-            requesterId: req.user.id,
-          },
-        },
-        update: {
-          status: "PENDING",
-          responseNote: null,
-          respondedBy: null,
-          respondedAt: null,
-        },
-        create: { researchId: project.id, requesterId: req.user.id },
-      });
-      const leader = project.members.find((member) => member.projectRole === "LEADER");
-      if (leader)
-        await prisma.notification.create({
+      const requesterId = req.user.id;
+      const request = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`research-join:${project.id}:${requesterId}`}))`;
+        const where = { researchId_requesterId: { researchId: project.id, requesterId } };
+        const current = await tx.researchJoinRequest.findUnique({ where });
+        if (current?.status === "PENDING") return current;
+        const saved = await tx.researchJoinRequest.upsert({
+          where,
+          update: { status: "PENDING", responseNote: null, respondedBy: null, respondedAt: null },
+          create: { researchId: project.id, requesterId },
+        });
+        const leader = project.members.find((member) => member.projectRole === "LEADER");
+        if (leader) await tx.notification.create({
           data: {
             audience: "researcher", recipientId: leader.userId,
-            type: "WORKFLOW_CHANGED",
-            title: "New research group join request",
+            type: "WORKFLOW_CHANGED", title: "New research group join request",
             message: "A researcher requested to join your research group.",
-            entityType: "ResearchProject",
-            entityId: project.id,
+            entityType: "ResearchProject", entityId: project.id,
+            actionUrl: `/student/dashboard?tab=group&section=my-group&projectId=${project.id}#join-request-${saved.id}`,
           },
         });
+        return saved;
+      });
       return void res.status(202).json({
         pendingApproval: true,
         request,

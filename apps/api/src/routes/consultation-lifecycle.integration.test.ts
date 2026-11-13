@@ -157,6 +157,14 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     expect(first.status).toBe(200);
     expect(second.data.consultation.meetingUrl).toBe(first.data.consultation.meetingUrl);
     expect(googleCalendarService.createMeetConsultation).toHaveBeenCalledTimes(1);
+    const availability = `/consultations/availability?researchId=${projectId}&adviserId=${adviser.id}&date=2098-07-12&duration=60`;
+    const openings = await request(student, availability);
+    expect(openings.status).toBe(200);
+    expect(openings.data.slots).toContain("2098-07-12T01:00:00.000Z");
+    expect(openings.data.slots).not.toContain(dates.scheduledStart);
+    expect(openings.data.slots).not.toContain("2098-07-12T02:30:00.000Z");
+    expect((await request(outsider, availability)).status).toBe(403);
+    expect((await request(student, availability.replace(adviser.id, panelist.id))).status).toBe(404);
     expect(googleCalendarService.createMeetConsultation).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
       attendees: expect.arrayContaining([{ email: student.email, displayName: "Student Test" }, { email: adviser.email, displayName: "Adviser Test" }]),
     }));
@@ -375,6 +383,9 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     expect(filed.status).toBe(200);
     expect(filed.data.proof).toEqual({ status: "awaiting_confirmation" });
     expect(filed.data.details.revision).toBe(1);
+    expect(await prisma.notification.count({ where: {
+      entityId: id, recipientId: researcher.id, title: "Consultation record needs confirmation",
+    } })).toBe(1);
     expect(await prisma.consultation.findUnique({ where: { id }, select: { status: true } }))
       .toEqual({ status: "COMPLETED" });
     expect((await request(oversight, path)).data.details).toBeNull();
@@ -385,6 +396,9 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
       action: "request_correction", revision: 1, correction: "Please update the summary.",
     });
     expect(correction.data.proof).toEqual({ status: "correction_requested" });
+    expect(await prisma.notification.count({ where: {
+      entityId: id, recipientId: adviser.id, title: "Consultation record needs a correction",
+    } })).toBe(1);
     expect((await request(adviser, path)).data.details.correction).toBe("Please update the summary.");
     expect((await request(oversight, path)).data.details).toBeNull();
     const revised = await request(adviser, path, "PATCH", { ...submit, revision: 1, summary: "Revised private summary" });
@@ -456,5 +470,36 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     expect((await request(adviser, path)).data.reviewers).toEqual([{ id: researcher.id, name: "Second Test" }]);
     expect((await request(adviser, path, "PATCH", { ...draft, reviewerId: researcher.id })).status).toBe(200);
     expect((await request(researcher, path, "PATCH", { action: "confirm", revision: 1 })).data.proof.status).toBe("confirmed");
+  });
+
+  it("keeps a group join request visible only to its requester and links the leader to the pending request", async () => {
+    const { programId, collegeId } = await prisma.researchProject.findUniqueOrThrow({ where: { id: projectId } });
+    const role = await prisma.role.findUniqueOrThrow({ where: { name: "RESEARCHER" } });
+    const email = `join-${marker}@integration.test`;
+    const user = await prisma.user.create({ data: {
+      email, firstName: "Join", lastName: "Test", universityId: `join-${marker}`,
+      programId, collegeId, status: "ACTIVE", roles: { create: { roleId: role.id } },
+    } });
+    fixture.userIds.push(user.id);
+    const requester = { id: user.id, email, token: generateToken(user.id) };
+    const code = randomUUID().replace(/-/g, "").toUpperCase();
+    await prisma.researchProject.update({ where: { id: projectId }, data: {
+      inviteCode: code, inviteCodeEnabled: true, accessMode: "PUBLIC_APPROVAL",
+    } });
+    const joinPath = `/research/join/${code}`;
+    const [submitted, retried] = await Promise.all([
+      request(requester, joinPath, "POST"),
+      request(requester, joinPath, "POST"),
+    ]);
+    expect([submitted.status, retried.status]).toEqual([202, 202]);
+    expect(retried.data.request.id).toBe(submitted.data.request.id);
+    expect((await request(requester, `${joinPath}/preview`)).data.project.requestStatus).toBe("PENDING");
+    expect((await request(peer, `${joinPath}/preview`)).data.project).toMatchObject({ requestStatus: null, alreadyJoined: true });
+    const alerts = await prisma.notification.findMany({ where: {
+      recipientId: student.id, entityId: projectId, title: "New research group join request",
+    } });
+    expect(alerts.map(({ actionUrl }) => actionUrl)).toEqual([
+      `/student/dashboard?tab=group&section=my-group&projectId=${projectId}#join-request-${submitted.data.request.id}`,
+    ]);
   });
 });

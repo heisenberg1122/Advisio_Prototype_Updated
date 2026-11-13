@@ -45,14 +45,23 @@ export async function assertConsultationTimeAvailable(
   { start, end }: ConsultationTime,
   consultationId?: string,
 ) {
+  if ((await consultationReservations(tx, userIds, { start, end }, consultationId)).length) {
+    throw consultationError(409, "A consultation is already booked for the organizer or an invited adviser at that time. Choose a different time.");
+  }
+}
+
+export async function consultationReservations(
+  tx: Prisma.TransactionClient,
+  userIds: string[],
+  { start, end }: ConsultationTime,
+  consultationId?: string,
+): Promise<ConsultationTime[]> {
   const reservations = {
     ...(consultationId && { id: { not: consultationId } }),
     meetingKind: "SCHEDULED",
     status: { in: ["PROVISIONING", "SCHEDULED", "ONGOING"] },
   } satisfies Prisma.ConsultationWhereInput;
-  const unavailable = () => consultationError(409,
-    "A consultation is already booked for the organizer or an invited adviser at that time. Choose a different time.");
-  const existing = await tx.consultation.findFirst({
+  const existing = await tx.consultation.findMany({
     where: {
       ...reservations,
       scheduledStart: { lt: end },
@@ -63,9 +72,9 @@ export async function assertConsultationTimeAvailable(
         { participants: { some: { userId: { in: userIds } } } },
       ],
     },
-    select: { id: true },
+    select: { scheduledStart: true, scheduledEnd: true },
   });
-  if (existing) throw unavailable();
+  const times = existing.map(({ scheduledStart, scheduledEnd }) => ({ start: scheduledStart, end: scheduledEnd }));
 
   // The previous slot stays booked until the Calendar update succeeds.
   const queued = await tx.consultation.findMany({
@@ -77,9 +86,10 @@ export async function assertConsultationTimeAvailable(
     if (update.success && new Date(update.data.start) < end && new Date(update.data.end) > start &&
         (userIds.includes(reservation.approverId ?? reservation.createdBy) ||
          update.data.participantIds.some((userId) => userIds.includes(userId)))) {
-      throw unavailable();
+      times.push({ start: new Date(update.data.start), end: new Date(update.data.end) });
     }
   }
+  return times;
 }
 
 export function recipientPolicy(project: Project, faculty: boolean): Prisma.UserWhereInput {
@@ -124,6 +134,7 @@ export async function notifyConsultation(
   consultation: Pick<Consultation, "id" | "title" | "revision" | "research">,
   ids: string[],
   title: string,
+  recordRevision?: number,
 ) {
   if (!ids.length) return;
   const users = await tx.user.findMany({
@@ -138,10 +149,11 @@ export async function notifyConsultation(
     message: consultation.title,
     entityType: "Consultation",
     entityId: consultation.id,
-    actionUrl: workspace.id === "researcher" || workspace.id === "adviser"
+    actionUrl: (workspace.id === "researcher" || workspace.id === "adviser"
       ? `${workspace.homeUrl}?tab=consultations&consultationId=${consultation.id}`
-      : `${workspace.routePrefix}/consultations?consultationId=${consultation.id}`,
-    deduplicationKey: `consultation:${consultation.id}:${consultation.revision}:${recipient.id}:${workspace.id}:${title}`,
+      : `${workspace.routePrefix}/consultations?consultationId=${consultation.id}`) +
+        (recordRevision ? "&record=1" : ""),
+    deduplicationKey: `consultation:${consultation.id}:${recordRevision ? `record:${recordRevision}` : consultation.revision}:${recipient.id}:${workspace.id}:${title}`,
   })));
   if (data.length) await tx.notification.createMany({ data, skipDuplicates: true });
 }

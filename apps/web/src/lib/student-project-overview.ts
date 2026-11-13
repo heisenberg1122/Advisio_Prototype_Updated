@@ -8,6 +8,7 @@ export interface ProjectTaskProgress {
   isRequired?: boolean;
   status?: string | null;
   submissionId?: string | null;
+  reviewers?: string[];
 }
 
 export interface ProjectMilestoneProgress {
@@ -87,6 +88,7 @@ export function resolveProjectNextStep({
   error,
   isLeader,
   defenseDecision,
+  adviserRequestPending,
 }: {
   project: OverviewProject;
   milestones?: ProjectMilestoneProgress[];
@@ -95,6 +97,7 @@ export function resolveProjectNextStep({
   isLeader: boolean;
   /** The released official defense decision, when one exists. */
   defenseDecision?: string | null;
+  adviserRequestPending?: boolean;
 }): ProjectNextStep {
   if (project.workflowAccessRemoved)
     return {
@@ -209,6 +212,30 @@ export function resolveProjectNextStep({
     taskId: task?.id || `milestone-${current.id}`,
   });
   const milestoneDue = requirementDeadline(project, current.id);
+  if (!current.completed && current.milestoneType === "ADVISER_SELECTION")
+    return {
+      label: adviserRequestPending ? "Waiting for adviser acceptance" : "Adviser selection",
+      title: current.name,
+      description: adviserRequestPending ? "The requested adviser needs to respond." :
+        isLeader ? "Choose an adviser and send a request for your group." : "Your group leader needs to request an adviser.",
+      tone: adviserRequestPending ? "pending" : "action",
+      action: taskAction(),
+      buttonLabel: adviserRequestPending ? "View adviser request" : "Open adviser selection",
+    };
+  if (!current.completed && current.milestoneType === "TITLE_PROPOSAL") {
+    const waiting = ["AWAITING_REVIEW", "SUBMITTED", "UNDER_REVIEW", "PENDING"].includes(current.status || "");
+    const needsRevision = ["REVISION_REQUIRED", "REJECTED", "CHANGES_REQUESTED"].includes(current.status || "");
+    return {
+      label: waiting ? "Waiting for title approval" : needsRevision ? "Title revisions requested" : "Title proposal",
+      title: current.name,
+      description: waiting ? "Your professor or coordinator reviews the proposed titles." :
+        needsRevision ? "Open the title proposal to see the feedback and what needs to change." :
+          isLeader ? "Prepare and submit your group’s proposed titles." : "Your group leader submits the proposed titles.",
+      tone: waiting ? "pending" : "action",
+      action: taskAction(),
+      buttonLabel: "Open title proposal",
+    };
+  }
   const revision = required.find((task) =>
     ["REVISION_REQUIRED", "REJECTED"].includes(task.status || ""),
   );

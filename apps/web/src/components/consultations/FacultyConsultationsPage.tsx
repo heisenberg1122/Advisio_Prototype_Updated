@@ -166,6 +166,7 @@ function ConsultationWorkspace({ workspace, scope, viewerId }: { workspace: Work
   }
 
   const items = consultations.data?.consultations ?? [];
+  const needsAction = items.filter(({ proof }) => proof && "needsAction" in proof && proof.needsAction);
   // Counts only describe the whole list when it fits on one page.
   const showCounts = !history && !linkedId && consultations.isSuccess && page === 1 && !consultations.data.hasNextPage;
   const count = (...statuses: Consultation["status"][]) => items.filter((item) => statuses.includes(item.status)).length;
@@ -212,6 +213,15 @@ function ConsultationWorkspace({ workspace, scope, viewerId }: { workspace: Work
       {notice && <InlineFeedback tone="ok">{notice}</InlineFeedback>}
       {joinError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{joinError}</p>}
       {!history && linkedId && <Button variant="secondary" onClick={() => { setPage(1); setParams({}); }}>Show all consultations</Button>}
+      {needsAction.length > 0 && <SectionCard title="Needs your action" titleId="consultation-record-actions">
+        <ul className="au-card-body space-y-2">
+          {needsAction.map((item) => <li key={item.id}>
+            <a className="underline" href={`#consultation-${item.id}`}>
+              {item.proof?.status === "correction_requested" ? "Revise record" : "Confirm record"} · {item.title}
+            </a>
+          </li>)}
+        </ul>
+      </SectionCard>}
       <SectionCard title={history ? "Consultation history" : "Project consultations"} titleId="consultations-list" count={!history && consultations.isSuccess ? items.length : undefined}>
         {history && (
           <form className="au-card-body space-y-3 border-b border-[var(--color-border)]" onSubmit={applyFilters}>
@@ -288,7 +298,7 @@ function ConsultationWorkspace({ workspace, scope, viewerId }: { workspace: Work
               const outcome = item.status === "COMPLETED" || item.status === "CANCELLED" ? historyOutcomes[item.status] : historyOutcomes.UNRECORDED;
               const advisers = item.research.members?.map(({ user }) => `${user.firstName} ${user.lastName}`.trim()).join(", ");
               return (
-                <li key={item.id}>
+                <li key={item.id} id={`consultation-${item.id}`} tabIndex={-1}>
                   <ListRow
                     leading={
                       <DateTile

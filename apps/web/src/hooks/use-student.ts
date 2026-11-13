@@ -217,6 +217,7 @@ export function useDefense() {
     documents: any[];
     projects: any[];
     progress?: { completed: number; total: number; current: string | null };
+    defenseMilestoneId?: string | null;
   }>({
     queryKey: [...studentKeys.defense(), activeProjectId],
     queryFn: async () => {
@@ -248,51 +249,36 @@ export function useDefense() {
         ),
         apiClient.get<{
           milestones: { completed: boolean; isCurrent: boolean; name: string }[];
-          defenseReadiness: { workflowApproved: boolean; deanApprovalSigned: boolean };
+          defenseReadiness: {
+            workflowApproved: boolean; requirementsReady: boolean;
+            deanApprovalSigned: boolean; deanApprovalRequested: boolean;
+            milestoneId?: string | null; milestoneName?: string | null;
+          };
         }>(`/api/research/${project.id}/manuscript-workflow`),
       ]);
       const sessions = (management.sessions || []).filter(
         (session: any) => session.researchId === project.id,
       );
       const documents = documentData.documents || [];
-      const hasAdviser = (project.members || []).some(
-        (member: any) => member.projectRole === "ADVISER" && !member.leftAt,
-      );
-      const hasSignedDeanApproval = workflowData.defenseReadiness.deanApprovalSigned;
-      const approvedSubmissions = (project.taskSubmissions || []).filter(
-        (submission: any) => submission.status === "APPROVED",
-      );
-      const hasFinalManuscript =
-        approvedSubmissions.length > 0 ||
-        documents.some(
-          (document: any) =>
-            document.documentType === "RESEARCH_MANUSCRIPT" &&
-            (document.versions || []).some(
-              (version: any) => version.status === "ACTIVE",
-            ),
-        );
+      const readiness = workflowData.defenseReadiness;
       const requirements: DefenseRequirement[] = [
         {
+          id: "requirements",
+          label: readiness.milestoneName ? `Requirements for ${readiness.milestoneName}` : "Defense requirements",
+          status: readiness.requirementsReady || readiness.workflowApproved ? "done" : "in_progress",
+          hint: "The research group submits the required work and assigned faculty approve it.",
+        },
+        {
           id: "workflow",
-          label: "Required workflow milestones completed",
-          status: workflowData.defenseReadiness.workflowApproved
-            ? "done"
-            : "in_progress",
-        },
-        {
-          id: "adviser",
-          label: "Faculty adviser assigned",
-          status: hasAdviser ? "done" : "pending",
-        },
-        {
-          id: "manuscript",
-          label: "Final manuscript or required submission approved",
-          status: hasFinalManuscript ? "done" : "pending",
+          label: "Defense eligibility approval",
+          status: readiness.workflowApproved ? "done" : readiness.requirementsReady ? "in_progress" : "pending",
+          hint: "The professor or coordinator approves the eligibility milestone.",
         },
         {
           id: "dean-approval",
           label: "Dean-signed defense approval received",
-          status: hasSignedDeanApproval ? "done" : "pending",
+          status: readiness.deanApprovalSigned ? "done" : readiness.deanApprovalRequested ? "in_progress" : "pending",
+          hint: readiness.deanApprovalRequested ? "Waiting for the Dean to sign." : "The coordinator requests the Dean’s signature after eligibility approval.",
         },
       ];
       const ready = requirements.every(
@@ -305,6 +291,7 @@ export function useDefense() {
           current: (workflowData.milestones || []).find(m => m.isCurrent)?.name || null,
         },
         requirements,
+        defenseMilestoneId: readiness.milestoneId,
         eligibility: ready ? "eligible" : "not_eligible",
         project,
         sessions,

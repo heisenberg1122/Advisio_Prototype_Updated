@@ -919,11 +919,11 @@ router.get(
       await prisma.$transaction((tx) =>
         reconcileMilestoneProgress(tx, { researchId, actorId: req.user!.id }),
       );
-      const [milestones, activity, defenseReadiness] = await Promise.all([
+      const [milestones, activity] = await Promise.all([
         getMilestoneProgress(prisma, researchId),
         getManuscriptActivity(prisma, researchId, access.canReview),
-        getDefenseReadiness(prisma, researchId),
       ]);
+      const defenseReadiness = await getDefenseReadiness(prisma, researchId, milestones);
       res.json({ milestones, activity, defenseReadiness });
     } catch (error: any) {
       res.status(500).json({

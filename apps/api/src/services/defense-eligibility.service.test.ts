@@ -69,6 +69,10 @@ describe("defense eligibility cycles", () => {
     expect(await getDefenseReadiness(db, "group")).toEqual({
       workflowApproved: true,
       deanApprovalSigned: true,
+      requirementsReady: true,
+      milestoneId: "title",
+      milestoneName: "title",
+      deanApprovalRequested: true,
     });
   });
   it("checks the workflow gate while the Dean signature is still pending", async () => {
@@ -76,6 +80,10 @@ describe("defense eligibility cycles", () => {
     expect(await getDefenseReadiness(db, "group")).toEqual({
       workflowApproved: true,
       deanApprovalSigned: false,
+      requirementsReady: true,
+      milestoneId: "title",
+      milestoneName: "title",
+      deanApprovalRequested: true,
     });
   });
   it("does not reuse the passed cycle's approval or signature for the next defense", async () => {
@@ -83,6 +91,10 @@ describe("defense eligibility cycles", () => {
     expect(await getDefenseReadiness(db, "group")).toEqual({
       workflowApproved: false,
       deanApprovalSigned: false,
+      requirementsReady: true,
+      milestoneId: "final",
+      milestoneName: "final",
+      deanApprovalRequested: false,
     });
     expect(db.document.findFirst).not.toHaveBeenCalled();
   });

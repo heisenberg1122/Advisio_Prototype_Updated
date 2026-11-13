@@ -45,7 +45,7 @@ function SummaryRecords({ records, empty, now }: { records: OverviewRecord[]; em
 export function StudentProjectOverview({
   project, isLeader, workflowName, coordinator, academicYear, milestones, loading, error,
   adviser, adviserName, titleHistory, teamName, groupCode, members, pendingMembers,
-  documents, documentsState, academic, activity, onAction, onGroup, onArchive, defenseDecision, logoSrc,
+  documents, documentsState, academic, activity, onAction, onGroup, onArchive, defenseDecision, adviserRequestPending, logoSrc,
 }: {
   project: OverviewProject;
   isLeader: boolean;
@@ -71,12 +71,13 @@ export function StudentProjectOverview({
   onArchive: () => void;
   /** The released official defense decision, when one exists. */
   defenseDecision?: string | null;
+  adviserRequestPending?: boolean;
   /** The account's college seal, shown faintly in the header. */
   logoSrc?: string;
 }) {
   const [abstractOpen, setAbstractOpen] = useState(false);
   const now = Date.now();
-  const next = resolveProjectNextStep({ project, milestones, loading, error, isLeader, defenseDecision });
+  const next = resolveProjectNextStep({ project, milestones, loading, error, isLeader, defenseDecision, adviserRequestPending });
   const titleLabel = researchTitleLabel(project);
   const workflowAvailable = Boolean(project.workflowInstance && !project.workflowAccessRemoved);
   const current = currentProjectMilestone(project, milestones);

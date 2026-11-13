@@ -1,3 +1,4 @@
+import { defenseCompletion, latestFinalDefense } from "@/lib/defense-completion";
 import { TitleProposalReviewModal, type TitleProposalReviewTarget } from "@/components/professor/TitleProposalReviewModal";
 import { WorkflowMilestoneActions } from "@/components/professor/WorkflowMilestoneActions";
 import { WorkflowTopicActions } from "@/components/professor/WorkflowTopicActions";
@@ -4192,7 +4193,7 @@ function ProfessorDashboardContent() {
                               ? "Approved for one defense cycle"
                               : group.canApprove
                                 ? "Ready for coordinator approval"
-                                : "Complete prerequisites and approve required submissions first"}
+                                : "Waiting for the research group or reviewers to complete requirements"}
                           </p>
                         </div>
                         {group.approved ? (
@@ -4205,7 +4206,7 @@ function ProfessorDashboardContent() {
                               (project) => project.id === group.id,
                             )
                               ? "Ready to schedule"
-                              : "Defense cycle approved"}
+                              : "Eligibility approved"}
                           </span>
                         ) : (
                           <button
@@ -4216,6 +4217,13 @@ function ProfessorDashboardContent() {
                           >
                             Approve eligibility
                           </button>
+                        )}
+                        {group.approved && !eligibleDefenseGroups.some((project) => project.id === group.id) &&
+                          !defenseSessions.some((session) => session.researchId === group.id &&
+                            ["PENDING_ACKNOWLEDGEMENT", "NEEDS_RESCHEDULING", "SCHEDULED", "LIVE", "DELIBERATION"].includes(session.status)) && (
+                          <p className="w-full text-sm text-[var(--color-text-secondary)]">
+                            Next: obtain the Dean’s signed approval before proposing a schedule.
+                          </p>
                         )}
                       </div>
                     ))}
@@ -5653,31 +5661,34 @@ function ProfessorDashboardContent() {
               />
             ),
             completion: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-lg">
-                  Project Completion Monitoring
-                </h3>
-                <p className="text-base text-slate-400 font-bold">
-                  Review groups cleared for graduation and final document
-                  archive repository indices.
-                </p>
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-[12.5px] mt-2 shadow-sm text-slate-650 flex flex-col gap-2">
-                  <div>
-                    <strong>Completed Projects:</strong> 2 Research Papers
-                  </div>
-                  <div>
-                    <strong>Archival Status:</strong> Released to institutional
-                    libraries
-                  </div>
-                  <div className="h-px bg-slate-200 my-1" />
-                  <div className="text-xs text-slate-500 font-medium">
-                    1. Virtual Class VR Lab — Alex Ramos (Released)
-                  </div>
-                  <div className="text-xs text-slate-500 font-medium">
-                    2. Secure Decentralized Grading — Sarah Jenkins (Released)
-                  </div>
-                </div>
-              </div>
+              <section className="space-y-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+                <h3 className="text-lg font-semibold">Project Completion</h3>
+                {defenseManagementError ? (
+                  <p role="alert">Completion status could not be loaded. <button type="button" onClick={() => void refetchDefenseManagement()}>Try again</button></p>
+                ) : !defenseManagementData ? (
+                  <p role="status">Loading Final Defense records…</p>
+                ) : !projects.length ? (
+                  <p>No research projects are available in your workspace.</p>
+                ) : (
+                  <ul className="divide-y divide-[var(--color-border)]">
+                    {projects.map((project) => {
+                      const session = latestFinalDefense(defenseSessions, project.id);
+                      const completion = defenseCompletion(session);
+                      return <li key={project.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                        <div>
+                          <p className="font-semibold">{project.title}</p>
+                          <p className="text-sm">{completion.label}</p>
+                          {completion.owner && <p className="text-sm text-[var(--color-text-secondary)]">Next: {completion.owner}</p>}
+                        </div>
+                        <button type="button" className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm font-semibold" onClick={() => {
+                          handleTabChange("defenses");
+                          if (session) setPacketSession(session);
+                        }}>{session ? "Open defense record" : "Open Defenses"}</button>
+                      </li>;
+                    })}
+                  </ul>
+                )}
+              </section>
             ),
             settings: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">

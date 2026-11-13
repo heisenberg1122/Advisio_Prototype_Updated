@@ -14,6 +14,7 @@ import { DefenseReadiness } from "./DefenseReadiness";
 import "./researcher-defense.css";
 import "../student-screens.css";
 import { RoleBand } from "@/components/dashboards/RoleScreenParts";
+import { studentTaskDetailsHref } from "@/lib/student-task-navigation";
 
 const activeStatuses = new Set([
   "LIVE",
@@ -29,10 +30,9 @@ export default function DefensePage() {
   const { user } = useAuth();
   const seal = getAcademicIdentity({ college: user?.college, program: user?.program })?.logoSrc;
   const projectSelection = useActiveProject(data?.projects || []);
-  const preferredSession =
-    data?.sessions.find((session: any) => activeStatuses.has(session.status)) ||
-    data?.sessions[0] ||
-    null;
+  const activeSession = data?.sessions.find((session: any) => activeStatuses.has(session.status));
+  const preferredSession = activeSession || (data?.defenseMilestoneId ? null :
+    data?.sessions.find((session: any) => session.status === "COMPLETED")) || null;
   const selectedSession = sessionId
     ? data?.sessions.find((session: any) => session.id === sessionId) || null
     : preferredSession;
@@ -226,15 +226,22 @@ export default function DefensePage() {
           </div>
         )}
       </header>
-      {!selectedSession && (
+      {(!selectedSession || activeStatuses.has(selectedSession.status)) && (
         <div className="rdf-readiness">
           <DefenseReadiness
             eligibility={data.eligibility}
-            requirements={data.requirements}
-            progress={data.progress}
-            timelineHref={projectSelection.projectHref("/student/dashboard?tab=milestones")}
+            requirements={selectedSession ? data.requirements.map((requirement) => ({ ...requirement, status: "done" })) : data.requirements}
+            requirementsHref={data.defenseMilestoneId
+              ? studentTaskDetailsHref(`milestone-${data.defenseMilestoneId}`, data.project.id)
+              : projectSelection.projectHref("/student/tasks")}
+            sessionStatus={selectedSession?.status}
           />
         </div>
+      )}
+      {selectedSession && !activeStatuses.has(selectedSession.status) && data.defenseMilestoneId && (
+        <Link className="inline-block font-semibold underline" to={projectSelection.projectHref("/student/defense")}>
+          View readiness for the next defense
+        </Link>
       )}
       {selectedSession && data.progress && data.progress.total > 0 && (
         <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5" aria-label="Research completion">

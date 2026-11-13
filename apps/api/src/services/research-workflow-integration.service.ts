@@ -315,6 +315,14 @@ export async function getMilestoneProgress(
                           documentVersionId: true,
                           submittedAt: true,
                           reviewedAt: true,
+                          documentVersion: {
+                            select: {
+                              reviewerAssignments: {
+                                where: { researchId, status: "ACTIVE" },
+                                select: { reviewer: { select: { firstName: true, lastName: true } } },
+                              },
+                            },
+                          },
                           attempts: {
                             orderBy: { attemptNumber: "desc" },
                             select: {
@@ -363,6 +371,8 @@ export async function getMilestoneProgress(
         documentVersionId: submission?.documentVersionId || null,
         submittedAt: submission?.submittedAt || null,
         reviewedAt: submission?.reviewedAt || null,
+        reviewers: submission?.documentVersion?.reviewerAssignments.map(({ reviewer }) =>
+          [reviewer.firstName, reviewer.lastName].filter(Boolean).join(" ")).filter(Boolean) ?? [],
         attempts: submission?.attempts || [],
       };
     });

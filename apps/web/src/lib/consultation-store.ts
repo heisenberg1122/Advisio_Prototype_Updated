@@ -9,7 +9,7 @@ export interface ConsultationTranscriptMessage {
 }
 
 export type ConsultationProof =
-  | { status: "awaiting_confirmation" | "correction_requested" }
+  | { status: "awaiting_confirmation" | "correction_requested"; needsAction?: boolean }
   | {
       status: "confirmed";
       reference: string;

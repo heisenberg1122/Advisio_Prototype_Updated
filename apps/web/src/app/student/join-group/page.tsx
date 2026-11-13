@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
 import { RoleBand } from "@/components/dashboards/RoleScreenParts";
@@ -14,9 +14,8 @@ const personName = (person: any) =>
 export default function JoinResearchGroupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [code, setCode] = useState(
-    (searchParams.get("code") || "").toUpperCase(),
-  );
+  const linkedCode = (searchParams.get("code") || "").trim().toUpperCase();
+  const [code, setCode] = useState(linkedCode);
   const [preview, setPreview] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -24,22 +23,31 @@ export default function JoinResearchGroupPage() {
   const [success, setSuccess] = useState(false);
   const [previewKind, setPreviewKind] = useState<"project" | "workspace">("project");
 
-  const reviewGroup = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!code.trim()) return;
+  const reviewGroup = useCallback(async (inviteCode: string) => {
+    if (!inviteCode) return;
     setLoading(true);
     setMessage(null);
+    setSuccess(false);
     setPreview(null);
     setPreviewKind("project");
     try {
       const response = await apiClient.get<{ project: any }>(
-        `/api/research/join/${code.trim().toUpperCase()}/preview`,
+        `/api/research/join/${encodeURIComponent(inviteCode)}/preview`,
       );
       setPreview(response.project);
       setPreviewKind("project");
+      if (response.project.alreadyJoined) {
+        setSuccess(true);
+        setMessage("You already belong to this research group.");
+      } else if (response.project.requestStatus === "PENDING") {
+        setSuccess(true);
+        setMessage(`Request sent. Waiting for ${personName(response.project.leader)} to approve it.`);
+      } else if (response.project.requestStatus === "REJECTED") {
+        setMessage("The group leader declined your previous request. You can submit a new request.");
+      }
     } catch (error: any) {
       try {
-        const response = await apiClient.get<{ workspace: any }>(`/api/workspaces/join/${code.trim().toUpperCase()}/preview`);
+        const response = await apiClient.get<{ workspace: any }>(`/api/workspaces/join/${encodeURIComponent(inviteCode)}/preview`);
         setPreview(response.workspace);
         setPreviewKind("workspace");
       } catch {
@@ -48,7 +56,14 @@ export default function JoinResearchGroupPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (linkedCode) {
+      setCode(linkedCode);
+      void reviewGroup(linkedCode);
+    }
+  }, [linkedCode, reviewGroup]);
 
   const joinGroup = async () => {
     if (!preview) return;
@@ -98,7 +113,12 @@ export default function JoinResearchGroupPage() {
             <h2 id="student-join-step">{preview ? (previewKind === "workspace" ? "Workspace preview" : "Group preview") : "Enter your code"}</h2>
           </div>
           {!preview ? (
-            <form onSubmit={reviewGroup}>
+            <form onSubmit={(event) => {
+              event.preventDefault();
+              const inviteCode = code.trim().toUpperCase();
+              if (inviteCode === linkedCode) void reviewGroup(inviteCode);
+              else router.replace(`/student/join-group?code=${encodeURIComponent(inviteCode)}`);
+            }}>
               <label className="stu-code-label" htmlFor="student-group-code">Research group code</label>
               <input
                 id="student-group-code"
@@ -130,14 +150,17 @@ export default function JoinResearchGroupPage() {
                   <div><dt>Adviser</dt><dd>{personName(preview.adviser)}</dd></div>
                 </dl>
               </div>
-              {!success && (
-                <div className="stu-buttons">
-                  <button type="button" className="rh-secondary" onClick={() => setPreview(null)}>Use another code</button>
-                  <button type="button" className="rs-primary" onClick={() => void joinGroup()} disabled={joining}>
+              <div className="stu-buttons">
+                  <button type="button" className="rh-secondary" disabled={joining} onClick={() => {
+                    setPreview(null);
+                    setCode("");
+                    setMessage(null);
+                    router.replace("/student/join-group");
+                  }}>Use another code</button>
+                  {!success && <button type="button" className="rs-primary" onClick={() => void joinGroup()} disabled={joining}>
                     {joining ? "Submitting…" : preview.accessMode === "PUBLIC_APPROVAL" ? "Request to join" : "Join group"}
-                  </button>
-                </div>
-              )}
+                  </button>}
+              </div>
             </>
           )}
           {message && (

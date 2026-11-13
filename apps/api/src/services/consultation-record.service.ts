@@ -5,7 +5,7 @@ import type { AuthenticatedUser } from "../middleware/auth.js";
 import {
   consultationInclude, coordinatorConsultationProjects, coordinatorConsultationRoles,
 } from "./consultation.service.js";
-import { consultationError, withConsultationLock } from "./consultation-lifecycle.service.js";
+import { consultationError, notifyConsultation, withConsultationLock } from "./consultation-lifecycle.service.js";
 
 type Consultation = Prisma.ConsultationGetPayload<{ include: typeof consultationInclude }>;
 const nameOf = (user: { firstName: string; lastName: string }) =>
@@ -13,14 +13,14 @@ const nameOf = (user: { firstName: string; lastName: string }) =>
 
 export const consultationProofSelect = {
   actualStart: true, actualEnd: true, submittedBy: true, submittedAt: true,
-  reviewer: true, reviewedAt: true, correction: true,
+  reviewer: true, reviewedAt: true, correction: true, reviewerId: true, submittedById: true,
 } satisfies Prisma.ConsultationRecordSelect;
 type ProofFields = Prisma.ConsultationRecordGetPayload<{ select: typeof consultationProofSelect }>;
 
-export function consultationProof(id: string, record: ProofFields | null) {
+export function consultationProof(id: string, record: ProofFields | null, viewerId?: string) {
   if (!record) return null;
-  if (record.correction) return { status: "correction_requested" as const };
-  if (!record.reviewedAt) return { status: "awaiting_confirmation" as const };
+  if (record.correction) return { status: "correction_requested" as const, ...(viewerId === record.submittedById && { needsAction: true }) };
+  if (!record.reviewedAt) return { status: "awaiting_confirmation" as const, ...(viewerId === record.reviewerId && { needsAction: true }) };
   return {
     status: "confirmed" as const,
     reference: `CR-${id.toUpperCase()}`,
@@ -196,6 +196,11 @@ export async function updateConsultationRecord(id: string, user: AuthenticatedUs
         where: { consultationId: id },
         data: { reviewedAt: new Date(), correction: action.action === "request_correction" ? action.correction : null },
       });
+    }
+    if (action.action === "submit") {
+      await notifyConsultation(tx, row, [saved.reviewerId], "Consultation record needs confirmation", saved.revision);
+    } else if (action.action === "request_correction") {
+      await notifyConsultation(tx, row, [saved.submittedById], "Consultation record needs a correction", saved.revision);
     }
     return recordView(tx, row, user, saved, viewer);
   });

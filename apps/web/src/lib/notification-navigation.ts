@@ -60,5 +60,5 @@ export function notificationLink(
     if (workspace && workspace !== "dean") return undefined;
     url.searchParams.set("workspace", "dean");
   }
-  return `${url.pathname}${url.searchParams.size ? `?${url.searchParams}` : ""}`;
+  return `${url.pathname}${url.searchParams.size ? `?${url.searchParams}` : ""}${url.hash}`;
 }

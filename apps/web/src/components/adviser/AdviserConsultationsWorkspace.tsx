@@ -77,6 +77,7 @@ export function AdviserConsultationsWorkspace({
   const approvals = sessions.filter((item) => item.stage === "approval").sort((a, b) => a.startsAt - b.startsAt);
   const upcoming = sessions.filter((item) => item.stage === "upcoming").sort((a, b) => a.startsAt - b.startsAt);
   const past = sessions.filter((item) => item.stage === "past").sort((a, b) => b.startsAt - a.startsAt);
+  const needsAction = sessions.filter(({ proof }) => proof && "needsAction" in proof && proof.needsAction);
   const hasLinkedItem = sessions.some(({ id }) => id === linkedId);
   useEffect(() => {
     if (!hasLinkedItem || !linkedId) return;
@@ -282,6 +283,18 @@ export function AdviserConsultationsWorkspace({
         </aside>
       </div>
 
+      {needsAction.length > 0 && (
+        <section className="ac-panel" aria-labelledby="ac-record-actions">
+          <h2 id="ac-record-actions">Needs your action</h2>
+          <ul>
+            {needsAction.map((item) => <li key={item.id}>
+              <a className="underline" href={`#consultation-${item.id}`}>
+                {item.proof?.status === "correction_requested" ? "Revise record" : "Confirm record"} · {item.topic}
+              </a>
+            </li>)}
+          </ul>
+        </section>
+      )}
       {past.length > 0 && (
         <section className="ac-panel" aria-labelledby="ac-past">
           <div className="ac-head">

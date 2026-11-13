@@ -139,6 +139,7 @@ export interface DefenseRequirement {
   id: string;
   label: string;
   status: DefenseRequirementStatus;
+  hint?: string;
 }
 
 // ─── Grades ──────────────────────────────────────────────────────

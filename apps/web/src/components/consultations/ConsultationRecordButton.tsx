@@ -53,7 +53,12 @@ export function ConsultationRecordButton({ id, status, scheduledStart, proof }: 
   scheduledStart?: string;
   proof?: ConsultationProof | null;
 }) {
-  const [open, setOpen] = useState(false);
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  const linked = params.get("record") === "1" && params.get("consultationId") === id;
+  const [manualOpen, setManualOpen] = useState(false);
+  const [dismissedLink, setDismissedLink] = useState<string>();
+  const open = manualOpen || (linked && dismissedLink !== search);
   const state = status.toLowerCase();
   if (!proof && state !== "completed" &&
       !(["scheduled", "ongoing"].includes(state) && scheduledStart && Date.parse(scheduledStart) <= Date.now())) return null;
@@ -61,10 +66,12 @@ export function ConsultationRecordButton({ id, status, scheduledStart, proof }: 
     {proof && <span className="text-xs text-[var(--color-text-secondary)]">
       {statusLabels[proof.status]}{proof.status === "confirmed" ? ` · ${proof.durationMinutes} min` : ""}
     </span>}
-    <Button type="button" size="sm" variant="secondary" onClick={() => setOpen(true)}>
-      Consultation record
+    <Button type="button" size="sm" variant="secondary" onClick={() => setManualOpen(true)}>
+      {proof && "needsAction" in proof && proof.needsAction
+        ? proof.status === "correction_requested" ? "Revise consultation record" : "Review consultation record"
+        : "Consultation record"}
     </Button>
-    {open && <RecordDialog id={id} onClose={() => setOpen(false)} />}
+    {open && <RecordDialog id={id} onClose={() => { setManualOpen(false); setDismissedLink(search); }} />}
   </>;
 }
 
