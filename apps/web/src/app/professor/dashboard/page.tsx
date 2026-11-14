@@ -56,6 +56,14 @@ import {
 import { ResearchProjectsOnboarding } from "@/components/workflow/ResearchProjectsOnboarding";
 
 const EMPTY_MILESTONE_PROGRESS_BY_PROJECT: Record<string, any[]> = {};
+const milestoneTypes = [
+  { kind: "title", icon: "ti-writing", label: "Title Proposal", description: "Approve one title to register the research project" },
+  { kind: "submission", icon: "ti-file-upload", label: "Submission milestone", description: "Collect a document or deliverable" },
+  { kind: "approval", icon: "ti-circle-check", label: "Approval checkpoint", description: "Review before researchers continue" },
+  { kind: "event", icon: "ti-presentation", label: "Academic event", description: "Presentation, defense, or consultation" },
+  { kind: "adviser", icon: "ti-user-check", label: "Adviser Milestone", description: "Complete when an adviser accepts" },
+] as const;
+type MilestoneKind = (typeof milestoneTypes)[number]["kind"];
 
 function ProfessorDashboardContent() {
   // Kept temporarily while the new composer and workflow workspace replace the
@@ -497,7 +505,7 @@ function ProfessorDashboardContent() {
   const [reviewSaving, setReviewSaving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [creatingMilestone, setCreatingMilestone] = useState(false);
-  const [showWorkflowCreateMenu, setShowWorkflowCreateMenu] = useState(false);
+  const [milestonePicker, setMilestonePicker] = useState<{ workflowId: string; topicId: string } | null>(null);
   const [publishingWorkflow, setPublishingWorkflow] = useState(false);
   const [showPublishConfirmation, setShowPublishConfirmation] = useState(false);
   const [showStudentPreview, setShowStudentPreview] = useState(false);
@@ -661,22 +669,12 @@ function ProfessorDashboardContent() {
   };
 
   const openNewMilestone = (
-    kind: "submission" | "approval" | "event" | "adviser" | "title" = "submission",
-    preferredTopicId?: string,
+    kind: MilestoneKind,
+    topicId: string,
   ) => {
-    if (!selectedWorkflowTopics.length) {
-      setShowWorkflowCreateMenu(false);
-      setEditingTopic(null);
-      setTopicTitle("");
-      setTopicDescription("");
-      setTopicDialogOpen(true);
-      triggerToast("Create a topic before adding its first milestone.");
-      return;
-    }
     const titleProposal = kind === "title";
     setNewTitleProposalCount(3);
     const adviserMilestone = kind === "adviser";
-    const topicId = preferredTopicId || selectedWorkflowTopics[0].id;
     setNewMilestoneTitle(titleProposal ? "Title Proposal" : adviserMilestone ? "Secure faculty adviser" : "");
     setNewMilestoneDescription(
       adviserMilestone
@@ -696,7 +694,7 @@ function ProfessorDashboardContent() {
     setNewMilestoneRequired("");
     setNewMilestoneAttachments([]);
     setShowAdvancedMilestoneOptions(false);
-    setShowWorkflowCreateMenu(false);
+    setMilestonePicker(null);
     setCreatingMilestone(true);
   };
 
@@ -793,7 +791,7 @@ function ProfessorDashboardContent() {
     setEditingTopic(topic || null);
     setTopicTitle(topic?.title || "");
     setTopicDescription(topic?.description || "");
-    setShowWorkflowCreateMenu(false);
+    setMilestonePicker(null);
     setTopicDialogOpen(true);
   };
 
@@ -1371,6 +1369,13 @@ function ProfessorDashboardContent() {
   const hasAdviserMilestone = selectedWorkflowMilestones.some(
     (item) => item.milestoneType === "ADVISER_SELECTION",
   );
+  const hasTitleProposal = selectedWorkflowMilestones.some(
+    (item) => item.milestoneType === "TITLE_PROPOSAL",
+  );
+  const milestonePickerTopic = activeTab === "builder" && workflowView === "milestones" &&
+    milestonePicker?.workflowId === selectedWorkflowId
+    ? selectedWorkflowTopics.find((topic: { id: string; title: string }) => topic.id === milestonePicker.topicId)
+    : undefined;
   const ungroupedWorkflowMilestones = selectedWorkflowMilestones.filter(
     (item) => !item.topicId,
   );
@@ -3126,6 +3131,31 @@ function ProfessorDashboardContent() {
         </div>
       )}
 
+      {milestonePickerTopic && (
+        <Modal isOpen title="Choose a milestone type" subtitle={milestonePickerTopic.title}
+          onClose={() => setMilestonePicker(null)}>
+          <div className="grid gap-2">
+            {milestoneTypes.map(({ kind, icon, label, description }) => {
+              const alreadyAdded = (kind === "title" && hasTitleProposal) ||
+                (kind === "adviser" && hasAdviserMilestone);
+              return (
+                <button key={kind} type="button" disabled={alreadyAdded}
+                  onClick={() => openNewMilestone(kind, milestonePickerTopic.id)}
+                  className="flex w-full items-start gap-3 rounded-xl border border-[var(--color-border)] px-4 py-3 text-left hover:bg-[var(--color-surface-subtle)] focus-visible:outline-2 focus-visible:outline-[var(--college-focus-ring)] disabled:cursor-not-allowed disabled:opacity-50">
+                  <i className={`ti ${icon} mt-0.5 text-lg`} aria-hidden="true" />
+                  <span>
+                    <strong className="block text-sm">{label}</strong>
+                    <span className="block text-sm text-[var(--color-text-secondary)]">
+                      {alreadyAdded ? "Already added to this workflow" : description}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </Modal>
+      )}
+
       {creatingMilestone && (
         <MilestoneComposer
           mode="create"
@@ -4176,7 +4206,7 @@ function ProfessorDashboardContent() {
                     <p>
                       Approve each group’s next eligibility milestone. A passed
                       defense uses that milestone’s approval for one cycle.
-                      Configure it in Workflow → Academic event → Advanced settings.
+                      Configure it in Workflow → + Milestone → Academic event → Advanced settings.
                     </p>
                   </details>
                   <div className="mt-4 space-y-3">
@@ -4957,7 +4987,9 @@ function ProfessorDashboardContent() {
                           type="button"
                           onClick={() => {
                             setWorkflowView("milestones");
-                            openNewMilestone("submission");
+                            const firstTopic = selectedWorkflowTopics[0];
+                            if (firstTopic) setMilestonePicker({ workflowId: selectedWorkflowId, topicId: firstTopic.id });
+                            else openTopicEditor();
                           }}
                           disabled={!selectedWorkflowId}
                           className="rounded-[10px] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
@@ -5103,133 +5135,15 @@ function ProfessorDashboardContent() {
                                 }{" "}
                                 milestones
                               </span>
-                              <div className="relative">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setShowWorkflowCreateMenu((value) => !value)
-                                  }
-                                  disabled={!selectedWorkflowId}
-                                  data-guide="co-workflow-create"
-                                  aria-haspopup="menu"
-                                  aria-expanded={showWorkflowCreateMenu}
-                                  className="rounded-[10px] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--college-on-primary)] shadow-sm disabled:cursor-not-allowed disabled:opacity-40 dark:text-[var(--college-on-primary-dark)]"
-                                >
-                                  <i className="ti ti-plus mr-1.5" />
-                                  Create{" "}
-                                  <i className="ti ti-chevron-down ml-1" />
-                                </button>
-                                {showWorkflowCreateMenu && (
-                                  <div
-                                    role="menu"
-                                    className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface)] py-2 shadow-xl"
-                                  >
-                                    <button
-                                      type="button"
-                                      role="menuitem"
-                                      onClick={() => openTopicEditor()}
-                                      className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-[var(--color-surface-subtle)]"
-                                    >
-                                      <i className="ti ti-folders mt-0.5 text-lg text-[#C58A18]" />
-                                      <span>
-                                        <strong className="block text-sm text-[var(--color-text-primary)]">
-                                          Topic
-                                        </strong>
-                                        <span className="mt-0.5 block text-sm text-[var(--color-text-secondary)]">
-                                          Group milestones by defense or phase
-                                        </span>
-                                      </span>
-                                    </button>
-                                    <div className="my-1 border-t border-[var(--color-border)]" />
-                                    {[
-                                      ["title", "ti-writing", "Title Proposal", "Approve one title to register the research project"],
-                                      [
-                                        "submission",
-                                        "ti-file-upload",
-                                        "Submission milestone",
-                                        "Collect a document or deliverable",
-                                      ],
-                                      [
-                                        "approval",
-                                        "ti-circle-check",
-                                        "Approval checkpoint",
-                                        "Review before researchers continue",
-                                      ],
-                                      [
-                                        "event",
-                                        "ti-presentation",
-                                        "Academic event",
-                                        "Presentation, defense, or consultation",
-                                      ],
-                                      [
-                                        "adviser",
-                                        "ti-user-check",
-                                        "Adviser Milestone",
-                                        hasAdviserMilestone
-                                          ? "Already added to this workflow"
-                                          : "Complete when an adviser accepts",
-                                      ],
-                                    ].map(
-                                      ([kind, icon, label, description]) => (
-                                        <button
-                                          key={kind}
-                                          type="button"
-                                          role="menuitem"
-                                          disabled={(kind === "adviser" && hasAdviserMilestone) || (kind === "title" && selectedWorkflowMilestones.some(item => item.milestoneType === "TITLE_PROPOSAL"))}
-                                          onClick={() => {
-                                            if (
-                                              kind === "adviser" &&
-                                              hasAdviserMilestone
-                                            )
-                                              return;
-                                            openNewMilestone(
-                                              kind as
-                                                | "submission"
-                                                | "approval"
-                                                | "event"
-                                                | "adviser"
-                                                | "title",
-                                            );
-                                          }}
-                                          className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-[var(--color-surface-subtle)] disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                          <i
-                                            className={`ti ${icon} mt-0.5 text-lg text-[var(--color-text-primary)]`}
-                                          />
-                                          <span>
-                                            <strong className="block text-sm text-[var(--color-text-primary)]">
-                                              {label}
-                                            </strong>
-                                            <span className="mt-0.5 block text-sm text-[var(--color-text-secondary)]">
-                                              {description}
-                                            </span>
-                                          </span>
-                                        </button>
-                                      ),
-                                    )}
-                                    <div className="my-1 border-t border-[var(--color-border)]" />
-                                    <button
-                                      type="button"
-                                      role="menuitem"
-                                      onClick={() => {
-                                        setShowWorkflowCreateMenu(false);
-                                        setWorkflowView("resources");
-                                      }}
-                                      className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-[var(--color-surface-subtle)]"
-                                    >
-                                      <i className="ti ti-books mt-0.5 text-lg text-[var(--color-text-primary)]" />
-                                      <span>
-                                        <strong className="block text-sm text-[var(--color-text-primary)]">
-                                          Guide or template
-                                        </strong>
-                                        <span className="mt-0.5 block text-sm text-[var(--color-text-secondary)]">
-                                          Share a reusable workflow resource
-                                        </span>
-                                      </span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                              <button
+                                type="button"
+                                onClick={() => openTopicEditor()}
+                                disabled={!selectedWorkflowId}
+                                className="rounded-[10px] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--college-on-primary)] shadow-sm disabled:cursor-not-allowed disabled:opacity-40 dark:text-[var(--college-on-primary-dark)]"
+                              >
+                                <i className="ti ti-plus mr-1.5" aria-hidden="true" />
+                                Topic
+                              </button>
                             </div>
                           </div>
                           <div className="workflow-topic-list mt-5 flex flex-col gap-5">
@@ -5344,15 +5258,12 @@ function ProfessorDashboardContent() {
                                           onEdit={() => openTopicEditor(topic)} onDelete={() => handleDeleteTopic(topic)} />
                                         <button
                                           type="button"
-                                          onClick={() =>
-                                            openNewMilestone(
-                                              "submission",
-                                              topic.id,
-                                            )
-                                          }
+                                          onClick={() => setMilestonePicker({ workflowId: selectedWorkflowId, topicId: topic.id })}
+                                          data-guide="co-workflow-create"
+                                          aria-haspopup="dialog"
                                           className="ml-1 rounded-[10px] bg-[var(--color-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-text-primary)] shadow-sm ring-1 ring-slate-200 hover:ring-[#173f63]"
                                         >
-                                          <i className="ti ti-plus mr-1" />
+                                          <i className="ti ti-plus mr-1" aria-hidden="true" />
                                           Milestone
                                         </button>
                                       </div>
@@ -5369,15 +5280,11 @@ function ProfessorDashboardContent() {
                                       ) : (
                                         <button
                                           type="button"
-                                          onClick={() =>
-                                            openNewMilestone(
-                                              "submission",
-                                              topic.id,
-                                            )
-                                          }
+                                          onClick={() => setMilestonePicker({ workflowId: selectedWorkflowId, topicId: topic.id })}
+                                          aria-haspopup="dialog"
                                           className="w-full rounded-[10px] border border-dashed border-[var(--color-border)] px-4 py-6 text-center text-sm font-bold text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:bg-amber-50/40 hover:text-[var(--color-text-primary)]"
                                         >
-                                          <i className="ti ti-plus mr-1.5" />
+                                          <i className="ti ti-plus mr-1.5" aria-hidden="true" />
                                           Add the first milestone to{" "}
                                           {topic.title}
                                         </button>
