@@ -2902,7 +2902,7 @@ function ProfessorDashboardContent() {
                   Create your workflow
                 </h2>
                 <p className="mt-1 text-base text-slate-500">
-                  Start with an empty draft for your assigned department.
+                  Start with an empty draft for your assigned program.
                 </p>
               </div>
               <button
@@ -2919,7 +2919,7 @@ function ProfessorDashboardContent() {
             <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-sm text-blue-900">
               <strong>{user?.college?.name || "College not assigned"}</strong>
               <span className="mx-1.5 text-blue-300">·</span>
-              <span>{user?.program?.name || "Department not assigned"}</span>
+              <span>{user?.program?.name || "Program not assigned"}</span>
             </div>
 
             <div className="mt-5 space-y-4">
@@ -2993,8 +2993,8 @@ function ProfessorDashboardContent() {
 
             {!user?.program?.id && (
               <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-base text-amber-800">
-                Your account must be assigned to a department or program before
-                creating a workflow.
+                Ask a System Administrator to assign your academic program in
+                User Management before creating a workflow.
               </p>
             )}
             {user?.program?.id && availableResearchTypes.length === 0 && (

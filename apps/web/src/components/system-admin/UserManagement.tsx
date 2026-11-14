@@ -32,7 +32,7 @@ type User = {
   lastName: string;
   status: "ACTIVE" | "PENDING" | "SUSPENDED" | "INACTIVE";
   college?: { id: string; code: string; name: string } | null;
-  program?: { code: string; name: string } | null;
+  program?: { id: string; code: string; name: string } | null;
   roles: { role: Role }[];
   collegeMemberships?: { collegeId: string; roleNames: RoleName[]; college: { id: string; name: string; code: string } }[];
   createdAt: string;
@@ -134,7 +134,7 @@ function UserActionsMenu({
         <div className="sa-menu" ref={menu} style={place}>
           <button type="button" onClick={choose(onDetails)}><i className="ti ti-id" aria-hidden="true" />View details</button>
           <button type="button" onClick={choose(onRoles)}><i className="ti ti-shield-check" aria-hidden="true" />Manage roles</button>
-          <button type="button" onClick={choose(onCollege)}><i className="ti ti-building" aria-hidden="true" />Assign college</button>
+          <button type="button" onClick={choose(onCollege)}><i className="ti ti-building" aria-hidden="true" />Assign college and program</button>
           {canSuspend && (
             <button type="button" data-tone="danger" disabled={blocked} title={isSelf ? "You cannot suspend your own account" : "Block sign-in while preserving records"} onClick={choose(onSuspend)}><i className="ti ti-ban" aria-hidden="true" />Suspend</button>
           )}
@@ -174,6 +174,7 @@ export function UserManagement({
   const [detailsUserId, setDetailsUserId] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<RoleName[]>([]);
   const [selectedCollegeId, setSelectedCollegeId] = useState("");
+  const [selectedProgramId, setSelectedProgramId] = useState("");
   const [verificationConfirmed, setVerificationConfirmed] = useState(false);
   const [verificationNote, setVerificationNote] = useState("");
   const [collegeReason, setCollegeReason] = useState("");
@@ -198,10 +199,15 @@ export function UserManagement({
   const collegesQuery = useQuery({
     queryKey: ["institutional-units"],
     queryFn: () =>
-      apiClient.get<{ colleges: { id: string; code: string; name: string; isActive?: boolean }[] }>(
+      apiClient.get<{ colleges: { id: string; code: string; name: string; isActive?: boolean; programs: { id: string; name: string }[] }[] }>(
         "/api/colleges",
       ),
   });
+  const assignmentCollege = collegesQuery.data?.colleges.find((college) => college.id === selectedCollegeId);
+  const assignmentPrograms = assignmentCollege?.programs || [];
+  const assignmentReady = !collegesQuery.isLoading && !collegesQuery.isError &&
+    (!selectedCollegeId || Boolean(assignmentCollege)) &&
+    (!selectedProgramId || assignmentPrograms.some((program) => program.id === selectedProgramId));
 
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -242,10 +248,11 @@ export function UserManagement({
 
   const openDialog = (type: NonNullable<Dialog>["type"], user: User) => {
     setDialog({ type, user });
-    const collegeId = user.college?.id || user.collegeMemberships?.[0]?.collegeId || "";
+    const collegeId = user.college?.id || (type === "roles" ? user.collegeMemberships?.[0]?.collegeId : "") || "";
     const collegeRoles = user.collegeMemberships?.find((membership) => membership.collegeId === collegeId)?.roleNames || [];
     setSelectedRoles([...collegeRoles, ...user.roles.map(({ role }) => role.name).filter((role) => ["RESEARCHER", "SYSTEM_ADMIN"].includes(role))]);
     setSelectedCollegeId(collegeId);
+    setSelectedProgramId(user.college?.id && user.program ? user.program.id : "");
     setVerificationConfirmed(false);
     setVerificationNote("");
     setCollegeReason("");
@@ -316,18 +323,24 @@ export function UserManagement({
   };
 
   const handleCollege = async () => {
-    if (!dialog) return;
+    if (!dialog || working || collegeReason.trim().length < 10) return;
     setWorking(true);
+    setFeedback(null);
     try {
-      await apiClient.patch(`/api/users/${dialog.user.id}/college`, {
+      const { user: updated } = await apiClient.patch<{ user: Pick<User, "college" | "program"> }>(`/api/users/${dialog.user.id}/college`, {
         collegeId: selectedCollegeId || null,
+        programId: selectedProgramId || null,
         reason: collegeReason,
       });
       await refresh();
+      if ((updated.college?.id || "") !== selectedCollegeId || (updated.program?.id || "") !== selectedProgramId) {
+        setFeedback({ tone: "error", message: "The server did not confirm the selected assignment. Refresh the page and try again." });
+        return;
+      }
       setDialog(null);
       setFeedback({
         tone: "success",
-        message: `College assignment was updated for ${dialog.user.universityId}.`,
+        message: `Academic assignment saved for ${dialog.user.universityId}. ${updated.college?.name || "No college assigned"} · ${updated.program?.name || "No program assigned"}.`,
       });
     } catch (error) {
       setFeedback({
@@ -335,7 +348,7 @@ export function UserManagement({
         message:
           error instanceof ApiError
             ? error.message
-            : "College assignment update failed.",
+            : "Academic assignment update failed.",
       });
     } finally {
       setWorking(false);
@@ -464,7 +477,7 @@ export function UserManagement({
         />
       )}
       {archivedView && <p className="rs-note">Archived accounts cannot sign in. Their records and files are preserved. Verify identity before restoring access.</p>}
-      <ActionFeedback feedback={feedback} />
+      {dialog?.type !== "college" && <ActionFeedback feedback={feedback} />}
       {invitationView ? (
         <div className="rs-table"><AccountInvitations /></div>
       ) : usersQuery.isLoading ? (
@@ -559,7 +572,7 @@ export function UserManagement({
                     : dialog.type === "roles"
                       ? "Manage verified roles"
                       : dialog.type === "college"
-                        ? "Assign college or school"
+                        ? "Assign college and program"
                         : dialog.type === "suspend"
                           ? "Suspend user account"
                           : dialog.type === "reject"
@@ -620,9 +633,8 @@ export function UserManagement({
             {dialog.type === "college" && (
               <div className="mt-5 space-y-4">
                 <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
-                  College assignment controls which users, projects, and
-                  defenses this account can access. Active cross-college
-                  research assignments must be resolved before transfer.
+                  Set the account’s home college and academic program. A Professor
+                  Coordinator needs a program to create workflows in that college.
                 </div>
                 <div>
                   <label
@@ -634,12 +646,18 @@ export function UserManagement({
                   <select
                     id="assigned-college"
                     value={selectedCollegeId}
-                    onChange={(event) =>
-                      setSelectedCollegeId(event.target.value)
-                    }
+                    onChange={(event) => {
+                      const collegeId = event.target.value;
+                      setSelectedCollegeId(collegeId);
+                      setSelectedProgramId(collegeId === dialog.user.college?.id ? dialog.user.program?.id || "" : "");
+                    }}
+                    disabled={working || collegesQuery.isLoading || collegesQuery.isError}
                     className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] px-3 py-2.5 text-base text-slate-900 dark:text-white"
                   >
                     <option value="">No college or school assigned</option>
+                    {dialog.user.college && !collegesQuery.data?.colleges.some((college) => college.id === dialog.user.college?.id) && (
+                      <option value={dialog.user.college.id} disabled>{dialog.user.college.name} (current)</option>
+                    )}
                     {collegesQuery.data?.colleges.map((college) => (
                       <option key={college.id} value={college.id}>
                         {college.name}
@@ -647,6 +665,29 @@ export function UserManagement({
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label htmlFor="assigned-program" className="mb-1.5 block text-sm font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Academic program
+                  </label>
+                  <select
+                    id="assigned-program"
+                    value={selectedProgramId}
+                    onChange={(event) => setSelectedProgramId(event.target.value)}
+                    disabled={working || !assignmentCollege}
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] px-3 py-2.5 text-base text-slate-900 dark:text-white disabled:opacity-60"
+                  >
+                    <option value="">{selectedCollegeId ? "No program assigned" : "Select a college first"}</option>
+                    {selectedProgramId && selectedProgramId === dialog.user.program?.id && !assignmentPrograms.some((program) => program.id === selectedProgramId) && (
+                      <option value={selectedProgramId} disabled>{dialog.user.program.name} (current)</option>
+                    )}
+                    {assignmentPrograms.map((program) => (
+                      <option key={program.id} value={program.id}>{program.name}</option>
+                    ))}
+                  </select>
+                </div>
+                {collegesQuery.isError && (
+                  <ActionFeedback feedback={{ tone: "error", message: "Could not load colleges and programs. Close this dialog and refresh the page to try again." }} />
+                )}
                 <div>
                   <label
                     htmlFor="college-reason"
@@ -659,7 +700,7 @@ export function UserManagement({
                     value={collegeReason}
                     onChange={(event) => setCollegeReason(event.target.value)}
                     rows={3}
-                    placeholder="Explain why this account belongs to the selected college or school."
+                    placeholder="Explain the reason for this academic assignment."
                     className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] px-3 py-2 text-base"
                   />
                 </div>
@@ -757,7 +798,7 @@ export function UserManagement({
               {dialog.type === "college" && (
                 <Button
                   onClick={() => void handleCollege()}
-                  disabled={collegeReason.trim().length < 10}
+                  disabled={collegeReason.trim().length < 10 || !assignmentReady}
                   isLoading={working}
                   loadingText="Saving assignment..."
                 >

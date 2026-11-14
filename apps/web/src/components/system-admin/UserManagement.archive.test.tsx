@@ -22,6 +22,8 @@ vi.mock("@tanstack/react-query", () => ({
                 lastName: "User",
                 status: "ACTIVE",
                 roles: [],
+                college: { id: "cit", name: "College of Information Technology", code: "CIT" },
+                program: { id: "bsit", name: "BS Information Technology", code: "BSIT" },
               },
               {
                 id: "suspended",
@@ -52,13 +54,27 @@ vi.mock("@tanstack/react-query", () => ({
               },
             ],
           }
-        : { roles: [], colleges: [] },
+        : {
+            roles: [],
+            colleges: [
+              { id: "cit", name: "College of Information Technology", programs: [{ id: "bsit", name: "BS Information Technology" }] },
+              { id: "cas", name: "College of Arts and Sciences", programs: [{ id: "bsbio", name: "BS Biology" }] },
+            ],
+          },
     isLoading: false,
     isError: false,
   }),
 }));
 vi.mock("@/lib/api-client", () => ({
-  apiClient: { post: vi.fn().mockResolvedValue({}) },
+  apiClient: {
+    post: vi.fn().mockResolvedValue({}),
+    patch: vi.fn().mockResolvedValue({
+      user: {
+        college: { id: "cas", name: "College of Arts and Sciences" },
+        program: { id: "bsbio", name: "BS Biology" },
+      },
+    }),
+  },
   ApiError: Error,
 }));
 import { apiClient } from "@/lib/api-client";
@@ -118,6 +134,29 @@ describe("archived user views", () => {
       expect(confirmation.disabled).toBe(false);
       await act(async () => confirmation.click());
       expect(apiClient.post).toHaveBeenCalledWith("/api/users/pending/archive", { reason, pendingOnly: true });
+
+      await act(async () => dots.click());
+      await act(async () => button("Assign college and program").click());
+      const college = container.querySelector<HTMLSelectElement>("#assigned-college")!;
+      const program = container.querySelector<HTMLSelectElement>("#assigned-program")!;
+      expect(college.value).toBe("cit");
+      expect(program.value).toBe("bsit");
+      await act(async () => {
+        college.value = "cas";
+        college.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      expect(program.value).toBe("");
+      expect([...program.options].map((option) => option.value)).toEqual(["", "bsbio"]);
+      await act(async () => {
+        program.value = "bsbio";
+        program.dispatchEvent(new Event("change", { bubbles: true }));
+        const note = container.querySelector<HTMLTextAreaElement>("#college-reason")!;
+        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(note, reason);
+        note.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await act(async () => button("Save assignment", container).click());
+      expect(apiClient.patch).toHaveBeenCalledWith("/api/users/current/college", { collegeId: "cas", programId: "bsbio", reason });
+      expect(container.textContent).toContain("College of Arts and Sciences · BS Biology");
     } finally {
       await act(async () => root.unmount());
       container.remove();

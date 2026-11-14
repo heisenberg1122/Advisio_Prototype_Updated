@@ -16,6 +16,10 @@ const state = vi.hoisted(() => ({
   deletion: vi.fn(),
   findUnique: vi.fn(),
   recovery: vi.fn(),
+  college: vi.fn(),
+  program: vi.fn(),
+  update: vi.fn(),
+  audit: vi.fn(),
 }));
 vi.mock("../middleware/auth", () => ({
   requireAuth: (req: any, _res: any, next: any) => {
@@ -28,7 +32,15 @@ vi.mock("../middleware/auth", () => ({
   },
 }));
 vi.mock("../lib/prisma.js", () => ({
-  prisma: { user: { findUnique: state.findUnique } },
+  prisma: {
+    user: { findUnique: state.findUnique },
+    college: { findFirst: state.college },
+    program: { findFirst: state.program },
+    $transaction: (callback: (tx: unknown) => unknown) => callback({
+      user: { update: state.update },
+      auditLog: { create: state.audit },
+    }),
+  },
   InstitutionalRole: {},
   AuditAction: {},
 }));
@@ -109,5 +121,67 @@ describe("archive API and legacy deletion protection", () => {
       403,
     );
     expect(state.statusChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("academic assignment", () => {
+  const assignment = { collegeId: "cit", reason: "Verified faculty program assignment." };
+  const save = (program: Record<string, unknown> = {}) =>
+    fetch(`${base}/college`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...assignment, ...program }),
+    });
+
+  beforeEach(() => {
+    state.college.mockResolvedValue({ id: "cit" });
+    state.program.mockResolvedValue({ id: "bsit" });
+    state.findUnique.mockResolvedValue({ id: "user-1", collegeId: "cit", programId: "bscs", memberships: [] });
+    state.update.mockResolvedValue({ id: "user-1", program: { id: "bsit", name: "BS Information Technology" } });
+  });
+
+  it("validates and saves a program in the selected college and audits the change", async () => {
+    const response = await save({ programId: "bsit" });
+    expect(response.status).toBe(200);
+    expect((await response.json()).user.program.id).toBe("bsit");
+    expect(state.program).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "bsit", collegeId: "cit", isActive: true },
+    }));
+    expect(state.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: { collegeId: "cit", programId: "bsit" },
+    }));
+    expect(state.audit).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        oldValues: { collegeId: "cit", programId: "bscs" },
+        newValues: { ...assignment, programId: "bsit" },
+      }),
+    }));
+  });
+
+  it("preserves the current program for older college-only requests", async () => {
+    expect((await save()).status).toBe(200);
+    expect(state.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: { collegeId: "cit", programId: "bscs" },
+    }));
+  });
+
+  it("rejects an ineligible program and restricts assignment to institution-wide administrators", async () => {
+    state.program.mockResolvedValue(null);
+    expect((await save({ programId: "elsewhere" })).status).toBe(400);
+    state.roles = ["DEAN"];
+    expect((await save({ programId: "bsit" })).status).toBe(403);
+    expect(state.update).not.toHaveBeenCalled();
+  });
+
+  it("allows a program assignment within the home college while blocking a conflicting college transfer", async () => {
+    state.findUnique.mockResolvedValue({
+      id: "user-1",
+      collegeId: "cit",
+      programId: null,
+      memberships: [{ research: { collegeId: "cit", title: "Active project" } }],
+    });
+    expect((await save({ collegeId: "cas", programId: "bsbio" })).status).toBe(409);
+    expect(state.update).not.toHaveBeenCalled();
+    expect((await save({ programId: "bsit" })).status).toBe(200);
   });
 });

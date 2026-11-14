@@ -400,7 +400,7 @@ router.put(
   }
 );
 
-// PATCH /api/users/:id/college — institution-wide administrators only.
+// PATCH /api/users/:id/college — update the home college and academic program.
 router.patch(
   "/:id/college",
   requireAuth,
@@ -408,12 +408,13 @@ router.patch(
   async (req: Request, res: Response) => {
     try {
       if (!req.user || getCollegeScope(req.user).kind !== "institution") {
-        res.status(403).json({ error: "Institution-wide administrator access is required to transfer a user between colleges." });
+        res.status(403).json({ error: "Institution-wide administrator access is required to change academic assignments." });
         return;
       }
 
       const id = req.params.id as string;
       const collegeId = req.body.collegeId ? String(req.body.collegeId) : null;
+      const { programId } = req.body;
       const reason = String(req.body.reason || "").trim();
       if (reason.length < 10) {
         res.status(400).json({ error: "Provide a transfer reason of at least 10 characters." });
@@ -426,6 +427,18 @@ router.patch(
           return;
         }
       }
+      if (programId !== undefined && programId !== null && (typeof programId !== "string" || !programId || !collegeId)) {
+        return void res.status(400).json({ error: "Select an active program in the assigned college or school." });
+      }
+      if (programId && collegeId) {
+        const program = await prisma.program.findFirst({
+          where: { id: programId, collegeId, isActive: true },
+          select: { id: true },
+        });
+        if (!program) {
+          return void res.status(400).json({ error: "Select an active program in the assigned college or school." });
+        }
+      }
 
       const target = await prisma.user.findUnique({
         where: { id },
@@ -433,6 +446,7 @@ router.patch(
           id: true,
           universityId: true,
           collegeId: true,
+          programId: true,
           memberships: { where: { leftAt: null }, select: { research: { select: { collegeId: true, title: true } } } },
         },
       });
@@ -441,7 +455,9 @@ router.patch(
         return;
       }
 
-      const conflictingProjects = target.memberships.filter((membership) => membership.research.collegeId !== collegeId);
+      const conflictingProjects = target.collegeId === collegeId
+        ? []
+        : target.memberships.filter((membership) => membership.research.collegeId !== collegeId);
       if (conflictingProjects.length) {
         res.status(409).json({
           error: "This user still has active research assignments in another college. Resolve those assignments before transferring the account.",
@@ -451,10 +467,18 @@ router.patch(
       }
 
       const updated = await prisma.$transaction(async (tx) => {
+        const nextProgramId = programId === undefined
+          ? target.collegeId === collegeId ? target.programId : null
+          : programId;
         const user = await tx.user.update({
           where: { id },
-          data: { collegeId, ...(target.collegeId !== collegeId ? { programId: null } : {}) },
-          select: { id: true, universityId: true, college: { select: { id: true, code: true, name: true } } },
+          data: { collegeId, programId: nextProgramId },
+          select: {
+            id: true,
+            universityId: true,
+            college: { select: { id: true, code: true, name: true } },
+            program: { select: { id: true, code: true, name: true } },
+          },
         });
         await tx.auditLog.create({
           data: {
@@ -462,8 +486,8 @@ router.patch(
             action: AuditAction.UPDATE,
             entityType: "USER_COLLEGE_ASSIGNMENT",
             entityId: id,
-            oldValues: { collegeId: target.collegeId },
-            newValues: { collegeId, reason },
+            oldValues: { collegeId: target.collegeId, programId: target.programId },
+            newValues: { collegeId, programId: nextProgramId, reason },
             ipAddress: req.ip,
             userAgent: req.get("user-agent") || null,
           },
@@ -471,9 +495,9 @@ router.patch(
         return user;
       });
 
-      res.json({ message: "College or school assignment updated successfully", user: updated });
+      res.json({ message: "Academic assignment saved.", user: updated });
     } catch (error: any) {
-      res.status(500).json({ error: error.message || "Failed to update college assignment" });
+      res.status(500).json({ error: error.message || "Failed to update academic assignment" });
     }
   },
 );
