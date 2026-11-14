@@ -129,16 +129,16 @@ router.get("/workspace/:workspace", requireAuth, asyncHandler(async (req, res) =
       meetingKind: true, meetingUrl: !history, conferenceState: true, revision: true, researchId: true,
       approverId: true, createdBy: true, pendingCalendarUpdate: true, meetCoHostName: !history,
       record: { select: consultationProofSelect },
-      participants: {
+      participants: !history && {
         select: { userId: true, attendanceStatus: true, user: { select: { firstName: true, lastName: true } } },
       },
       research: { select: {
         title: true,
         groupName: true,
-        collegeId: true,
+        collegeId: !history,
         members: {
           where: consultationInclude.research.select.members.where,
-          select: consultationInclude.research.select.members.select,
+          select: { userId: !history, user: consultationInclude.research.select.members.select.user },
         },
       } },
     },
@@ -147,7 +147,10 @@ router.get("/workspace/:workspace", requireAuth, asyncHandler(async (req, res) =
     take: pageSize + 1,
   });
   const candidates = history ? [] : await consultationCompletionCandidates(prisma,
-    rows.slice(0, pageSize).flatMap(({ participants }) => participants.map(({ userId }) => userId)));
+    rows.slice(0, pageSize).flatMap(({ participants }) =>
+      participants.some(({ userId }) => userId === user.id)
+        ? participants.map(({ userId }) => userId)
+        : []));
   res.json({
     consultations: rows.slice(0, pageSize).map(({ participants, ...row }) => {
       const { id, title, status, scheduledStart, scheduledEnd, research } = row;

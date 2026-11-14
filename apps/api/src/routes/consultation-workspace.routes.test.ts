@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthenticatedUser } from "../middleware/auth.js";
 
 const findConsultations = vi.hoisted(() => vi.fn());
+const findParticipants = vi.hoisted(() => vi.fn());
 vi.mock("../lib/prisma.js", () => ({
-  prisma: { consultation: { findMany: findConsultations } },
+  prisma: { consultation: { findMany: findConsultations }, user: { findMany: findParticipants } },
 }));
 vi.mock("../middleware/auth.js", () => ({ requireAuth: vi.fn() }));
 
@@ -17,7 +18,7 @@ async function list(workspace: string, roles: AuthenticatedUser["roles"], colleg
   let done!: () => void;
   const completed = new Promise<void>((resolve) => { done = resolve; });
   const response = {
-    json: vi.fn(() => done()),
+    json: vi.fn((_body: { consultations: unknown[] }) => done()),
     setHeader: vi.fn(),
     status: vi.fn().mockReturnThis(),
   };
@@ -34,27 +35,39 @@ async function list(workspace: string, roles: AuthenticatedUser["roles"], colleg
 describe("faculty consultation workspaces", () => {
   beforeEach(() => {
     findConsultations.mockReset().mockResolvedValue([]);
+    findParticipants.mockReset().mockResolvedValue([]);
   });
 
   it("allows college oversight but only exposes a join link to an invited dean", async () => {
     const meetingUrl = "https://meet.google.com/abc-defg-hij";
-    const event = { id: "consultation", title: "College consultation", status: "SCHEDULED", meetingUrl, research: { title: "Project" } };
-    findConsultations.mockResolvedValue([{ ...event, participants: [] }, { ...event, id: "invited", participants: [{ userId: "faculty-a", attendanceStatus: "INVITED" }] }]);
+    const event = { id: "consultation", title: "College consultation", status: "SCHEDULED", meetingUrl, research: { title: "Project", collegeId: "college-a", members: [] } };
+    findConsultations.mockResolvedValue([
+      { ...event, participants: [{ userId: "private-guest" }] },
+      { ...event, id: "invited", participants: [{ userId: "faculty-a", attendanceStatus: "INVITED" }] },
+    ]);
+    findParticipants.mockResolvedValue([{ id: "faculty-a", roles: [], collegeMemberships: [{ collegeId: "college-a", roleNames: ["DEAN"] }] }]);
     const { response, next } = await list("dean", ["DEAN"]);
     expect(next).not.toHaveBeenCalled();
     const [{ where, select }] = findConsultations.mock.calls[0];
     expect(where.research).toEqual({ collegeId: "college-a" });
-    expect(select.participants.where).toEqual({ userId: "faculty-a" });
+    expect(select.participants.select.userId).toBe(true);
+    expect(findParticipants).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: { in: ["faculty-a"] }, status: "ACTIVE" },
+    }));
     for (const field of ["notes", "description"]) {
       expect(select[field]).toBeUndefined();
     }
     expect(response.json).toHaveBeenCalledWith({
       consultations: [
         expect.not.objectContaining({ meetingUrl: expect.anything() }),
-        expect.objectContaining({ meetingUrl, attendanceStatus: "INVITED" }),
+        expect.objectContaining({ meetingUrl, attendanceStatus: "INVITED", canComplete: true }),
       ],
       hasNextPage: false,
     });
+    const oversight = response.json.mock.calls[0]?.[0].consultations[0];
+    expect(oversight).toBeDefined();
+    expect(oversight).not.toHaveProperty("participants");
+    expect(oversight).not.toHaveProperty("canComplete");
   });
 
   it("limits the Panelist view to direct invitations in the active college", async () => {
@@ -84,16 +97,19 @@ describe("faculty consultation workspaces", () => {
       skip: 25,
       select: expect.objectContaining({
         meetingUrl: false,
+        participants: false,
         research: { select: {
           title: true,
           groupName: true,
+          collegeId: false,
           members: {
             where: { projectRole: "ADVISER", leftAt: null },
-            select: { user: { select: { firstName: true, lastName: true } } },
+            select: { userId: false, user: { select: { firstName: true, lastName: true } } },
           },
         } },
       }),
     }));
+    expect(findParticipants).not.toHaveBeenCalled();
   });
 
   it("keeps past sessions without a recorded outcome separate from completed and cancelled sessions", async () => {

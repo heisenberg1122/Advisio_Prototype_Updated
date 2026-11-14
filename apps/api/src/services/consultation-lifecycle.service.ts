@@ -222,6 +222,7 @@ export async function consultationCompletionCandidates(
   db: Pick<Prisma.TransactionClient, "user">,
   participantIds: string[],
 ) {
+  if (!participantIds.length) return [];
   return db.user.findMany({
     where: { id: { in: [...new Set(participantIds)] }, status: "ACTIVE" },
     select: {
