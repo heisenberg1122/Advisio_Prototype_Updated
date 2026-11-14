@@ -4,6 +4,7 @@ import {
   TaskSubmissionStatus,
   prisma,
 } from "../lib/prisma.js";
+import { adviserEligibilitySelect, adviserIdentity, adviserIdentitySelect, hasEligibleAdviserAccount } from "../lib/adviser-eligibility.js";
 import { notificationDeliveries } from "./notification.service.js";
 import { emailNotification } from "./notification-email.service.js";
 
@@ -231,6 +232,7 @@ export async function getMilestoneProgress(
       defenseEligibilities: {
         select: { milestoneId: true, approvedAt: true, consumedAt: true },
       },
+      collegeId: true,
       programId: true,
       members: {
         where: { leftAt: null, projectRole: "ADVISER" },
@@ -239,15 +241,8 @@ export async function getMilestoneProgress(
           joinedAt: true,
           user: {
             select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              programId: true,
-              status: true,
-              roles: {
-                select: { role: { select: { name: true } } },
-              },
+              ...adviserIdentitySelect,
+              ...adviserEligibilitySelect,
             },
           },
         },
@@ -405,10 +400,7 @@ export async function getMilestoneProgress(
     const activeAdviser =
       stage.milestoneType === "ADVISER_SELECTION"
         ? project.members.find(
-            (member) =>
-              member.user.status === "ACTIVE" &&
-              member.user.programId === project.programId &&
-              member.user.roles.some(({ role }) => role.name === "ADVISER"),
+            (member) => hasEligibleAdviserAccount(member.user, project),
           ) || null
         : null;
     const stageRequests =
@@ -492,7 +484,7 @@ export async function getMilestoneProgress(
         stage.milestoneType === "ADVISER_SELECTION"
           ? {
               status: adviserMilestoneStatus,
-              adviser: activeAdviser?.user || adviserRequest?.adviser || null,
+              adviser: activeAdviser ? adviserIdentity(activeAdviser.user) : adviserRequest?.adviser || null,
               requestId: adviserRequest?.id || null,
               requestStatus: adviserRequest?.status || null,
               requestedAt: adviserRequest?.createdAt || null,
@@ -675,14 +667,17 @@ export async function reconcileMilestoneProgress(
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${options.researchId}))`;
   const project = await tx.researchProject.findUnique({
     where: { id: options.researchId },
-    select: { status: true },
+    select: { status: true, workflowInstance: { select: { completedAt: true } } },
   });
   if (!project || project.status === "ARCHIVED") return;
   const progress = await getMilestoneProgress(tx, options.researchId);
   const current = progress.find((stage) => stage.isCurrent);
+  const unfinishedAdviserGate =
+    current?.milestoneType === "ADVISER_SELECTION" &&
+    project.workflowInstance?.completedAt === null;
   if (
     !current?.completed ||
-    !progress.some((stage) => stage.sequence > current.sequence)
+    (!unfinishedAdviserGate && !progress.some((stage) => stage.sequence > current.sequence))
   ) {
     return;
   }

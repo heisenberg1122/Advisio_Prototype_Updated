@@ -7,7 +7,7 @@ import {
   createIntegrationFixtureScope,
 } from "../test/database-integration.js";
 import { synchronizeAdviserMilestone } from "./adviser-milestone.service.js";
-import { getMilestoneProgress } from "./research-workflow-integration.service.js";
+import { getMilestoneProgress, reconcileMilestoneProgress } from "./research-workflow-integration.service.js";
 
 const databaseDescribe =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "1" ? describe : describe.skip;
@@ -80,7 +80,7 @@ databaseDescribe("adviser milestone integration", () => {
           lastName: "Fixture",
           status: "ACTIVE",
           collegeId: college.id,
-          programId: program.id,
+          programId: roleName === "ADVISER" ? null : program.id,
         },
       });
       if (["ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "DEAN"].includes(roleName)) await prisma.collegeMembership.create({ data: { userId: user.id, collegeId: college.id, roleNames: [roleName] } });
@@ -195,7 +195,7 @@ databaseDescribe("adviser milestone integration", () => {
     ).rejects.toMatchObject({ code: "P2002" });
   });
 
-  it("projects request states and advances exactly once after acceptance", async () => {
+  it("advances exactly once when a college adviser without a program accepts", async () => {
     expect((await getMilestoneProgress(prisma, projectId))[0]).toMatchObject({
       id: adviserStageId,
       status: "NOT_STARTED",
@@ -281,5 +281,17 @@ databaseDescribe("adviser milestone integration", () => {
         },
       }),
     ).toBe(notificationCount);
+  });
+
+  it("repairs a workflow left on an already accepted adviser milestone", async () => {
+    await prisma.workflowInstance.update({
+      where: { researchId: projectId },
+      data: { currentStageId: adviserStageId, completedAt: null },
+    });
+    await prisma.$transaction((tx) =>
+      reconcileMilestoneProgress(tx, { researchId: projectId, actorId: studentId }),
+    );
+    expect(await prisma.workflowInstance.findUniqueOrThrow({ where: { researchId: projectId } }))
+      .toMatchObject({ currentStageId: nextStageId, completedAt: null });
   });
 });
