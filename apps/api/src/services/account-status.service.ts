@@ -16,6 +16,7 @@ export async function changeAccountStatus(options: {
   actor: AuthenticatedUser;
   userId: string;
   status: UserStatus;
+  expectedStatus?: UserStatus;
   verificationConfirmed?: unknown;
   verificationNote?: unknown;
   ipAddress?: string;
@@ -30,6 +31,9 @@ export async function changeAccountStatus(options: {
         include: { roles: { include: { role: true } } },
       });
       if (!user) throw new AccountStatusError("User not found", 404);
+      if (options.expectedStatus && user.status !== options.expectedStatus) {
+        throw new AccountStatusError("This account is no longer pending verification. Refresh the user list.");
+      }
       if (options.status === "INACTIVE" || user.status === "INACTIVE") {
         if (
           !options.actor.roles.includes("SYSTEM_ADMIN") ||

@@ -1,11 +1,22 @@
 /* System Admin screen pieces. Lists, chips and panels come from role-screens.css and role-home.css. */
-.sa-users-table { overflow: visible; }
+.sa-users-table {
+  --rs-cols: minmax(0, 1.6fr) minmax(0, 1.1fr) 92px 100px 124px clamp(176px, 20vw, 252px);
+  overflow: visible;
+}
+.sa-users-table .rs-row { padding-inline-end: 64px; }
 .sa-users-table .rs-row:last-child { border-radius: 0 0 17px 17px; }
+body:has(.sa-users-table) .researcher-assistant__launcher {
+  padding-inline: 12px;
+}
+body:has(.sa-users-table) .researcher-assistant__launcher > span {
+  display: none;
+}
+.sa-users-table .sa-reject { color: var(--au-attention); background: var(--color-surface); border: 1px solid var(--color-border); }
+.sa-users-table .sa-reject:hover:not(:disabled) { background: var(--color-surface-subtle); }
 .sa-roles { display: flex; flex-wrap: wrap; gap: 4px; }
 .sa-role { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--color-text-secondary); background: var(--color-surface-subtle); }
-.sa-menu-wrap { position: relative; }
-.sa-menu { position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; width: 200px; padding: 6px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--rh-card); box-shadow: 0 12px 32px rgb(20 30 45 / 16%); }
-.sa-menu[hidden] { display: none; }
+.sa-menu { position: fixed; z-index: 2101; width: min(200px, calc(100vw - 16px)); overflow-y: auto; padding: 6px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-white); box-shadow: 0 12px 32px rgb(20 30 45 / 16%); }
+.dark .sa-menu { background: var(--color-surface); }
 .sa-menu button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 38px; padding: 0 10px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--color-text-primary); text-align: left; }
 .sa-menu button:hover:not(:disabled), .sa-menu button:focus-visible { outline: none; background: var(--color-surface-subtle); }
 .sa-menu button:disabled { cursor: not-allowed; opacity: 0.5; }
@@ -78,6 +89,8 @@
   .sa-status-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
+  .sa-users-table .rs-row { padding-inline-end: 14px; }
+  .sa-users-table .rs-actions { padding-inline-end: 48px; }
   .sa-matrix { table-layout: fixed; }
   .sa-matrix th, .sa-matrix td { padding: 9px 3px; font-size: 11px; overflow-wrap: anywhere; }
   .sa-matrix th:first-child { width: 32%; }

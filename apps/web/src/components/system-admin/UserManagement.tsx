@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
@@ -77,69 +78,78 @@ function UserActionsMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [place, setPlace] = useState<React.CSSProperties>({});
-  const wrap = useRef<HTMLSpanElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
   const toggle = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (open) return setOpen(false);
-    // Fixed to the viewport so scrolling page areas cannot clip the menu.
     const box = event.currentTarget.getBoundingClientRect();
-    const menuHeight = 216;
-    const below = window.innerHeight - box.bottom > menuHeight + 12;
+    const above = box.top - 14;
+    const below = window.innerHeight - box.bottom - 14;
+    const openAbove = below < 234 && above > below;
     setPlace({
-      position: "fixed",
       right: Math.max(8, window.innerWidth - box.right),
-      ...(below ? { top: box.bottom + 6 } : { bottom: window.innerHeight - box.top + 6 }),
-      left: "auto",
+      ...(openAbove ? { bottom: window.innerHeight - box.top + 6 } : { top: box.bottom + 6 }),
+      maxHeight: Math.max(0, openAbove ? above : below),
     });
     setOpen(true);
   };
   useEffect(() => {
     if (!open) return;
-    const onPointer = (event: MouseEvent) => {
-      if (!wrap.current?.contains(event.target as Node)) setOpen(false);
+    menu.current?.querySelector("button")?.focus({ preventScroll: true });
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!trigger.current?.contains(target) && !menu.current?.contains(target)) setOpen(false);
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setOpen(false);
-      wrap.current?.querySelector("button")?.focus();
+      trigger.current?.focus({ preventScroll: true });
     };
-    const onMove = () => setOpen(false);
-    document.addEventListener("mousedown", onPointer);
+    const onScroll = (event: Event) => {
+      if (event.target !== menu.current) setOpen(false);
+    };
+    const onResize = () => setOpen(false);
+    document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", onMove, true);
-    window.addEventListener("resize", onMove);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
     return () => {
-      window.removeEventListener("scroll", onMove, true);
-      window.removeEventListener("resize", onMove);
-      document.removeEventListener("mousedown", onPointer);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+      document.removeEventListener("pointerdown", onPointer);
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
   const choose = (action: () => void) => () => {
     setOpen(false);
+    trigger.current?.focus({ preventScroll: true });
     action();
   };
   return (
-    <span className="sa-menu-wrap" ref={wrap}>
-      <button type="button" className="rs-icon-btn" aria-label={`More actions for ${name}`} aria-expanded={open} onClick={toggle}>
+    <>
+      <button ref={trigger} type="button" className="rs-icon-btn" aria-label={`More actions for ${name}`} aria-expanded={open} onClick={toggle}>
         <i className="ti ti-dots" aria-hidden="true" />
       </button>
-      <div className="sa-menu" hidden={!open} style={place}>
-        <button type="button" onClick={choose(onDetails)}><i className="ti ti-id" aria-hidden="true" />View details</button>
-        <button type="button" onClick={choose(onRoles)}><i className="ti ti-shield-check" aria-hidden="true" />Manage roles</button>
-        <button type="button" onClick={choose(onCollege)}><i className="ti ti-building" aria-hidden="true" />Assign college</button>
-        {canSuspend && (
-          <button type="button" data-tone="danger" disabled={blocked} title={isSelf ? "You cannot suspend your own account" : "Block sign-in while preserving records"} onClick={choose(onSuspend)}><i className="ti ti-ban" aria-hidden="true" />Suspend</button>
-        )}
-        {canArchive && (
-          <button type="button" data-tone="danger" disabled={blocked} onClick={choose(onArchive)}><i className="ti ti-archive" aria-hidden="true" />Archive</button>
-        )}
-      </div>
-    </span>
+      {open && createPortal(
+        <div className="sa-menu" ref={menu} style={place}>
+          <button type="button" onClick={choose(onDetails)}><i className="ti ti-id" aria-hidden="true" />View details</button>
+          <button type="button" onClick={choose(onRoles)}><i className="ti ti-shield-check" aria-hidden="true" />Manage roles</button>
+          <button type="button" onClick={choose(onCollege)}><i className="ti ti-building" aria-hidden="true" />Assign college</button>
+          {canSuspend && (
+            <button type="button" data-tone="danger" disabled={blocked} title={isSelf ? "You cannot suspend your own account" : "Block sign-in while preserving records"} onClick={choose(onSuspend)}><i className="ti ti-ban" aria-hidden="true" />Suspend</button>
+          )}
+          {canArchive && (
+            <button type="button" data-tone="danger" disabled={blocked} onClick={choose(onArchive)}><i className="ti ti-archive" aria-hidden="true" />Archive</button>
+          )}
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 
 type Dialog = {
-  type: "approve" | "roles" | "college" | "suspend" | "archive";
+  type: "approve" | "roles" | "college" | "suspend" | "archive" | "reject";
   user: User;
 } | null;
 
@@ -360,23 +370,25 @@ export function UserManagement({
 
   const handleArchive = async () => {
     if (!dialog || suspensionReason.trim().length < 10 || working) return;
+    const rejecting = dialog.type === "reject";
     setWorking(true);
     setFeedback(null);
     try {
       await apiClient.post(`/api/users/${dialog.user.id}/archive`, {
         reason: suspensionReason.trim(),
+        ...(rejecting ? { pendingOnly: true } : {}),
       });
       await refresh();
       setDialog(null);
       setFeedback({
         tone: "success",
-        message: `${dialog.user.universityId} was archived. Access is blocked; all records and files are preserved. Find the account in Archived users.`,
+        message: `${dialog.user.universityId} was ${rejecting ? "rejected and archived" : "archived"}. Access is blocked. Find the account in Archived users.`,
       });
     } catch (error) {
       setFeedback({
         tone: "error",
         message:
-          error instanceof ApiError ? error.message : "Archiving failed.",
+          error instanceof ApiError ? error.message : rejecting ? "Rejection failed." : "Archiving failed.",
       });
     } finally {
       setWorking(false);
@@ -468,7 +480,7 @@ export function UserManagement({
           />
         </div>
       ) : sortedUsers.length ? (
-        <div className="rs-table sa-users-table" data-phone-rows="0" data-phone-summary="3" role="region" aria-label="User accounts" style={{ "--rs-cols": "minmax(0,1.6fr) minmax(0,1.1fr) 92px 100px 124px 176px" } as React.CSSProperties}>
+        <div className="rs-table sa-users-table" data-phone-rows="0" data-phone-summary="3" role="region" aria-label="User accounts">
           <div className="rs-row rs-row--head"><span>User</span><span>Roles</span><span>College</span><span>Status</span><span>Last login</span><span /></div>
           {sortedUsers.map((user) => {
             const name = `${user.firstName} ${user.middleName ? `${user.middleName} ` : ""}${user.lastName}`;
@@ -494,10 +506,15 @@ export function UserManagement({
                       {user.status === "PENDING" ? "Verify & approve" : "Verify & restore"}
                     </button>
                   )}
+                  {user.status === "PENDING" && (
+                    <button type="button" className="rs-primary sa-reject" disabled={isSelf || working} onClick={() => openDialog("reject", user)}>
+                      Reject
+                    </button>
+                  )}
                   <UserActionsMenu
                     name={name}
                     canSuspend={user.status !== "SUSPENDED" && user.status !== "INACTIVE"}
-                    canArchive={user.status !== "INACTIVE"}
+                    canArchive={user.status === "ACTIVE" || user.status === "SUSPENDED"}
                     blocked={isSelf || working}
                     isSelf={isSelf}
                     onDetails={() => setDetailsUserId(user.id)}
@@ -545,7 +562,9 @@ export function UserManagement({
                         ? "Assign college or school"
                         : dialog.type === "suspend"
                           ? "Suspend user account"
-                          : "Archive user account"}
+                          : dialog.type === "reject"
+                            ? "Reject pending account"
+                            : "Archive user account"}
                 </h2>
                 <p className="mt-1 text-base text-slate-400">
                   {dialog.user.universityId} · {dialog.user.email}
@@ -684,7 +703,7 @@ export function UserManagement({
               </div>
             )}
 
-            {(dialog.type === "suspend" || dialog.type === "archive") && (
+            {(dialog.type === "suspend" || dialog.type === "archive" || dialog.type === "reject") && (
               <AccountActionDetails
                 type={dialog.type}
                 working={working}
@@ -756,14 +775,15 @@ export function UserManagement({
                   Suspend account
                 </Button>
               )}
-              {dialog.type === "archive" && (
+              {(dialog.type === "archive" || dialog.type === "reject") && (
                 <Button
+                  variant={dialog.type === "reject" ? "danger" : "primary"}
                   onClick={() => void handleArchive()}
                   disabled={suspensionReason.trim().length < 10}
                   isLoading={working}
-                  loadingText="Archiving account..."
+                  loadingText={dialog.type === "reject" ? "Rejecting account..." : "Archiving account..."}
                 >
-                  Archive account
+                  {dialog.type === "reject" ? "Reject and archive" : "Archive account"}
                 </Button>
               )}
             </div>

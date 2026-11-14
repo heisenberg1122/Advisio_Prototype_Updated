@@ -529,6 +529,7 @@ router.post(
         actor: req.user!,
         userId: String(req.params.id),
         status: "INACTIVE",
+        ...(req.body.pendingOnly === true ? { expectedStatus: "PENDING" } : {}),
         verificationNote: req.body.reason,
         ipAddress: req.ip,
         userAgent: req.get("user-agent"),
