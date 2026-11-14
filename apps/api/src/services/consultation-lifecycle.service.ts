@@ -200,6 +200,52 @@ export function googleEventKey(consultationId: string) {
 }
 
 const hostRolePriority = ["DEAN", "RESEARCH_COORDINATOR", "PANELIST", "ADVISER"];
+type HostCandidate = Prisma.UserGetPayload<{ select: typeof recipientSelect }>;
+type HostContext = Pick<Consultation, "createdBy" | "approverId"> & {
+  research: { collegeId: string; members: { userId: string }[] };
+};
+
+export function consultationHostId(row: HostContext, participants: HostCandidate[]) {
+  const hasResearcher = participants.some((person) => person.collegeId === row.research.collegeId &&
+    person.roles.some(({ role }) => role.name === "RESEARCHER"));
+  const responsible = row.approverId ?? row.createdBy;
+  return participants.flatMap((person) => {
+    const roles = person.collegeMemberships.find(({ collegeId }) => collegeId === row.research.collegeId)?.roleNames || [];
+    const assignedAdviser = hasResearcher && roles.includes("ADVISER") &&
+      row.research.members.some(({ userId }) => userId === person.id);
+    const rank = assignedAdviser ? -1 : hostRolePriority.findIndex((role) => roles.some((entry) => entry === role));
+    return assignedAdviser || rank >= 0 ? [{ id: person.id, rank }] : [];
+  }).sort((a, b) => a.rank - b.rank || Number(b.id === responsible) - Number(a.id === responsible) || a.id.localeCompare(b.id))[0]?.id;
+}
+
+export async function consultationCompletionCandidates(
+  db: Pick<Prisma.TransactionClient, "user">,
+  participantIds: string[],
+) {
+  return db.user.findMany({
+    where: { id: { in: [...new Set(participantIds)] }, status: "ACTIVE" },
+    select: {
+      ...recipientSelect,
+      collegeMemberships: {
+        where: { college: { isActive: true } },
+        select: recipientSelect.collegeMemberships.select,
+      },
+    },
+  });
+}
+
+export function canCompleteConsultation(
+  row: HostContext & { meetingKind: string; participants: { userId: string }[] },
+  user: AuthenticatedUser,
+  candidates: HostCandidate[],
+) {
+  if (row.research.collegeId !== user.collegeId) return false;
+  const invited = new Set(row.participants.map(({ userId }) => userId));
+  if (!invited.has(user.id)) return false;
+  const host = consultationHostId(row, candidates.filter(({ id }) => invited.has(id)));
+  return host ? !user.researcherPanel && host === user.id
+    : row.meetingKind === "INSTANT" && row.createdBy === user.id;
+}
 
 export async function consultationEventOptions(
   tx: Prisma.TransactionClient,
@@ -213,17 +259,8 @@ export async function consultationEventOptions(
     undefined,
     tx,
   );
-  const hasResearcher = scoped.some((person) => person.collegeId === row.research.collegeId &&
-    person.roles.some(({ role }) => role.name === "RESEARCHER"));
-  const responsible = row.approverId ?? row.createdBy;
-  const ranked = scoped.flatMap((person) => {
-    const roles = person.collegeMemberships.find(({ collegeId }) => collegeId === row.research.collegeId)?.roleNames || [];
-    const assignedAdviser = hasResearcher && roles.includes("ADVISER") &&
-      row.research.members.some(({ userId }) => userId === person.id);
-    const rank = assignedAdviser ? -1 : hostRolePriority.findIndex((role) => roles.some((entry) => entry === role));
-    return assignedAdviser || rank >= 0 ? [{ id: person.id, rank }] : [];
-  }).sort((a, b) => a.rank - b.rank || Number(b.id === responsible) - Number(a.id === responsible) || a.id.localeCompare(b.id));
-  const host = participants.find(({ id }) => id === ranked[0]?.id);
+  const hostId = consultationHostId(row, scoped);
+  const host = participants.find(({ id }) => id === hostId);
   return {
     title: `Advisio Consultation: ${row.title}`,
     description: row.description,

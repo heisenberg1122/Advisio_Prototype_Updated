@@ -29,6 +29,7 @@ export type ManagedConsultation = Omit<ConsultationEdit, "scheduledStart" | "sch
   status: string;
   meetingKind?: string;
   canManage?: boolean;
+  canComplete?: boolean;
   calendarUpdatePending?: boolean;
   proof?: ConsultationProof | null;
 };
@@ -49,7 +50,8 @@ export function ConsultationActions({ item, viewerId, canWithdraw = false, appro
   const provisioning = status === "provisioning";
   const scheduled = status === "scheduled";
   const ongoing = status === "ongoing";
-  const canComplete = ongoing || (scheduled && Date.parse(item.scheduledStart || "") <= Date.now());
+  const canComplete = item.canComplete && !item.calendarUpdatePending &&
+    (ongoing || (scheduled && Date.parse(item.scheduledStart || "") <= Date.now()));
   const dates = item.scheduledStart && item.scheduledEnd ? { scheduledStart: item.scheduledStart, scheduledEnd: item.scheduledEnd } : null;
   const canManage = Boolean(item.canManage);
   const openEdit = (mode: "reschedule" | "propose") => {
@@ -73,7 +75,7 @@ export function ConsultationActions({ item, viewerId, canWithdraw = false, appro
     action.mutate(value);
   };
   const record = <ConsultationRecordButton id={item.id} status={item.status} scheduledStart={item.scheduledStart} proof={item.proof} />;
-  if (!canManage && !canCancel) return record;
+  if (!canManage && !canCancel && !canComplete) return record;
 
   return <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
     {record}
@@ -86,7 +88,7 @@ export function ConsultationActions({ item, viewerId, canWithdraw = false, appro
     {canManage && item.calendarUpdatePending && <span role="status">Calendar edit awaiting sync</span>}
     {canManage && scheduled && !instant && dates && !item.calendarUpdatePending && <Button type="button" size="sm" variant="secondary" disabled={action.isPending} onClick={() => openEdit("reschedule")}>Edit</Button>}
     {canCancel && <Button type="button" size="sm" variant="secondary" disabled={action.isPending} onClick={() => setConfirm("cancel")}>{requested ? "Withdraw request" : "Cancel consultation"}</Button>}
-    {canManage && canComplete && !item.calendarUpdatePending && <Button type="button" size="sm" variant="secondary" disabled={action.isPending} onClick={() => setConfirm("complete")}>{instant ? "End Advisio session" : "Mark complete"}</Button>}
+    {canComplete && <Button type="button" size="sm" variant="secondary" disabled={action.isPending} onClick={() => setConfirm("complete")}>{instant ? "End Advisio session" : "Mark complete"}</Button>}
     {confirm && <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Confirm consultation change">
       <span>{confirm === "complete" ? "End this session in Advisio? The Google Meet call can continue." : confirm === "decline" ? "Decline this request?" : "Cancel this consultation?"}</span>
       <Button type="button" size="sm" disabled={action.isPending} onClick={() => command(confirm)}>Confirm</Button>

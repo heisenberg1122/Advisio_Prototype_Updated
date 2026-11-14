@@ -41,6 +41,7 @@ type Consultation = ManagedConsultation & {
   scheduledEnd: string;
   meetingUrl?: string | null;
   meetCoHostName?: string | null;
+  canComplete?: boolean;
   conferenceState?: string;
   attendanceStatus?: string;
   research: Omit<ConsultationProject, "id"> & {

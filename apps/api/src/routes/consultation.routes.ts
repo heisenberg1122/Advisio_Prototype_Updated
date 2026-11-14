@@ -14,6 +14,7 @@ import {
 } from "../services/consultation.service.js";
 import {
   assertConsultationTimeAvailable, assertOrganizer, assertParticipant, consultationError, findConsultationRecipients,
+  canCompleteConsultation, consultationCompletionCandidates,
   consultationReservations, googleEventKey, lockConsultationSchedules, notifyConsultation,
   pendingCalendarUpdate, provisionConsultation, recipientWorkspaces, syncConsultationCancellation, syncConsultationUpdate,
   uuid, withConsultationLock,
@@ -129,27 +130,31 @@ router.get("/workspace/:workspace", requireAuth, asyncHandler(async (req, res) =
       approverId: true, createdBy: true, pendingCalendarUpdate: true, meetCoHostName: !history,
       record: { select: consultationProofSelect },
       participants: {
-        where: workspace === "coordinator" ? undefined : { userId: user.id },
         select: { userId: true, attendanceStatus: true, user: { select: { firstName: true, lastName: true } } },
       },
       research: { select: {
         title: true,
         groupName: true,
-        members: history ? {
+        collegeId: true,
+        members: {
           where: consultationInclude.research.select.members.where,
-          select: { user: consultationInclude.research.select.members.select.user },
-        } : false,
+          select: consultationInclude.research.select.members.select,
+        },
       } },
     },
     orderBy: [{ scheduledStart: "desc" }, { id: "desc" }],
     skip: (page - 1) * pageSize,
     take: pageSize + 1,
   });
+  const candidates = history ? [] : await consultationCompletionCandidates(prisma,
+    rows.slice(0, pageSize).flatMap(({ participants }) => participants.map(({ userId }) => userId)));
   res.json({
     consultations: rows.slice(0, pageSize).map(({ participants, ...row }) => {
       const { id, title, status, scheduledStart, scheduledEnd, research } = row;
       const summary = {
-        id, title, status, scheduledStart, scheduledEnd, research,
+        id, title, status, scheduledStart, scheduledEnd,
+        research: { title: research.title, groupName: research.groupName,
+          ...(history ? { members: research.members.map(({ user }) => ({ user })) } : {}) },
         ...(row.record ? { proof: consultationProof(id, row.record, user.id) } : {}),
       };
       if (history) return summary;
@@ -161,10 +166,11 @@ router.get("/workspace/:workspace", requireAuth, asyncHandler(async (req, res) =
           meetingKind: row.meetingKind, conferenceState: row.conferenceState,
           meetingUrl: joinableConsultationUrl(row), attendanceStatus: invitation.attendanceStatus,
           meetCoHostName: row.meetCoHostName,
+          canComplete: canCompleteConsultation({ ...row, participants }, user, candidates),
+          calendarUpdatePending: Boolean(row.pendingCalendarUpdate),
         } : {}),
         ...(canManage ? {
           canManage, researchId: row.researchId, createdBy: row.createdBy, participants, revision: row.revision,
-          calendarUpdatePending: Boolean(row.pendingCalendarUpdate),
         } : {}),
       };
     }),
@@ -273,15 +279,20 @@ router.get("/", requireAuth, asyncHandler(async (req, res) => {
     include: { ...consultationInclude, record: { select: consultationProofSelect } },
     orderBy: [{ scheduledStart: "desc" }, { id: "desc" }],
   });
+  const candidates = await consultationCompletionCandidates(prisma,
+    rows.flatMap(({ participants }) => participants.map(({ userId }) => userId)));
   res.json({ consultations: rows.map((row) => {
     const invited = row.participants.some(({ userId }) => userId === user.id);
     const legacyRequest = row.status === "REQUESTED" && row.conferenceState === "LEGACY" &&
       row.research.members.some(({ userId }) => userId === user.id);
+    const canComplete = canCompleteConsultation(row, user, candidates);
     return {
       ...serializeConsultation(invited ? row : { ...row, notes: [], participants: [], meetingUrl: null }),
       ...(row.record ? { proof: consultationProof(row.id, row.record, user.id) } : {}),
-      canManage: (row.meetingKind === "INSTANT" && row.createdBy === user.id) ||
-        (!user.researcherPanel && ((row.approverId || row.createdBy) === user.id || legacyRequest)),
+      canComplete,
+      canManage: row.meetingKind === "INSTANT"
+        ? row.createdBy === user.id && (row.status === "PROVISIONING" || canComplete)
+        : !user.researcherPanel && ((row.approverId || row.createdBy) === user.id || legacyRequest),
     };
   }) });
 }));
@@ -430,7 +441,13 @@ router.patch("/:id", requireAuth, asyncHandler(async (req, res) => {
   const action = req.body?.action;
   if (!["decline", "cancel", "complete", "reschedule"].includes(action)) throw consultationError(400, "Choose a consultation action.");
   let updated = await withConsultationLock(consultationId, async (tx, row) => {
-    if (action === "cancel" && ["REQUESTED", "CANCELLED"].includes(row.status) && row.createdBy === user.id) assertParticipant(row, user);
+    if (action === "complete" || (action === "cancel" && row.meetingKind === "INSTANT" && row.status !== "PROVISIONING")) {
+      assertParticipant(row, user);
+      const candidates = await consultationCompletionCandidates(tx, row.participants.map(({ userId }) => userId));
+      if (!canCompleteConsultation(row, user, candidates)) {
+        throw consultationError(403, "Only the designated consultation host can complete or cancel this session.");
+      }
+    } else if (action === "cancel" && ["REQUESTED", "CANCELLED"].includes(row.status) && row.createdBy === user.id) assertParticipant(row, user);
     else await assertOrganizer(tx, row, user, true);
     const previousIds = row.participants.map(({ userId }) => userId);
     if (action === "reschedule") {

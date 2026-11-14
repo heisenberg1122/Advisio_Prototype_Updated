@@ -211,11 +211,16 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
   });
 
   it("chooses the highest-ranked invited faculty member for faculty-only meetings", async () => {
-    const created = await add(adviser, schedule("Faculty planning", [panelist.id, dean.id, coordinator.id], slot(16)));
+    const created = await add(adviser, schedule("Faculty planning", [panelist.id, dean.id, coordinator.id], { instant: true }));
     expect(created.status).toBe(201);
     expect(googleCalendarService.createMeetConsultation).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
       coHost: { email: dean.email, displayName: "Dean Test" },
     }));
+    const { id } = created.data.consultation;
+    expect((await request(dean, "/consultations/workspace/dean")).data.consultations)
+      .toContainEqual(expect.objectContaining({ id, canComplete: true }));
+    expect((await change(adviser, id, { action: "complete" })).status).toBe(403);
+    expect((await change(dean, id, { action: "complete" })).data.consultation.status).toBe("completed");
   });
 
   it("retains an actionable failed or pending state, then reuses the same event identity for retry", async () => {
@@ -291,8 +296,11 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     expect((await join(adviser, first.id)).data.meetingUrl).toBe(first.meetingUrl);
     expect((await join(student, second.id)).data.meetingUrl).toBe(second.meetingUrl);
     expect((await join(student, scheduled.id)).data.meetingUrl).toBe(scheduled.meetingUrl);
-    expect((await change(adviser, first.id, { action: "complete" })).status).toBe(403);
-    expect((await change(student, first.id, { action: "complete" })).data.consultation.status).toBe("completed");
+    expect((await request(student)).data.consultations).toContainEqual(expect.objectContaining({ id: first.id, canComplete: false, canManage: false }));
+    expect((await request(adviser)).data.consultations).toContainEqual(expect.objectContaining({ id: first.id, canComplete: true }));
+    expect((await change(student, first.id, { action: "complete" })).status).toBe(403);
+    expect((await change(student, first.id, { action: "cancel" })).status).toBe(403);
+    expect((await change(adviser, first.id, { action: "complete" })).data.consultation.status).toBe("completed");
     expect((await join(adviser, first.id)).status).toBe(409);
     expect(googleCalendarService.cancelConsultation).not.toHaveBeenCalled();
   });

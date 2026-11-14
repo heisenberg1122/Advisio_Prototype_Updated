@@ -39,6 +39,7 @@ export interface ConsultationItem {
   status: string;
   createdBy?: string;
   canManage?: boolean;
+  canComplete?: boolean;
   meetingKind?: string;
   conferenceState?: string;
   calendarUpdatePending?: boolean;
