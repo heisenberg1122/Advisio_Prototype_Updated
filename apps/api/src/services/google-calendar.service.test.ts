@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { GoogleCalendarService, googleMeetUrl } from "./google-calendar.service.js";
+import { GoogleMeetHostService } from "./google-meet-host.service.js";
 
 const eventId = "advisio12345";
 const meetingUrl = "https://meet.google.com/abc-defg-hij";
@@ -25,6 +26,45 @@ function mockCalendar() {
 }
 
 describe("consultation Google Calendar integration", () => {
+  it("assigns the chosen co-host before publishing the new room to invitees", async () => {
+    const { events, wait, event } = mockCalendar();
+    const createRoom = vi.fn().mockResolvedValue({ name: "spaces/safeSpace", meetingUri: meetingUrl });
+    const setCoHost = vi.fn().mockResolvedValue(undefined);
+    const meet = { createRoom, setCoHost } as unknown as GoogleMeetHostService;
+    const service = new GoogleCalendarService(
+      { events } as unknown as NonNullable<ConstructorParameters<typeof GoogleCalendarService>[0]>,
+      "primary", wait, meet,
+    );
+    const managed = { ...event, extendedProperties: { private: {
+      advisioConsultation: eventId, advisioMeetSpace: "spaces/safeSpace", advisioMeetUrl: meetingUrl,
+    } } };
+    events.get.mockRejectedValueOnce(providerError(404)).mockResolvedValue({ data: managed });
+    events.insert.mockResolvedValue({ data: managed });
+    const coHost = { email: details.attendees[0].email, displayName: "Assigned Adviser" };
+    await expect(service.createMeetConsultation(eventId, { ...details, coHost }))
+      .resolves.toMatchObject({ meetingUrl, coHostName: coHost.displayName });
+    expect(setCoHost).toHaveBeenCalledWith("spaces/safeSpace", coHost.email);
+    expect(setCoHost.mock.invocationCallOrder[0]).toBeLessThan(events.patch.mock.invocationCallOrder[0]);
+    expect(events.patch).toHaveBeenCalledWith(expect.objectContaining({
+      sendUpdates: "all", requestBody: expect.objectContaining({ location: meetingUrl }),
+    }), expect.anything());
+    await service.createMeetConsultation(eventId, { ...details, coHost });
+    expect(createRoom).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses actual conference times and refuses ambiguous records", async () => {
+    const actual = { startTime: "2024-01-01T01:04:00.000Z", endTime: "2024-01-01T01:35:00.000Z" };
+    const request = vi.fn().mockResolvedValueOnce({ data: { conferenceRecords: [actual] } })
+      .mockResolvedValueOnce({ data: { conferenceRecords: [actual, { startTime: actual.startTime }] } });
+    const meet = new GoogleMeetHostService({ request } as unknown as ConstructorParameters<typeof GoogleMeetHostService>[0]);
+    const start = new Date("2024-01-01T01:00:00.000Z");
+    const end = new Date("2024-01-01T02:00:00.000Z");
+    await expect(meet.completedConference("abc-defg-hij", start, end)).resolves.toEqual({
+      actualStart: new Date(actual.startTime), actualEnd: new Date(actual.endTime),
+    });
+    await expect(meet.completedConference("abc-defg-hij", start, end)).resolves.toBeNull();
+  });
+
   it("waits for one Google Meet before inviting all attendees and reuses the event on retry", async () => {
     const { events, wait, service, event } = mockCalendar();
     events.get.mockRejectedValueOnce(providerError(404))

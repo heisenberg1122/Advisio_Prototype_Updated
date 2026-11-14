@@ -34,6 +34,27 @@ Advisio authorizes consultation links, notes, and join actions using the invitat
 
 References. [Google OAuth consent setup](https://developers.google.com/workspace/guides/configure-oauth-consent), [Calendar event creation](https://developers.google.com/workspace/calendar/api/guides/create-events), [Calendar OAuth scopes](https://developers.google.com/workspace/calendar/api/auth), [Google web-server OAuth](https://developers.google.com/identity/protocols/oauth2/web-server), [Google OAuth 2.0 Playground](https://developers.google.com/oauthplayground/), [Google Meet guest admission](https://support.google.com/meet/answer/9302870), [Google Meet limits](https://support.google.com/meet/answer/7317473), [Render environment variables](https://render.com/docs/configure-environment-variables).
 
+## Meet co-hosts and actual consultation times
+
+Enable Google Meet API on the organizer's Calendar OAuth project. Reauthorize
+the **same Google organizer** with its existing Calendar scope and
+`https://www.googleapis.com/auth/meetings.space.created`. Include
+`https://www.googleapis.com/auth/meetings.space.readonly` if the organizer should
+also be able to read actual times for their existing Calendar-created meetings.
+Keep the replacement refresh token in the existing Calendar secret.
+
+Set `GOOGLE_MEET_COHOST_ENABLED=true` after verifying the grant in staging.
+For new automatic links with an eligible faculty invitee, Advisio creates a
+restricted Meet room, assigns the faculty co-host, and attaches the room link to
+the Calendar invitation. The co-host signs into Meet with the Google account
+matching their Advisio email. Verify with a student and a co-host while the shared
+organizer is absent. Existing rooms keep their links and original host settings.
+
+After the call, open its consultation record and verify that the actual times
+match Meet's conference record. Google only returns conference records accessible
+to the organizer. External links, expired records, and ambiguous matches can
+leave the actual times unavailable. Advisio does not substitute the booked slot.
+
 ## Deployment review on November 9, 2026
 
 - The production API's runtime and Prisma migration targets both identify **Render PostgreSQL**, host `dpg-dbb3mkbl550s73c8k2b0-a`, database `advisio_staging`. Both staging targets identify the same database. The Render resource `advisio-staging-db` serves production. Its Free plan has no Render backup or point-in-time recovery. Render lists its expiration as November 18, 2026 at 11:46 PM Manila time. A read-only custom-format backup was saved with an encrypted restore receipt outside the repository and successfully restored to isolated PostgreSQL 16.15.

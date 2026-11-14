@@ -126,7 +126,7 @@ router.get("/workspace/:workspace", requireAuth, asyncHandler(async (req, res) =
     select: {
       id: true, title: true, status: true, scheduledStart: true, scheduledEnd: true,
       meetingKind: true, meetingUrl: !history, conferenceState: true, revision: true, researchId: true,
-      approverId: true, createdBy: true, pendingCalendarUpdate: true,
+      approverId: true, createdBy: true, pendingCalendarUpdate: true, meetCoHostName: !history,
       record: { select: consultationProofSelect },
       participants: {
         where: workspace === "coordinator" ? undefined : { userId: user.id },
@@ -160,6 +160,7 @@ router.get("/workspace/:workspace", requireAuth, asyncHandler(async (req, res) =
         ...(invitation ? {
           meetingKind: row.meetingKind, conferenceState: row.conferenceState,
           meetingUrl: joinableConsultationUrl(row), attendanceStatus: invitation.attendanceStatus,
+          meetCoHostName: row.meetCoHostName,
         } : {}),
         ...(canManage ? {
           canManage, researchId: row.researchId, createdBy: row.createdBy, participants, revision: row.revision,

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 import { OAuth2Client } from "google-auth-library";
 import { calendar, type calendar_v3 } from "googleapis/build/src/apis/calendar/index.js";
+import { GoogleMeetHostService } from "./google-meet-host.service.js";
 
 export interface GoogleMeetConsultationOptions {
   title: string;
@@ -10,6 +11,7 @@ export interface GoogleMeetConsultationOptions {
   scheduledEnd: Date | string;
   attendees?: { email: string; displayName?: string }[];
   manualMeetingUrl?: string;
+  coHost?: { email: string; displayName: string };
 }
 
 export class ConsultationCalendarError extends Error {
@@ -38,6 +40,8 @@ function providerStatus(error: unknown) {
 
 const requestOptions = { timeout: 3_000, retry: false };
 const syncKey = "advisioConsultation";
+const spaceKey = "advisioMeetSpace";
+const urlKey = "advisioMeetUrl";
 const conferenceRequest = () => ({
   createRequest: { requestId: randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } },
 });
@@ -55,6 +59,8 @@ function eventDetails(options: GoogleMeetConsultationOptions): calendar_v3.Schem
 }
 
 function eventMeetUrl(event: calendar_v3.Schema$Event) {
+  const managedUrl = event.extendedProperties?.private?.[urlKey];
+  if (managedUrl) return googleMeetUrl(managedUrl);
   const status = event.conferenceData?.createRequest?.status?.statusCode;
   if (status === "pending" || status === "failure") return null;
   const video = event.conferenceData?.entryPoints?.find((entry) => entry.entryPointType === "video");
@@ -66,16 +72,52 @@ export class GoogleCalendarService {
     private readonly calendar = GoogleCalendarService.organizerCalendar(),
     private readonly calendarId = process.env.GOOGLE_CALENDAR_ID?.trim() || "primary",
     private readonly wait: (ms: number) => Promise<unknown> = delay,
+    private readonly meetHost = process.env.GOOGLE_MEET_COHOST_ENABLED === "true"
+      ? GoogleCalendarService.organizerMeet()
+      : null,
   ) {}
 
-  private static organizerCalendar(): calendar_v3.Calendar | null {
+  private static organizerAuth() {
     const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID?.trim();
     const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET?.trim();
     const refreshToken = process.env.GOOGLE_CALENDAR_REFRESH_TOKEN?.trim();
     if (!clientId || !clientSecret || !refreshToken) return null;
     const auth = new OAuth2Client(clientId, clientSecret);
     auth.setCredentials({ refresh_token: refreshToken });
-    return calendar({ version: "v3", auth });
+    return auth;
+  }
+
+  private static organizerCalendar() {
+    const auth = GoogleCalendarService.organizerAuth();
+    return auth ? calendar({ version: "v3", auth }) : null;
+  }
+
+  private static organizerMeet() {
+    const auth = GoogleCalendarService.organizerAuth();
+    return auth ? new GoogleMeetHostService(auth) : null;
+  }
+
+  async consultationActualTimes(meetingUrl: string | null, scheduledStart: Date, scheduledEnd: Date) {
+    const url = googleMeetUrl(meetingUrl);
+    // The existing organizer grant may be Calendar-only until reauthorized.
+    const meet = this.meetHost ?? GoogleCalendarService.organizerMeet();
+    if (!url || !meet) return null;
+    try {
+      return await meet.completedConference(new URL(url).pathname.slice(1), scheduledStart, scheduledEnd);
+    } catch {
+      return null;
+    }
+  }
+
+  private async setCoHost(space: string, email: string | null) {
+    if (!this.meetHost || !/^spaces\/[a-zA-Z0-9_-]+$/.test(space)) {
+      throw new ConsultationCalendarError("Ask an administrator to enable Google Meet co-host access for the consultation organizer.");
+    }
+    try {
+      await this.meetHost.setCoHost(space, email);
+    } catch {
+      throw new ConsultationCalendarError("Google Meet could not update the co-host. Check the organizer's Meet permissions and the co-host's Google email, then retry.");
+    }
   }
 
   private async withCalendar<T>(operation: (events: calendar_v3.Resource$Events) => Promise<T>) {
@@ -113,16 +155,30 @@ export class GoogleCalendarService {
       const target = { calendarId: this.calendarId, eventId, conferenceDataVersion: 1 };
       let event = await this.getEvent(events, eventId);
       if (!event) {
+        let space;
+        if (!options.manualMeetingUrl && this.meetHost && options.coHost) {
+          try {
+            space = await this.meetHost.createRoom();
+            if (!googleMeetUrl(space.meetingUri) || !/^spaces\/[a-zA-Z0-9_-]+$/.test(space.name)) {
+              throw new Error("Missing Meet space");
+            }
+          } catch {
+            throw new ConsultationCalendarError("Google Meet could not create a co-hosted room. Check the organizer's Meet authorization and retry.");
+          }
+        }
         try {
           const response = await events.insert({
             calendarId: this.calendarId,
             conferenceDataVersion: 1,
             sendUpdates: "none",
             requestBody: {
-              ...eventDetails(options),
+              ...eventDetails(space ? { ...options, manualMeetingUrl: space.meetingUri } : options),
               id: eventId,
-              extendedProperties: { private: { [syncKey]: eventId } },
-              ...(options.manualMeetingUrl ? {} : { conferenceData: conferenceRequest() }),
+              extendedProperties: { private: {
+                [syncKey]: eventId,
+                ...(space ? { [spaceKey]: space.name, [urlKey]: space.meetingUri } : {}),
+              } },
+              ...(options.manualMeetingUrl || space ? {} : { conferenceData: conferenceRequest() }),
             },
           }, requestOptions);
           event = response.data;
@@ -166,8 +222,11 @@ export class GoogleCalendarService {
         }
       }
 
-      await this.syncEvent(events, eventId, event, options);
-      return { eventId, meetingUrl };
+      const space = event.extendedProperties?.private?.[spaceKey];
+      const coHostEmail = this.coHostEmail(event, options);
+      if (space) await this.setCoHost(space, coHostEmail);
+      await this.syncEvent(events, eventId, event, space ? { ...options, manualMeetingUrl: meetingUrl } : options);
+      return { eventId, meetingUrl, ...(space && coHostEmail && options.coHost ? { coHostName: options.coHost.displayName } : {}) };
     });
   }
 
@@ -180,8 +239,17 @@ export class GoogleCalendarService {
         : !currentMeetUrl || currentMeetUrl !== googleMeetUrl(savedMeetingUrl)) {
         throw new ConsultationCalendarError("The Meet room on Google Calendar no longer matches Advisio. Restore the saved room on the organizer calendar or cancel and recreate the consultation.");
       }
-      await this.syncEvent(events, eventId, event, options);
+      const space = event.extendedProperties?.private?.[spaceKey];
+      const coHostEmail = this.coHostEmail(event, options);
+      if (space) await this.setCoHost(space, coHostEmail);
+      await this.syncEvent(events, eventId, event, space && currentMeetUrl ? { ...options, manualMeetingUrl: currentMeetUrl } : options);
+      return space && coHostEmail ? options.coHost?.displayName ?? null : null;
     });
+  }
+
+  private coHostEmail(event: calendar_v3.Schema$Event, options: GoogleMeetConsultationOptions) {
+    const email = options.coHost?.email;
+    return email && email.toLowerCase() !== event.organizer?.email?.toLowerCase() ? email : null;
   }
 
   private async syncEvent(
@@ -217,7 +285,10 @@ export class GoogleCalendarService {
 
   async cancelConsultation(eventId: string) {
     return this.withCalendar(async (events) => {
-      if (!await this.getEvent(events, eventId)) return;
+      const event = await this.getEvent(events, eventId);
+      if (!event) return;
+      const space = event.extendedProperties?.private?.[spaceKey];
+      if (space) await this.setCoHost(space, null);
       try {
         await events.delete({ calendarId: this.calendarId, eventId, sendUpdates: "all" }, requestOptions);
       } catch (error) {

@@ -35,6 +35,7 @@ export interface ConsultationItem {
   time: string;
   mode: string;
   meetingUrl?: string;
+  meetCoHostName?: string | null;
   status: string;
   createdBy?: string;
   canManage?: boolean;

@@ -130,8 +130,9 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
       eventId,
       meetingUrl: options.manualMeetingUrl || `https://meet.google.com/${links[index++]}`,
     }));
-    vi.spyOn(googleCalendarService, "updateConsultation").mockResolvedValue(undefined);
+    vi.spyOn(googleCalendarService, "updateConsultation").mockResolvedValue(null);
     vi.spyOn(googleCalendarService, "cancelConsultation").mockResolvedValue(undefined);
+    vi.spyOn(googleCalendarService, "consultationActualTimes").mockResolvedValue(null);
   });
 
   afterAll(async () => {
@@ -167,6 +168,7 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     expect((await request(student, availability.replace(adviser.id, panelist.id))).status).toBe(404);
     expect(googleCalendarService.createMeetConsultation).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
       attendees: expect.arrayContaining([{ email: student.email, displayName: "Student Test" }, { email: adviser.email, displayName: "Adviser Test" }]),
+      coHost: { email: adviser.email, displayName: "Adviser Test" },
     }));
     expect((await join(student, id)).data.meetingUrl).toBe(first.data.consultation.meetingUrl);
     expect((await request(student)).data.consultations).toContainEqual(expect.objectContaining({ id, meetingUrl: first.data.consultation.meetingUrl }));
@@ -206,6 +208,14 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     await startApi();
     expect((await request(student)).data.consultations).toContainEqual(expect.objectContaining({ id, meetingUrl }));
     expect((await join(dean, id)).data.meetingUrl).toBe(meetingUrl);
+  });
+
+  it("chooses the highest-ranked invited faculty member for faculty-only meetings", async () => {
+    const created = await add(adviser, schedule("Faculty planning", [panelist.id, dean.id, coordinator.id], slot(16)));
+    expect(created.status).toBe(201);
+    expect(googleCalendarService.createMeetConsultation).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      coHost: { email: dean.email, displayName: "Dean Test" },
+    }));
   });
 
   it("retains an actionable failed or pending state, then reuses the same event identity for retry", async () => {
@@ -369,6 +379,22 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
       headers: { Authorization: `Bearer ${user.token}` },
     });
   }
+
+  it("files a record without typed times using actual Google Meet timestamps", async () => {
+    const { researcher } = otherGroups[0];
+    const { id, path, draft } = await recordFixture(researcher, adviser, [], "SCHEDULED");
+    const { actualStart, actualEnd, ...form } = draft;
+    const meetingUrl = "https://meet.google.com/abc-defg-hij";
+    await prisma.consultation.update({ where: { id }, data: { meetingUrl } });
+    expect((await request(adviser, path, "PATCH", { ...form, reviewerId: researcher.id })).status).toBe(409);
+    vi.mocked(googleCalendarService.consultationActualTimes).mockResolvedValue({
+      actualStart: new Date(actualStart), actualEnd: new Date(actualEnd),
+    });
+    expect((await request(adviser, path)).data.actualTimes).toEqual({ actualStart, actualEnd });
+    const filed = await request(adviser, path, "PATCH", { ...form, reviewerId: researcher.id });
+    expect(filed.status).toBe(200);
+    expect(filed.data.details).toMatchObject({ actualStart, actualEnd });
+  });
 
   it("confirms a corrected researcher record and limits oversight to proof", async () => {
     const { researcher } = otherGroups[0];

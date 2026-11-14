@@ -6,6 +6,7 @@ import {
   consultationInclude, coordinatorConsultationProjects, coordinatorConsultationRoles,
 } from "./consultation.service.js";
 import { consultationError, notifyConsultation, withConsultationLock } from "./consultation-lifecycle.service.js";
+import { googleCalendarService } from "./google-calendar.service.js";
 
 type Consultation = Prisma.ConsultationGetPayload<{ include: typeof consultationInclude }>;
 const nameOf = (user: { firstName: string; lastName: string }) =>
@@ -103,6 +104,10 @@ async function recordView(
   const reviewers = signers?.organizer?.id === user.id ? signers.reviewers.map((person) => ({
     id: person.id, name: nameOf(person),
   })) : [];
+  const actualTimes = reviewers.length
+    ? record ? { actualStart: record.actualStart, actualEnd: record.actualEnd }
+      : await googleCalendarService.consultationActualTimes(row.meetingUrl, row.scheduledStart, row.scheduledEnd)
+    : null;
   return {
     title: row.title,
     project: row.research.title,
@@ -110,6 +115,7 @@ async function recordView(
     scheduledEnd: row.scheduledEnd,
     proof,
     reviewers,
+    actualTimes,
     canReview: Boolean(record && !record.reviewedAt && record.reviewerId === user.id && viewer.participant),
     details: canRead && record ? {
       revision: record.revision, actualStart: record.actualStart, actualEnd: record.actualEnd,
@@ -132,8 +138,8 @@ const revision = z.number().int().min(0).max(2_147_483_646);
 const recordAction = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("submit"), revision,
-    actualStart: z.string().datetime({ offset: true }),
-    actualEnd: z.string().datetime({ offset: true }),
+    actualStart: z.string().datetime({ offset: true }).optional(),
+    actualEnd: z.string().datetime({ offset: true }).optional(),
     summary: z.string().trim().min(1).max(1000),
     nextSteps: z.string().trim().max(1000),
     reviewerId: z.string().uuid(),
@@ -163,9 +169,11 @@ export async function updateConsultationRecord(id: string, user: AuthenticatedUs
       }
       const reviewer = reviewers.find(({ id }) => id === action.reviewerId);
       if (!reviewer) throw consultationError(400, "Choose an eligible invited participant to review the record.");
-      const actualStart = new Date(action.actualStart);
-      const actualEnd = new Date(action.actualEnd);
+      const verified = record ?? await googleCalendarService.consultationActualTimes(row.meetingUrl, row.scheduledStart, row.scheduledEnd);
+      const actualStart = verified?.actualStart ?? (action.actualStart ? new Date(action.actualStart) : null);
+      const actualEnd = verified?.actualEnd ?? (action.actualEnd ? new Date(action.actualEnd) : null);
       const now = new Date();
+      if (!actualStart || !actualEnd) throw consultationError(409, "Google Meet has not provided actual times for this consultation. Refresh after the call ends.");
       if (!Number.isFinite(+actualStart) || !Number.isFinite(+actualEnd) || actualEnd <= actualStart || actualEnd > now) {
         throw consultationError(400, "Enter actual times with an end after the start and no later than now.");
       }

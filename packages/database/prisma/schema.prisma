@@ -2406,6 +2406,7 @@ model Consultation {
   meetingKind     ConsultationMeetingKind @default(SCHEDULED) @map("meeting_kind")
   conferenceState ConsultationConferenceState @default(LEGACY) @map("conference_state")
   googleEventId   String?            @unique @map("google_event_id") @db.VarChar(255)
+  meetCoHostName  String?            @map("meet_co_host_name")
   approverId      String?            @map("approver_id") @db.Uuid
   requestKey      String?            @unique @map("request_key") @db.VarChar(64)
   requestHash     String?            @map("request_hash") @db.VarChar(64)

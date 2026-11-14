@@ -202,6 +202,7 @@ export function AdviserConsultationsWorkspace({
                     <div className="ac-text">
                       <h3>{item.topic}</h3>
                       <p>{item.groupName || "Research group"} · {item.time}</p>
+                      {item.meetingUrl && item.meetCoHostName && <p>Meet co-host · {item.meetCoHostName}</p>}
                     </div>
                     <StatusDot tone={item.tone}>{item.label}</StatusDot>
                     <div className="ac-actions">

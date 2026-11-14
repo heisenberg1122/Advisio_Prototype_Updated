@@ -199,16 +199,38 @@ export function googleEventKey(consultationId: string) {
   return `advisio${consultationId.replaceAll("-", "").toLowerCase()}`;
 }
 
-export function consultationEventOptions(
+const hostRolePriority = ["DEAN", "RESEARCH_COORDINATOR", "PANELIST", "ADVISER"];
+
+export async function consultationEventOptions(
+  tx: Prisma.TransactionClient,
   row: Consultation,
   participants = row.participants.map(({ user }) => user),
 ) {
+  const scoped = await findConsultationRecipients(
+    { id: row.researchId, collegeId: row.research.collegeId },
+    true,
+    { id: { in: participants.map(({ id }) => id) } },
+    undefined,
+    tx,
+  );
+  const hasResearcher = scoped.some((person) => person.collegeId === row.research.collegeId &&
+    person.roles.some(({ role }) => role.name === "RESEARCHER"));
+  const responsible = row.approverId ?? row.createdBy;
+  const ranked = scoped.flatMap((person) => {
+    const roles = person.collegeMemberships.find(({ collegeId }) => collegeId === row.research.collegeId)?.roleNames || [];
+    const assignedAdviser = hasResearcher && roles.includes("ADVISER") &&
+      row.research.members.some(({ userId }) => userId === person.id);
+    const rank = assignedAdviser ? -1 : hostRolePriority.findIndex((role) => roles.some((entry) => entry === role));
+    return assignedAdviser || rank >= 0 ? [{ id: person.id, rank }] : [];
+  }).sort((a, b) => a.rank - b.rank || Number(b.id === responsible) - Number(a.id === responsible) || a.id.localeCompare(b.id));
+  const host = participants.find(({ id }) => id === ranked[0]?.id);
   return {
     title: `Advisio Consultation: ${row.title}`,
     description: row.description,
     scheduledStart: row.scheduledStart,
     scheduledEnd: row.scheduledEnd,
     attendees: participants.map((user) => ({ email: user.email, displayName: `${user.firstName} ${user.lastName}` })),
+    coHost: host ? { email: host.email, displayName: `${host.firstName} ${host.lastName}`.trim() || "Assigned faculty" } : undefined,
     manualMeetingUrl: row.conferenceState === "MANUAL" || row.status === "PROVISIONING"
       ? googleMeetUrl(row.meetingUrl) || undefined
       : undefined,
@@ -267,7 +289,7 @@ export async function provisionConsultation(id: string, user: AuthenticatedUser,
     if (eligible !== row.participants.length) {
       throw consultationError(409, "A participant is no longer eligible for this research group or college. Cancel and choose eligible participants.");
     }
-    const options = consultationEventOptions(row);
+    const options = await consultationEventOptions(tx, row);
     let meet;
     try {
       meet = await googleCalendarService.createMeetConsultation(row.googleEventId, options);
@@ -282,6 +304,7 @@ export async function provisionConsultation(id: string, user: AuthenticatedUser,
       where: { id },
       data: {
         meetingUrl: meet.meetingUrl,
+        meetCoHostName: meet.coHostName ?? null,
         conferenceState: options.manualMeetingUrl ? "MANUAL" : "GOOGLE_VERIFIED",
         status: row.meetingKind === "INSTANT" ? "ONGOING" : "SCHEDULED",
         revision: { increment: 1 },
@@ -351,14 +374,15 @@ export async function syncConsultationUpdate(id: string) {
     if (attendees.length !== update.participantIds.length) {
       throw consultationError(409, "A participant is no longer eligible for this research group or college. Cancel and choose eligible participants.");
     }
-    const options = { ...consultationEventOptions(row, attendees), scheduledStart, scheduledEnd };
+    const options = { ...await consultationEventOptions(tx, row, attendees), scheduledStart, scheduledEnd };
     const legacy = row.conferenceState === "LEGACY";
     const meet = legacy ? await googleCalendarService.createMeetConsultation(row.googleEventId, options) : null;
-    if (!legacy) await googleCalendarService.updateConsultation(row.googleEventId, options, row.meetingUrl);
+    const meetCoHostName = legacy ? meet?.coHostName ?? null
+      : await googleCalendarService.updateConsultation(row.googleEventId, options, row.meetingUrl);
     const changed = await tx.consultation.update({
       where: { id },
       data: {
-        scheduledStart, scheduledEnd, pendingCalendarUpdate: Prisma.DbNull, revision: { increment: 1 },
+        scheduledStart, scheduledEnd, meetCoHostName, pendingCalendarUpdate: Prisma.DbNull, revision: { increment: 1 },
         ...(meet ? { meetingUrl: meet.meetingUrl, conferenceState: "GOOGLE_VERIFIED" } : {}),
         participants: { deleteMany: { userId: { in: removed } }, create: added.map((userId) => ({ userId })) },
       },

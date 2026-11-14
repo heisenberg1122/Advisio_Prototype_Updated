@@ -119,6 +119,7 @@ export function serializeConsultation(consultation: any) {
     scheduledEnd: consultation.scheduledEnd,
     mode: meetingUrl ? "Google Meet" : "To be confirmed",
     meetingUrl: meetingUrl || "",
+    meetCoHostName: meetingUrl ? consultation.meetCoHostName : undefined,
     meetingKind: String(consultation.meetingKind || "SCHEDULED").toLowerCase(),
     conferenceState: String(consultation.conferenceState || "LEGACY").toLowerCase(),
     calendarUpdatePending: Boolean(consultation.pendingCalendarUpdate),

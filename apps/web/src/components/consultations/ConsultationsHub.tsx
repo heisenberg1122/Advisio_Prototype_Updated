@@ -109,6 +109,7 @@ export function ConsultationsHub({
       start ? relativeDays(start, now) : null,
       placeOf(item),
       item.adviser ? `with ${item.adviser}` : null,
+      !isPast && item.meetCoHostName ? `Meet co-host: ${item.meetCoHostName}` : null,
     ]
       .filter((part, index) => part && !(isPast && index === 4))
       .join(" · ");

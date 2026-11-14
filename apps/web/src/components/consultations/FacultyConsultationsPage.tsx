@@ -40,6 +40,7 @@ type Consultation = ManagedConsultation & {
   scheduledStart: string;
   scheduledEnd: string;
   meetingUrl?: string | null;
+  meetCoHostName?: string | null;
   conferenceState?: string;
   attendanceStatus?: string;
   research: Omit<ConsultationProject, "id"> & {
@@ -317,6 +318,7 @@ function ConsultationWorkspace({ workspace, scope, viewerId }: { workspace: Work
                         {" – "}
                         <time dateTime={item.scheduledEnd}>{timeOnly.format(new Date(item.scheduledEnd))}</time>
                         {history && <span className="mt-1 block">Current adviser · {advisers || "Unassigned"}</span>}
+                        {meeting && item.meetCoHostName && <span className="mt-1 block">Meet co-host · {item.meetCoHostName}</span>}
                       </>
                     }
                     end={

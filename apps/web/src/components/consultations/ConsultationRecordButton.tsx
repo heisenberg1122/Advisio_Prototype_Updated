@@ -15,6 +15,7 @@ type RecordView = {
   scheduledEnd: string;
   proof: ConsultationProof | null;
   reviewers: { id: string; name: string }[];
+  actualTimes?: { actualStart: string; actualEnd: string } | null;
   canReview: boolean;
   details: {
     revision: number;
@@ -30,7 +31,7 @@ type RecordView = {
 };
 
 type RecordAction =
-  | { action: "submit"; revision: number; actualStart: string; actualEnd: string; summary: string; nextSteps: string; reviewerId: string }
+  | { action: "submit"; revision: number; summary: string; nextSteps: string; reviewerId: string }
   | { action: "confirm"; revision: number }
   | { action: "request_correction"; revision: number; correction: string };
 
@@ -39,7 +40,6 @@ const dateTime = new Intl.DateTimeFormat("en-PH", {
 });
 const formatDate = (value: string) => dateTime.format(new Date(value));
 const range = (start: string, end: string) => `${formatDate(start)} – ${formatDate(end)}`;
-const inputTime = (value?: string) => value ? new Date(Date.parse(value) + 8 * 3_600_000).toISOString().slice(0, 16) : "";
 const field = "w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2";
 const statusLabels = {
   awaiting_confirmation: "Awaiting confirmation",
@@ -109,8 +109,6 @@ function RecordDialog({ id, onClose }: { id: string; onClose: () => void }) {
     const value = (name: string) => String(fields.get(name) || "");
     action.mutate({
       action: "submit", revision: details?.revision ?? 0,
-      actualStart: `${value("actualStart")}:00+08:00`,
-      actualEnd: `${value("actualEnd")}:00+08:00`,
       summary: value("summary"), nextSteps: value("nextSteps"), reviewerId: value("reviewerId"),
     });
   }
@@ -168,10 +166,12 @@ function RecordDialog({ id, onClose }: { id: string; onClose: () => void }) {
           </dl>
         </>}
         {record.reviewers.length > 0 && <form key={details?.revision ?? 0} onSubmit={submit} className="grid gap-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1">Actual start (Philippine time)<input className={field} name="actualStart" type="datetime-local" required defaultValue={inputTime(details?.actualStart)} /></label>
-            <label className="grid gap-1">Actual end (Philippine time)<input className={field} name="actualEnd" type="datetime-local" required defaultValue={inputTime(details?.actualEnd)} /></label>
-          </div>
+          {record.actualTimes ? <p>
+            <strong>Actual time</strong> · {range(record.actualTimes.actualStart, record.actualTimes.actualEnd)} Philippine time
+          </p> : <div className="space-y-2">
+            <p>Actual times are unavailable. Google Meet provides them after the call ends when the organizer account has access to the conference record.</p>
+            <Button size="sm" variant="secondary" disabled={query.isFetching} onClick={() => void query.refetch()}>Check Google Meet again</Button>
+          </div>}
           <label className="grid gap-1">Summary<textarea className={field} name="summary" maxLength={1000} required defaultValue={details?.summary} /></label>
           <label className="grid gap-1">Agreed next steps<textarea className={field} name="nextSteps" maxLength={1000} defaultValue={details?.nextSteps} /></label>
           <label className="grid gap-1">Reviewer<select className={field} name="reviewerId" required defaultValue={
@@ -181,7 +181,7 @@ function RecordDialog({ id, onClose }: { id: string; onClose: () => void }) {
             <option value="">Choose an invited participant</option>
             {record.reviewers.map(({ id: reviewerId, name }) => <option key={reviewerId} value={reviewerId}>{name}</option>)}
           </select></label>
-          <Button type="submit" disabled={action.isPending}>{details ? "Resubmit for confirmation" : "Submit for confirmation"}</Button>
+          <Button type="submit" disabled={action.isPending || !record.actualTimes}>{details ? "Resubmit for confirmation" : "Submit for confirmation"}</Button>
         </form>}
         {record.canReview && details && (
           correcting ? <form className="space-y-2" onSubmit={(event) => {
