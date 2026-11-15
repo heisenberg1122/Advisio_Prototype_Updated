@@ -33,7 +33,7 @@ import {
   type OverviewDocument, type OverviewRecord, type ProjectAction, type ProjectActivity, type ProjectMilestoneProgress,
 } from "@/lib/student-project-overview";
 import { notificationLink } from "@/lib/notification-navigation";
-import { studentTaskDetailsHref } from "@/lib/student-task-navigation";
+import { studentTaskDetailsHref, studentTasksHref } from "@/lib/student-task-navigation";
 import { StudentGroupChats } from "@/components/dashboards/student/StudentGroupChats";
 import { ConsultationMeetingForm } from "@/components/consultations/ConsultationMeetingForm";
 import { ConsultationBooking } from "@/components/consultations/ConsultationBooking";
@@ -1056,6 +1056,15 @@ function StudentDashboardContent() {
     activeProject ? currentProjectMilestone(activeProject, manuscriptWorkflowData?.milestones)?.id : undefined,
     Boolean(activeProject?.workflowInstance?.completedAt),
   );
+  const homeJourneyMessage = activeProject?.workflowAccessRemoved
+    ? "Your professor removed access to this workflow."
+    : progressLoading
+      ? "Loading workflow milestones…"
+      : progressError
+        ? "Workflow milestones could not be loaded."
+        : workflowProject
+          ? "Your professor has not added milestones to this workflow yet."
+          : "Your milestones will appear here once you have access to a workflow linked to this project.";
   const homeLogoSrc = getAcademicIdentity({ college: user?.college, program: user?.program })?.logoSrc;
   const homeMembers = activeStudentMembers.map((member: any) => ({ id: member.id, initials: memberInitials(member.user) }));
   const homeComingUp = buildComingUp([
@@ -1189,6 +1198,9 @@ function StudentDashboardContent() {
                   title={activeProject?.title || (activeProject ? "Research title not added" : "Let\u2019s set up your research project")}
                   steps={homeJourney}
                   progress={activeProject && !progressLoading && !progressError && homeJourney.length ? projectProgress : null}
+                  workflowName={workflowProject?.workflowInstance?.workflow?.name}
+                  workflowHref={workflowProject ? studentTasksHref(workflowProject.id, activeWorkflowEnrollment?.workflowId) : undefined}
+                  journeyMessage={homeJourneyMessage}
                   members={homeMembers}
                   memberCount={homeMembers.length}
                   adviserName={[activeAdviserMembership?.user?.firstName, activeAdviserMembership?.user?.lastName].filter(Boolean).join(" ")}
