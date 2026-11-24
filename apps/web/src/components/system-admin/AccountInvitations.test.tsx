@@ -95,9 +95,6 @@ describe("account invitation forms", () => {
     harness.states = [
       {
         email: "EXISTING@example.edu",
-        universityId: "",
-        firstName: "",
-        lastName: "",
         collegeId: "",
         verificationNote: "",
       },
@@ -122,13 +119,10 @@ describe("account invitation forms", () => {
     harness.states = [
       {
         email: "new@example.edu",
-        universityId: "NEW-1",
-        firstName: "New",
-        lastName: "Faculty",
         collegeId,
-        verificationNote: "Appointment verified",
+        verificationNote: "",
       },
-      ["PANELIST"],
+      ["ADVISER"],
       true,
       false,
       "",
@@ -137,13 +131,12 @@ describe("account invitation forms", () => {
     await find(render(input), (node) => node.type === "form").props.onSubmit({
       preventDefault() {},
     });
-    expect(harness.post).toHaveBeenCalledWith(
-      "/api/account-invitations",
-      expect.objectContaining({
-        roleNames: ["PANELIST"],
-        verificationConfirmed: true,
-      }),
-    );
+    expect(harness.post).toHaveBeenCalledWith("/api/account-invitations", {
+      email: "new@example.edu",
+      collegeId,
+      roleNames: ["ADVISER"],
+      verificationConfirmed: true,
+    });
     expect(
       nodes(render(input)).some(
         (node) =>

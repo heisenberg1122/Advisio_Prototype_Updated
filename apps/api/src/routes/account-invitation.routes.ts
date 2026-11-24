@@ -35,16 +35,14 @@ const handle =
       await action(req, res, next);
     } catch (error: any) {
       const status = error instanceof ZodError ? 400 : error.statusCode || 503;
-      res
-        .status(status)
-        .json({
-          error:
-            error instanceof ZodError
-              ? "Check the invitation details and try again."
-              : error.statusCode
-                ? error.message
-                : "Account invitations are temporarily unavailable. Please try again later.",
-        });
+      res.status(status).json({
+        error:
+          error instanceof ZodError
+            ? "Check the invitation details and try again."
+            : error.statusCode
+              ? error.message
+              : "Account invitations are temporarily unavailable. Please try again later.",
+      });
     }
   };
 
@@ -61,7 +59,14 @@ router.post(
   recoveryRateLimit,
   validateBody(acceptAccountInvitationSchema),
   handle(async (req, res) => {
-    res.json(await acceptAccountInvitation(req.body.token, req.body.password));
+    res.json(
+      await acceptAccountInvitation(
+        req.body.token,
+        req.body.password,
+        undefined,
+        req.body.profile,
+      ),
+    );
   }),
 );
 router.post(
@@ -77,11 +82,9 @@ router.post(
 );
 router.use(requireAuth, (req, res, next) => {
   if (!req.user?.roles.some((role) => ["SYSTEM_ADMIN", "DEAN"].includes(role)))
-    return void res
-      .status(403)
-      .json({
-        error: "System administrator or college Dean access is required.",
-      });
+    return void res.status(403).json({
+      error: "System administrator or college Dean access is required.",
+    });
   next();
 });
 router.get(

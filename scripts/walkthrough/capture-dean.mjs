@@ -113,7 +113,7 @@ try {
           await point(page.getByText("Awaiting approval", { exact: true }));
         } else {
         await click(button("Invite or request access"));
-        await fill("Email address", "rowan.faculty@example.invalid"); await fill("First name", "Rowan"); await fill("Last name", "Garcia"); await fill("Institutional ID", "DEMO-FAC-026");
+        await fill("Email address", "rowan.faculty@example.invalid");
         await page.getByLabel("Professor Coordinator", { exact: true }).check();
         await page.getByLabel(/I verified this person/).check(); await fill("Verification note", "Fictional appointment verified for the isolated Dean walkthrough.");
         await cue("This example submits"); await click(button("Submit invitation or request"));

@@ -146,7 +146,12 @@ describe("account invitation routes", () => {
       (await post("/accept", { token, password: "A unique long password" }))
         .status,
     ).toBe(200);
-    expect(state.accept).toHaveBeenCalledWith(token, "A unique long password");
+    expect(state.accept).toHaveBeenCalledWith(
+      token,
+      "A unique long password",
+      undefined,
+      undefined,
+    );
   });
   it("keeps internal provider errors out of API responses", async () => {
     state.create.mockRejectedValue(new Error("secret provider value"));
