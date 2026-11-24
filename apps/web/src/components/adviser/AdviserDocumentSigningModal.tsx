@@ -8,7 +8,6 @@ import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { apiClient } from "@/lib/api-client";
 import { SignaturePad } from "./SignaturePad";
 import { useAuth } from "@/providers/auth-provider";
-import { evaluationRequest, type EvaluationSession } from "@/components/evaluation/evaluation-client";
 import { DocumentPreviewSkeleton } from "@/components/ui/Skeleton";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Button } from "@/components/ui/Button";
@@ -87,14 +86,6 @@ export function DocumentSigningModal({
   });
   const [includeName, setIncludeName] = useState(true);
   const [includeDate, setIncludeDate] = useState(true);
-  const [password, setPassword] = useState("");
-  const [demoPassword, setDemoPassword] = useState("");
-  useEffect(() => {
-    if (localStorage.getItem("advisio_token") !== "__evaluation__") return;
-    let current = true;
-    evaluationRequest<EvaluationSession>("session").then(session => { if (current) setDemoPassword(session.signingPassword || ""); }).catch(() => {});
-    return () => { current = false; };
-  }, []);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(true);
   const signAction = useAsyncAction();
@@ -356,7 +347,6 @@ export function DocumentSigningModal({
             document.signUrl ||
               `/api/documents/versions/${document.versionId}/sign`,
             {
-              password,
               confirmation: confirmed,
               ...(mode !== "saved"
                 ? { signatureImage: draftImage, saveSignature }
@@ -367,7 +357,6 @@ export function DocumentSigningModal({
             },
           );
           setResult(signedDocument);
-          setPassword("");
           pageRef.current
             ?.querySelector<HTMLElement>(
               '[aria-label="Signature position. Drag or use arrow keys to move."]',
@@ -389,7 +378,7 @@ export function DocumentSigningModal({
         },
       );
     } catch {
-      // Password, confirmation, placement, and signature inputs remain for retry.
+      // Confirmation, placement, and signature inputs remain for retry.
     }
   };
 
@@ -852,17 +841,6 @@ export function DocumentSigningModal({
                   <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
                     3. Confirm and sign
                   </h3>
-                  {demoPassword && <p className="mt-3 rounded-lg bg-sky-50 p-3 text-sm text-sky-900">Fictional evaluation account: use the saved demo signature and password <code>{demoPassword}</code>. No personal password or signature is needed.</p>}
-                  <label className="mt-3 block text-sm font-bold text-slate-600">
-                    Confirm your password
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      autoComplete={demoPassword ? "off" : "current-password"}
-                      className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 outline-none focus:border-[var(--color-primary)]"
-                    />
-                  </label>
                   <label className="mt-3 flex items-start gap-2 text-sm leading-5 text-slate-600">
                     <input
                       type="checkbox"
@@ -878,7 +856,7 @@ export function DocumentSigningModal({
                   <Button
                     onClick={signDocument}
                     disabled={
-                      busy || !pdf || !signatureUrl || !password || !confirmed
+                      busy || !pdf || !signatureUrl || !confirmed
                     }
                     status={signAction.status}
                     loadingText="Signing securely..."

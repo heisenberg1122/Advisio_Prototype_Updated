@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { once } from "node:events";
 import type { Server } from "node:http";
 import express from "express";
@@ -250,7 +251,9 @@ it("returns a retryable response when direct PDF processing is at capacity", asy
     release = () => resolve(state.template);
   });
   state.read.mockReturnValue(pending);
-  const active = Array.from({ length: 4 }, () => request("GET", "pdf-evaluation/source"));
+  const active = Array.from({ length: 4 }, () =>
+    request("GET", "pdf-evaluation/source"),
+  );
   try {
     await vi.waitFor(() => expect(state.read).toHaveBeenCalledTimes(4));
     const busy = await request("GET", "pdf-evaluation/source");
@@ -260,4 +263,46 @@ it("returns a retryable response when direct PDF processing is at capacity", asy
     release();
     await Promise.all(active);
   }
+});
+
+it("applies a signature without a password and keeps revision and assignment gates", async () => {
+  expect((await request("PUT", "pdf-evaluation", draft())).status).toBe(200);
+  const png = await readFile(
+    new URL(
+      "../../../../scripts/fixtures/pdf-evaluation-test-signature.png",
+      import.meta.url,
+    ),
+  );
+  const input = {
+    revision: 1,
+    placement: { page: 1, x: 0.1, y: 0.7, width: 0.2, height: 0.1 },
+    signatureImage: `data:image/png;base64,${png.toString("base64")}`,
+  };
+  expect(
+    (await request("POST", "pdf-evaluation/sign", input, "unassigned-panelist"))
+      .status,
+  ).toBe(403);
+  expect(
+    (await request("POST", "pdf-evaluation/sign", { ...input, revision: 9 }))
+      .status,
+  ).toBe(409);
+  expect(
+    (
+      await request("POST", "pdf-evaluation/sign", {
+        ...input,
+        signatureImage: "invalid",
+      })
+    ).status,
+  ).toBe(400);
+  const signed = await request("POST", "pdf-evaluation/sign", input);
+  expect(signed.status).toBe(200);
+  expect((await signed.json()).evaluation.signedAt).toBeTruthy();
+  expect(state.audit).toHaveBeenCalledWith(
+    expect.objectContaining({
+      data: expect.objectContaining({
+        userId: "panelist-1",
+        entityType: "PdfEvaluationSignature",
+      }),
+    }),
+  );
 });

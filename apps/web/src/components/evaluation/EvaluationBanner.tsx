@@ -352,14 +352,6 @@ export function EvaluationBanner() {
                     </a>
                   </p>
                 )}
-                {session.signingPassword && (
-                  <p className="evaluation-help">
-                    For the fictional Dean signing activity, use the saved demo
-                    signature and password:{" "}
-                    <code>{session.signingPassword}</code>. This applies only to
-                    this temporary demo account.
-                  </p>
-                )}
                 <p>
                   Try the available features before answering. You may explore
                   beyond these activities and report any difficulties honestly.

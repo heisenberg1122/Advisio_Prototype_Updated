@@ -13,7 +13,6 @@ export type ScenarioChoice = {
     | "inbox";
   studentIdentity?: boolean;
 };
-export const DEMO_SIGNING_PASSWORD = "Demo-Dean-Review-2026!";
 export const ROLE_SCENARIOS: Record<EvaluationRole, readonly ScenarioChoice[]> =
   {
     student: [
@@ -192,7 +191,7 @@ export function scenarioTasks(
       "Open Signature requests in your Inbox.",
       "Select the pending Coordinator request.",
       "Open and review the attached fictional PDF.",
-      "Use the demo signing password and saved fictional signature to confirm signing.",
+      "Use the saved fictional signature and confirm signing.",
       "Open the signed PDF and inspect the signer, date, and verification code.",
       "Switch to Coordinator to inspect the signed request in Inbox.",
     ];

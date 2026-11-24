@@ -8,7 +8,6 @@ import multer from "multer";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import bcrypt from "bcryptjs";
 import {
   prisma,
   ReviewType,
@@ -1869,7 +1868,6 @@ router.post(
           .status(403)
           .json({ error: "Your role cannot sign documents." });
       const {
-        password,
         confirmation,
         placements,
         signatureImage,
@@ -1879,22 +1877,6 @@ router.post(
         return void res
           .status(400)
           .json({ error: "Signing confirmation is required." });
-      if (!password || typeof password !== "string")
-        return void res
-          .status(400)
-          .json({ error: "Enter your password to confirm signing." });
-      const account = await prisma.user.findUnique({
-        where: { id: req.user.id },
-        select: { passwordHash: true },
-      });
-      if (
-        !account?.passwordHash ||
-        !(await bcrypt.compare(password, account.passwordHash))
-      )
-        return void res
-          .status(401)
-          .json({ error: "Your password could not be verified." });
-
       const result = await documentSigningService.sign({
         sourceVersionId: req.params.versionId as string,
         signerId: req.user.id,

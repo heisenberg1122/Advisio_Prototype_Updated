@@ -25,7 +25,7 @@ export async function runPanelistAction(c) {
     const box = await surface.boundingBox(); await page.mouse.click(box.x + box.width * x, box.y + box.height * y);
   };
   const sign = async () => {
-    await mark("Signature", .57, .82); await page.getByLabel("Signature source", { exact: true }).selectOption("type"); await page.getByLabel("Type your signature", { exact: true }).fill("Marisol Cruz"); await page.getByLabel("Confirm your password", { exact: true }).fill(d.password); await click(exact("Apply signature")); await ready(page.getByText(/Signature applied|Signed/i).filter({ visible: true }).first());
+    await mark("Signature", .57, .82); await page.getByLabel("Signature source", { exact: true }).selectOption("type"); await page.getByLabel("Type your signature", { exact: true }).fill("Marisol Cruz"); await click(exact("Apply signature")); await ready(page.getByText(/Signature applied|Signed/i).filter({ visible: true }).first());
   };
   if (beat.action === "login") {
     await page.locator('input[type="email"]').fill(d.email); await page.locator('input[type="password"]').fill(d.password); await click(button("Sign in")); await ready(page.getByRole("link", { name: "Defense Schedule", exact: true }));

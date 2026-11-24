@@ -131,7 +131,7 @@
           "id": "sign",
           "action": "signatures",
           "callout": "Review the exact document, placement, and confirmation",
-          "narration": "In Inbox, select Signature requests. Read the requester's message and review the attached document before choosing Add signature. The signing screen supports a saved signature, drawing, an uploaded image, or a typed signature. This example uses a typed demonstration signature. Review its placement on the document and the name and date options. Confirm your password and the declaration, then select Confirm and Sign. The system saves a separate signed copy with a verification reference. Return to the thread to inspect the Signed status and send a reply when needed.",
+          "narration": "In Inbox, select Signature requests. Read the requester's message and review the attached document before choosing Add signature. The signing screen supports a saved signature, drawing, an uploaded image, or a typed signature. This example uses a typed demonstration signature. Review its placement on the document and the name and date options. Confirm the declaration, then select Confirm and Sign. The system saves a separate signed copy with a verification reference. Return to the thread to inspect the Signed status and send a reply when needed.",
           "framing": "overview"
         }
       ]

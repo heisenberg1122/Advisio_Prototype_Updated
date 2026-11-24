@@ -45,7 +45,7 @@ NIST defines a hash chain as an append-only structure in which later blocks inco
 | Official-copy integrity verification | `apps/api/src/services/official-copy.service.ts`, `verify` | Recomputes the actual artifact hash and compares it with the expected value. |
 | Audit events | `packages/database/prisma/schema.prisma`, `AuditLog` | Records actor, action, entity, changes, and time; currently has no predecessor hash. |
 
-These are observations from source inspection, not new test results. A hash stored beside a file does not independently protect against an attacker changing both. An electronic signature image plus password confirmation is not itself a public-key digital signature.
+These are observations from source inspection, not new test results. A hash stored beside a file does not independently protect against an attacker changing both. An electronic signature image plus signing confirmation is not itself a public-key digital signature.
 
 ## Optional ledger scope
 

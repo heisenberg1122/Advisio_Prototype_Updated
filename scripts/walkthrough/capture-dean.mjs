@@ -130,7 +130,6 @@ try {
         await ready(page.getByRole("dialog")); await ready(page.getByRole("button", { name: "type", exact: true }));
         await click(button("type")); await fill("Type your signature", "Aurelia Mendoza");
         await cue("Review its placement"); await point(page.getByLabel("Signature position. Drag or use arrow keys to move."));
-        await fill("Confirm your password", demo.password);
         await page.getByRole("checkbox").filter({ visible: true }).last().check();
         await cue("select Confirm and Sign"); await click(button("Confirm & Sign"));
         await ready(page.getByText("Your signed PDF has been saved successfully.", { exact: true }));

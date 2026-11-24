@@ -17,7 +17,7 @@ The current adviser screen offers **Invite adviser**, which opens Faculty Access
 
 The faculty chapter submits a fictional Professor Coordinator access request. The recorded **Awaiting approval** state does not grant the requested role. Adviser invitations and requests requiring administrator approval are explained separately.
 
-The signature chapter uses the real typed-signature, placement, password confirmation, declaration, signed-copy, and reply controls. This is an account-authenticated visual signature; the narration does not describe it as a certificate-based digital signature.
+The signature chapter uses the real typed-signature, placement, signing confirmation, declaration, signed-copy, and reply controls. This is an account-authenticated visual signature; the narration does not describe it as a certificate-based digital signature.
 
 Manuscript review demonstrates a real passage comment on an assigned submitted PDF. It does not submit a permanent academic decision. Defense oversight shows readiness and an explicitly released outcome without accessing private panelist scores.
 
@@ -25,7 +25,7 @@ Manuscript review demonstrates a real passage comment on an assigned submitted P
 
 Run `npm run evaluation:init-local` once if the existing dedicated local PostgreSQL cluster is unavailable. The recording server reuses only that loopback cluster at `127.0.0.1:5436/advisio_evaluation`. It creates a new `walkthrough_dean_<random>` schema, independently of study sessions and normal development data.
 
-`node --import tsx scripts/walkthrough/dean-server.mjs --fresh` prepares fictional data and starts the API on loopback port 5200 and Vite on port 3200. Native application authentication, college boundaries, document access, and signing permission checks remain enabled. External integration credentials are blank, email delivery is disabled, and background workers are not started. Credentials and the selected schema are kept only in the ignored `.walkthrough/dean/demo.json`. The account password is masked during the recorded sign-in and signing confirmation.
+`node --import tsx scripts/walkthrough/dean-server.mjs --fresh` prepares fictional data and starts the API on loopback port 5200 and Vite on port 3200. Native application authentication, college boundaries, document access, and signing permission checks remain enabled. External integration credentials are blank, email delivery is disabled, and background workers are not started. Credentials and the selected schema are kept only in the ignored `.walkthrough/dean/demo.json`. The account password is masked during the recorded sign-in.
 
 The fixture includes multiple programs and academic years, pending and active researchers, active and inactive projects, an adviser, an administrator-pending faculty request recipient, a signature request PDF, scheduled and completed defenses, a calendar activity, a submitted manuscript, and a sample archive referencing an approved version. Files stay in a dedicated subdirectory of local uploads. `--fresh` creates a new isolated fixture; it never deletes an existing schema.
 

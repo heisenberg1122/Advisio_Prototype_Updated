@@ -137,7 +137,7 @@
           "clip": 12,
           "action": "sign",
           "callout": "Endorse and Sign an Eligible Document",
-          "narration": "Some research documents may also require the adviser's formal endorsement. After completing the necessary review, open the eligible document and follow the signing process. Review the document, position your signature, and complete the required confirmation. ADVISIO preserves the signed document as a separate record, maintaining the original document and its history. Confirm your password and authorize signing of this exact PDF. The saved signed copy has its own verification record. This signature does not replace other required institutional approvals.",
+          "narration": "Some research documents may also require the adviser's formal endorsement. After completing the necessary review, open the eligible document and follow the signing process. Review the document, position your signature, and complete the required confirmation. ADVISIO preserves the signed document as a separate record, maintaining the original document and its history. Confirm and authorize signing of this exact PDF. The saved signed copy has its own verification record. This signature does not replace other required institutional approvals.",
           "framing": "overview"
         }
       ]

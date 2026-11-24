@@ -246,21 +246,13 @@ try {
   );
   const signatureImage = `data:image/png;base64,${png.toString("base64")}`;
   const placement = { page: 2, x: 0.13, y: 0.8, width: 0.22, height: 0.055 };
-  await request(
-    panelist.token,
-    base + "/sign",
-    "POST",
-    { revision: 1, password: "incorrect-password", placement, signatureImage },
-    403,
-  );
-  checks.push("signature password checked");
   ({ evaluation } = await request(panelist.token, base + "/sign", "POST", {
     revision: 1,
-    password: panelist.account.password,
     placement,
     signatureImage,
   }));
   assert.ok(evaluation.signedAt);
+  checks.push("signing succeeds without password re-entry");
   const signedPreview = await request(
     panelist.token,
     base + "/preview",
@@ -284,7 +276,6 @@ try {
   );
   ({ evaluation } = await request(panelist.token, base + "/sign", "POST", {
     revision: 3,
-    password: panelist.account.password,
     placement,
     signatureImage,
   }));
