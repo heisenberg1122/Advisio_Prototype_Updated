@@ -130,7 +130,7 @@ try {
     db.$executeRaw`DELETE FROM evaluation_ledger_events WHERE false`,
   );
   const ledgerCount = await db.evaluationLedgerEvent.count();
-  assert.equal(ledgerCount, oldLedgerCount + 20);
+  assert.equal(ledgerCount, oldLedgerCount + 15);
   assert.match(await run("seed", {}, 1), /already exist/);
   const project = await db.researchProject.findFirstOrThrow({
     where: { groupName: `${DATASET}:BSN:A` },

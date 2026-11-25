@@ -32,18 +32,21 @@ test("four programs have 56 distinct role-specific logins and two disjoint four-
   }
 });
 
-test("department workflows preserve two defense gates, adviser and title steps, and final submission", () => {
+test("department workflows preserve their defense sequence, adviser and title steps, and final submission", () => {
   for (const program of PROGRAMS) {
     const stages = milestones(program);
     assert.equal(stages.length, 10);
     assert.deepEqual(
       stages.filter((s) => s.type === "DEFENSE_ELIGIBILITY").map((s) => s.name),
-      [
-        "Proposal defense eligibility and manuscript approval",
-        "Final defense eligibility and manuscript approval",
-      ],
+      program.code === "BEED"
+        ? ["Final defense eligibility and manuscript approval"]
+        : [
+            "Proposal defense eligibility and manuscript approval",
+            "Final defense eligibility and manuscript approval",
+          ],
     );
-    assert.equal(stages[3].type, "DEFENSE_ELIGIBILITY");
+    if (program.code !== "BEED")
+      assert.equal(stages[3].type, "DEFENSE_ELIGIBILITY");
     assert.equal(stages[7].type, "DEFENSE_ELIGIBILITY");
     assert.equal(stages.at(-1).role, "DEAN");
     assert.equal(
@@ -57,7 +60,7 @@ test("department workflows preserve two defense gates, adviser and title steps, 
     "TITLE_PROPOSAL",
   );
   assert.match(
-    milestones(PROGRAMS.find((p) => p.code === "BEED"))[5].name,
+    milestones(PROGRAMS.find((p) => p.code === "BEED"))[3].name,
     /UAREB/,
   );
 });

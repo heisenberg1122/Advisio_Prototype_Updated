@@ -64,9 +64,12 @@ Group B, have a registered title and accepted adviser, and start at final
 manuscript revision. Both groups are enrolled and have real workspace membership.
 The four workflows contain topics and sequential milestone prerequisites.
 
-Group B includes a clearly fictional completed proposal defense with three
-locked evaluation PDFs, an approved result, and a verified evaluation integrity
-ledger. Final eligibility remains unapproved. After the revised manuscript is
+BSN, BSA, and BSCPE Group B include a clearly fictional completed proposal defense
+with three locked evaluation PDFs, an approved result, and a verified evaluation
+integrity ledger. BEED follows the interview's single-defense sequence: proposal
+revision, UAREB application, instrument validation, manuscript completion, onsite
+defense, revision, and final submission. Final eligibility remains unapproved in
+every program. After the revised manuscript is
 submitted and approved, exercise the normal coordinator eligibility approval,
 Dean approval-letter signature, scheduling, panel invitation, packet publication,
 onsite evaluation, official result release, and final revision/submission flow.

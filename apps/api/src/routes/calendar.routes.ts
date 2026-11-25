@@ -4,6 +4,8 @@ import { Permissions } from "@research-management/auth";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/rbac.js";
+import { consultationAudience, joinableConsultationUrl } from "../services/consultation.service.js";
+import { googleMeetUrl } from "../services/google-calendar.service.js";
 
 const router = Router();
 const SCOPE_MANAGER_ROLES = new Set([
@@ -291,6 +293,7 @@ router.get(
   requirePermission(Permissions.CALENDAR_VIEW),
   async (req: Request, res: Response) => {
     try {
+      res.setHeader("Cache-Control", "private, no-store");
       const range = parseRange(req);
       if (!range)
         return void res
@@ -363,28 +366,10 @@ router.get(
         }),
         prisma.consultation.findMany({
           where: {
+            ...consultationAudience(user),
+            status: { in: ["REQUESTED", "PROVISIONING", "SCHEDULED", "ONGOING", "COMPLETED"] },
             scheduledStart: { lt: range.end },
             scheduledEnd: { gt: range.start },
-            OR: systemAdmin
-              ? undefined
-              : [
-                  { createdBy: user.id },
-                  { participants: { some: { userId: user.id } } },
-                  ...(!panelistOnly
-                    ? [
-                        {
-                          research: {
-                            members: {
-                              some: { userId: user.id, leftAt: null },
-                            },
-                          },
-                        },
-                      ]
-                    : []),
-                  ...(scopeManager && user.collegeId
-                    ? [{ research: { collegeId: user.collegeId } }]
-                    : []),
-                ],
           },
           include: {
             research: {
@@ -451,7 +436,10 @@ router.get(
           endsAt: event.endsAt,
           allDay: event.allDay,
           location: event.location,
-          meetingUrl: event.meetingUrl,
+          meetingUrl: event.type !== "CONSULTATION" ? event.meetingUrl
+            : event.createdBy === user.id || event.participants.some(({ userId }) => userId === user.id)
+              ? googleMeetUrl(event.meetingUrl)
+              : null,
           visibility: event.visibility,
           availabilityStatus: event.availabilityStatus,
           blocksScheduling: event.blocksScheduling,
@@ -475,13 +463,14 @@ router.get(
           id: `consultation:${event.id}`,
           source: "CONSULTATION",
           type: "CONSULTATION",
+          status: event.status,
           title: event.title,
           description: event.description,
           startsAt: event.scheduledStart,
           endsAt: event.scheduledEnd,
           allDay: false,
-          location: "Google Meet",
-          meetingUrl: event.meetingUrl,
+          location: event.conferenceState === "MANUAL" ? "Existing Google Meet link" : joinableConsultationUrl(event) ? "Google Meet" : null,
+          meetingUrl: joinableConsultationUrl(event),
           visibility: "PARTICIPANTS",
           program: event.research.program,
           groups: [
@@ -595,6 +584,10 @@ router.post("/calendar", requireAuth, async (req: Request, res: Response) => {
     if (!allowed)
       return void res.status(403).json({
         error: "You do not have permission to create this calendar entry.",
+      });
+    if (type === "CONSULTATION")
+      return void res.status(400).json({
+        error: "Use the Consultations workspace to schedule a meeting with invited participants.",
       });
     if (!EVENT_TYPES.has(type))
       return void res
@@ -714,6 +707,10 @@ router.patch(
 
       const type = String(req.body.type || existing.type).toUpperCase();
       const isAvailability = type === "AVAILABILITY";
+      if (type === "CONSULTATION" && existing.type !== "CONSULTATION")
+        return void res.status(400).json({
+          error: "Use the Consultations workspace to schedule a meeting with invited participants.",
+        });
       if (!EVENT_TYPES.has(type))
         return void res
           .status(400)

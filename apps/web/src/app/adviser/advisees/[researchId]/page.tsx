@@ -31,6 +31,8 @@ import { calculateMilestoneProgress } from "@/lib/workflow-progress";
 import { resolveWorkflowDeadline, WORKFLOW_TIME_ZONE } from "@/lib/workflow-deadlines";
 import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@/components/ui/Button";
+import { joinConsultation } from "@/components/consultations/ConsultationActions";
+import type { ConsultationItem } from "@/lib/consultation-store";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tag, type ExtendedTagVariant } from "@/components/ui/Tag";
@@ -52,9 +54,10 @@ interface WorkspaceData {
   milestones: any[];
   defenseReadiness: { workflowApproved: boolean; deanApprovalSigned: boolean };
   activity: any[];
-  consultations: any[];
   defenseSessions: any[];
 }
+
+const NO_CONSULTATIONS: ConsultationItem[] = [];
 
 const SECTION_ITEMS: Array<{
   id: WorkspaceSection;
@@ -224,6 +227,14 @@ export default function AdviserResearchGroupWorkspacePage() {
   const [fileAction, setFileAction] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [showAllDeadlines, setShowAllDeadlines] = useState(false);
+  const [joinError, setJoinError] = useState("");
+  const consultationsQuery = useQuery({
+    queryKey: ["consultations", "adviser-project", user?.id, user?.college?.id, researchId],
+    enabled: Boolean(researchId && user?.id),
+    refetchInterval: activeSection === "overview" || activeSection === "consultations" ? 15_000 : false,
+    queryFn: () => apiClient.get<{ consultations: ConsultationItem[] }>("/api/consultations", { params: { researchId } }),
+  });
+  const consultations = consultationsQuery.data?.consultations ?? NO_CONSULTATIONS;
 
   const workspaceQuery = useQuery({
     queryKey: ["adviser", "research-group-workspace", researchId],
@@ -231,10 +242,9 @@ export default function AdviserResearchGroupWorkspacePage() {
     staleTime: 15_000,
     queryFn: async (): Promise<WorkspaceData> => {
       const projectResponse = await apiClient.get<{ project: any }>(`/api/research/${researchId}`);
-      const [documentResponse, workflowResponse, consultationResponse, defenseResponse] = await Promise.all([
+      const [documentResponse, workflowResponse, defenseResponse] = await Promise.all([
         apiClient.get<{ documents: any[]; permissions: Record<string, boolean> }>(`/api/research/${researchId}/documents`),
         apiClient.get<{ milestones: any[]; activity: any[]; defenseReadiness: WorkspaceData["defenseReadiness"] }>(`/api/research/${researchId}/manuscript-workflow`),
-        apiClient.get<{ consultations: any[] }>("/api/consultations", { params: { researchId } }),
         apiClient.get<{ sessions: any[] }>("/api/defense-management").catch(() => ({ sessions: [] })),
       ]);
       return {
@@ -244,7 +254,6 @@ export default function AdviserResearchGroupWorkspacePage() {
         milestones: workflowResponse.milestones || [],
         defenseReadiness: workflowResponse.defenseReadiness,
         activity: workflowResponse.activity || [],
-        consultations: consultationResponse.consultations || [],
         defenseSessions: (defenseResponse.sessions || []).filter((session: any) => session.researchId === researchId),
       };
     },
@@ -283,16 +292,18 @@ export default function AdviserResearchGroupWorkspacePage() {
         items.push({ id: `milestone-${stage.id}`, label: stage.name, detail: "Milestone deadline (Philippine time)", date: dueAt, type: "milestone" });
       }
     }
-    for (const consultation of data.consultations) {
-      const date = new Date(consultation.scheduledStart);
-      if (date.getTime() >= now) items.push({ id: `consultation-${consultation.id}`, label: consultation.topic || consultation.title, detail: "Consultation", date, type: "consultation" });
+    for (const consultation of consultations) {
+      const date = new Date(consultation.scheduledStart || "");
+      if (date.getTime() >= now && ["requested", "provisioning", "scheduled"].includes(consultation.status)) {
+        items.push({ id: `consultation-${consultation.id}`, label: consultation.topic, detail: "Consultation", date, type: "consultation" });
+      }
     }
     for (const session of data.defenseSessions) {
       const date = new Date(session.scheduledStart);
       if (date.getTime() >= now) items.push({ id: `defense-${session.id}`, label: session.defenseEvent?.defenseType ? readable(session.defenseEvent.defenseType) : "Research defense", detail: "Defense schedule", date, type: "defense" });
     }
     return items.sort((left, right) => left.date.getTime() - right.date.getTime());
-  }, [data, project]);
+  }, [consultations, data, project]);
 
   const reviewItems = useMemo(() => {
     return (data?.documents || []).flatMap((document) =>
@@ -423,7 +434,7 @@ export default function AdviserResearchGroupWorkspacePage() {
             <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
               <MetricCard icon={GraduationCap} label="Academic year" value={project.academicYear?.name || project.academicYear?.label || "Not assigned"} detail={project.program?.name} />
               <MetricCard icon={FileText} label="Documents" value={data.documents.length} detail={`${data.documents.reduce((sum, document) => sum + (document.versions?.length || 0), 0)} saved versions`} />
-              <MetricCard icon={CalendarClock} label="Consultations" value={data.consultations.length} detail={`${data.consultations.filter((item) => ["requested", "scheduled"].includes(String(item.status).toLowerCase())).length} upcoming or pending`} />
+              <MetricCard icon={CalendarClock} label="Consultations" value={consultations.length} detail={`${consultations.filter((item) => ["requested", "provisioning", "scheduled", "ongoing"].includes(item.status)).length} upcoming or pending`} />
               <MetricCard icon={MessageSquareText} label="Review records" value={reviewItems.length} detail={`${reviewItems.filter((item: any) => item.assignment?.status === "ACTIVE").length} active requests`} />
             </div>
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,.72fr)]">
@@ -462,7 +473,43 @@ export default function AdviserResearchGroupWorkspacePage() {
 
         {activeSection === "consultations" && (
           <SectionCard scopeLabel="This research group" title="Project consultations" description="Schedules, notes, feedback, and action items recorded for this project only." action={<Link href={`/adviser/dashboard?tab=consultations&researchId=${researchId}`} className="inline-flex h-9 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-3.5 text-sm font-semibold text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]"><CalendarClock className="h-4 w-4" />Open global consultations</Link>}>
-            {data.consultations.length ? <div className="space-y-3">{[...data.consultations].sort((a, b) => new Date(b.scheduledStart).getTime() - new Date(a.scheduledStart).getTime()).map((consultation) => <article key={consultation.id} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 sm:p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-[var(--color-text-primary)]">{consultation.topic || consultation.title}</h3><Tag size="xs" variant={statusVariant(consultation.status)}>{readable(consultation.status)}</Tag></div><p className="mt-2 text-base text-[var(--color-text-secondary)]">{formatDateTime(consultation.scheduledStart)} · {consultation.mode || "Consultation"}</p>{consultation.description && <p className="mt-2 text-base leading-5 text-[var(--color-text-secondary)]">{consultation.description}</p>}</div>{consultation.meetingUrl && <a href={consultation.meetingUrl} target="_blank" rel="noreferrer" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm font-semibold text-[var(--color-primary)]"><ExternalLink className="h-4 w-4" />Open meeting</a>}</div><div className="mt-4 grid gap-3 lg:grid-cols-2"><div className="rounded-xl bg-[var(--color-surface)] p-3"><p className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Latest notes</p><p className="mt-2 whitespace-pre-wrap text-base leading-5 text-[var(--color-text-secondary)]">{consultation.notes || "No consultation notes have been recorded."}</p></div><div className="rounded-xl bg-[var(--color-surface)] p-3"><p className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Action items</p>{consultation.actionItems?.length ? <ul className="mt-2 space-y-1.5">{consultation.actionItems.map((item: any, index: number) => <li key={index} className="flex gap-2 text-xs leading-5 text-[var(--color-text-secondary)]"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-primary)]" />{typeof item === "string" ? item : item.text || item.title || JSON.stringify(item)}</li>)}</ul> : <p className="mt-2 text-base text-[var(--color-text-secondary)]">No action items have been recorded.</p>}</div></div></article>)}</div> : <EmptyState icon={CalendarClock} title="No consultations recorded" description="Schedule the first project consultation from the existing adviser consultation workspace." action={<Link href={`/adviser/dashboard?tab=consultations&researchId=${researchId}`} className="inline-flex h-9 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-3.5 text-sm font-semibold text-white">Schedule consultation</Link>} />}
+            {joinError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{joinError}</p>}
+            {consultationsQuery.isError ? <p role="alert" className="text-sm text-red-700 dark:text-red-300">{consultationsQuery.error.message}</p>
+              : consultationsQuery.isPending ? <p role="status">Loading consultations…</p>
+              : consultations.length ? <div className="space-y-3">
+                {consultations.map((consultation) => <article key={consultation.id} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 sm:p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-semibold text-[var(--color-text-primary)]">{consultation.topic}</h3>
+                        <Tag size="xs" variant={statusVariant(consultation.status)}>{readable(consultation.status)}</Tag>
+                      </div>
+                      <p className="mt-2 text-base text-[var(--color-text-secondary)]">{formatDateTime(consultation.scheduledStart)} · {consultation.mode || "Consultation"}</p>
+                      {consultation.description && <p className="mt-2 text-base text-[var(--color-text-secondary)]">{consultation.description}</p>}
+                    </div>
+                    {consultation.meetingUrl && <Button size="sm" variant="secondary" icon={<ExternalLink className="h-4 w-4" />}
+                      onClick={() => { setJoinError(""); void joinConsultation(consultation.id, setJoinError); }}>Join Meet</Button>}
+                  </div>
+                  <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                    <div className="rounded-xl bg-[var(--color-surface)] p-3">
+                      <p className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Latest notes</p>
+                      <p className="mt-2 whitespace-pre-wrap text-base text-[var(--color-text-secondary)]">{consultation.notes || "No consultation notes have been recorded."}</p>
+                    </div>
+                    <div className="rounded-xl bg-[var(--color-surface)] p-3">
+                      <p className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Action items</p>
+                      {consultation.actionItems?.length ? <ul className="mt-2 space-y-1.5">
+                        {consultation.actionItems.map((item: unknown, index) => {
+                          const legacyItem = typeof item === "object" && item ? item as { text?: string; title?: string } : null;
+                          return <li key={index} className="flex gap-2 text-xs text-[var(--color-text-secondary)]">
+                            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-primary)]" />
+                            {typeof item === "string" ? item : legacyItem?.text || legacyItem?.title || JSON.stringify(item)}
+                          </li>;
+                        })}
+                      </ul> : <p className="mt-2 text-base text-[var(--color-text-secondary)]">No action items have been recorded.</p>}
+                    </div>
+                  </div>
+                </article>)}
+              </div> : <EmptyState icon={CalendarClock} title="No consultations recorded" description="Schedule a session from the adviser consultation workspace." />}
           </SectionCard>
         )}
 

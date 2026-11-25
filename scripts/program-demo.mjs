@@ -949,7 +949,7 @@ async function prepare(context) {
         definition,
         stage.sequence === 8 ? "REVISION_REQUIRED" : "APPROVED",
       );
-      if (stage.sequence === 4)
+      if (stage.sequence === 4 && stage.milestoneType === "DEFENSE_ELIGIBILITY")
         await completedProposal(
           project,
           definition,
@@ -1055,7 +1055,10 @@ async function verify(context) {
     accounts: 56,
     groups: 8,
     workflows: 4,
-    proposalDefenses: 4,
+    proposalDefenses: data.projects.reduce(
+      (count, p) => count + p.defenseSessions.length,
+      0,
+    ),
     finalDefenses:
       "Require revision approval, eligibility and signed Dean letter",
     accountFile: path.join(privateDir, "accounts.csv"),

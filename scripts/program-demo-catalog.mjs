@@ -108,6 +108,20 @@ export function milestones(program) {
     role: "RESEARCH_COORDINATOR",
     files: true,
   });
+  // The Education interview lists one defense, after manuscript completion.
+  if (program.code === "BEED")
+    return [
+      title,
+      adviser,
+      standard("Research proposal review and revision"),
+      standard("UAREB application and demo clearance document"),
+      standard("Research instrument validation"),
+      standard("Fictional interviews and qualitative analysis"),
+      standard("Research manuscript completion and adviser review"),
+      gate("Final defense eligibility and manuscript approval"),
+      standard("Onsite defense result and required revisions"),
+      standard("Final manuscript approval and archive submission", "DEAN"),
+    ];
   return [
     ...(program.code === "BEED" ? [title, adviser] : [adviser, title]),
     standard(

@@ -1,5 +1,6 @@
 import app from "./app";
 import { startNotificationEmailWorker } from "./services/notification-email.service.js";
+import { startConsultationCalendarWorker } from "./services/consultation-lifecycle.service.js";
 import { startDeadlineEmailWorker } from "./services/deadline-email.service.js";
 import { startFileDeletionWorker } from "./services/file-deletion.service.js";
 import { startSecurityAuditWorker } from "./services/security-audit.service.js";
@@ -28,6 +29,7 @@ const stopFileDeletionWorker = evaluation
 const stopNotificationEmailWorker = evaluation
   ? () => {}
   : startNotificationEmailWorker();
+const stopConsultationCalendarWorker = evaluation ? () => {} : startConsultationCalendarWorker();
 const stopDeadlineEmailWorker = evaluation
   ? () => {}
   : startDeadlineEmailWorker();
@@ -40,6 +42,7 @@ const shutdown = () => {
   console.log("Shutting down Advisio API server...");
   stopFileDeletionWorker();
   stopNotificationEmailWorker();
+  stopConsultationCalendarWorker();
   stopDeadlineEmailWorker();
   stopSecurityAuditWorker();
   server.close(async () => {

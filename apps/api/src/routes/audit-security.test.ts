@@ -592,7 +592,7 @@ describe("recovery and reliability", () => {
     (googleCalendarService as any).calendar = null;
     try {
       await expect(
-        googleCalendarService.createMeetConsultation({
+        googleCalendarService.createMeetConsultation("advisiotest", {
           title: "Meeting",
           scheduledStart: new Date(),
           scheduledEnd: new Date(Date.now() + 60_000),

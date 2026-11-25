@@ -22,7 +22,7 @@ function ProgressRing({ value }: { value: number }) {
     <div
       className="rh-ring"
       role="img"
-      aria-label={`Research progress ${percent} percent`}
+      aria-label={`${percent}% of workflow requirements complete`}
     >
       <svg viewBox="0 0 84 84" aria-hidden="true">
         <circle className="rh-ring-track" cx="42" cy="42" r={RING_RADIUS} />
@@ -45,6 +45,9 @@ export function ResearcherHomeHero({
   title,
   steps,
   progress,
+  workflowName,
+  workflowHref,
+  journeyMessage,
   members,
   memberCount,
   adviserName,
@@ -55,6 +58,9 @@ export function ResearcherHomeHero({
   title: string;
   steps: JourneyStep[];
   progress: number | null;
+  workflowName?: string;
+  workflowHref?: string;
+  journeyMessage: string;
   members: Array<{ id: string; initials: string }>;
   memberCount: number;
   adviserName?: string;
@@ -63,6 +69,8 @@ export function ResearcherHomeHero({
   action: ReactNode;
 }) {
   const position = journeyPosition(steps);
+  const completedCount = steps.filter(({ state }) => state === "done").length;
+  const milestoneLabel = steps.length === 1 ? "milestone" : "milestones";
   const shownMembers = members.slice(0, 4);
   const teamLabel = [
     memberCount > 0
@@ -75,7 +83,7 @@ export function ResearcherHomeHero({
   return (
     <section
       className="rh-hero"
-      aria-label="Your research progress"
+      aria-label="Research project and workflow progress"
       data-tour="researcher-project"
     >
       {logoSrc && (
@@ -108,66 +116,78 @@ export function ResearcherHomeHero({
           )}
         </div>
         <div className="rh-hero-side">
-          {progress !== null && <ProgressRing value={progress} />}
+          {progress !== null && (
+            <div className="rh-hero-progress">
+              <ProgressRing value={progress} />
+              <span aria-hidden="true">Workflow requirements</span>
+            </div>
+          )}
           <div className="rh-hero-action rh-hero-action--wide">{action}</div>
         </div>
       </div>
-      {steps.length > 0 && (
-        <div
-          className="rh-steps-scroll"
-          tabIndex={steps.length > 8 ? 0 : undefined}
-          role={steps.length > 8 ? "region" : undefined}
-          aria-label={steps.length > 8 ? "Research milestones" : undefined}
-        >
-          <ol
-            className="rh-steps"
-            aria-label="Research milestones"
-            style={{ "--rh-step-count": steps.length } as React.CSSProperties}
-          >
-            {steps.map((step, index) => (
-              <li
-                key={step.id}
-                className={`rh-step rh-step--${step.state}`}
-                aria-current={step.state === "current" ? "step" : undefined}
-                title={step.name}
-              >
-                <span className="rh-step-node" aria-hidden="true">
-                  {step.state === "done" ? (
-                    <i className="ti ti-check" />
-                  ) : (
-                    index + 1
-                  )}
-                </span>
-                <span className="rh-step-name">
-                  {step.name}
-                  {step.state === "done" && (
-                    <span className="sr-only"> (completed)</span>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
-      {steps.length === 0 && (
-        <p className="rh-journey-empty">
-          <i aria-hidden="true" className="ti ti-route" />
-          Your milestones will appear here once your project is linked to a workflow.
-        </p>
-      )}
-      {position && (
-        <div className="rh-mobile-step">
-          <p>
-            Step {position.index} of {position.total}:{" "}
-            <strong>{position.name}</strong>
-          </p>
-          {progress !== null && (
-            <div className="rh-mobile-bar" aria-hidden="true">
-              <div style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
+      <div className="rh-journey">
+        {(position || workflowHref) && (
+          <div className="rh-journey-header">
+            <div>
+              <h3>{workflowName || "Workflow milestones"}</h3>
+              {position && <p>{completedCount} of {steps.length} {milestoneLabel} complete</p>}
             </div>
-          )}
-        </div>
-      )}
+            {workflowHref && (
+              <Link href={workflowHref} className="rh-workflow-link">
+                Tasks &amp; Requirements <i aria-hidden="true" className="ti ti-arrow-right" />
+              </Link>
+            )}
+          </div>
+        )}
+        {position ? (
+          <>
+            <div
+              className="rh-steps-scroll"
+              tabIndex={steps.length > 8 ? 0 : undefined}
+              role={steps.length > 8 ? "region" : undefined}
+              aria-label={steps.length > 8 ? "Workflow milestones" : undefined}
+            >
+              <ol
+                className="rh-steps"
+                aria-label="Workflow milestones"
+                style={{ "--rh-step-count": steps.length } as React.CSSProperties}
+              >
+                {steps.map((step, index) => (
+                  <li
+                    key={step.id}
+                    className={`rh-step rh-step--${step.state}`}
+                    aria-current={step.state === "current" ? "step" : undefined}
+                    title={step.name}
+                  >
+                    <span className="rh-step-node" aria-hidden="true">
+                      {step.state === "done" ? <i className="ti ti-check" /> : index + 1}
+                    </span>
+                    <span className="rh-step-name">
+                      {step.name}
+                      {step.state === "done" && <span className="sr-only"> (completed)</span>}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div className="rh-mobile-step">
+              <p>
+                Step {position.index} of {position.total} · <strong>{position.name}</strong>
+              </p>
+              {progress !== null && (
+                <div className="rh-mobile-bar" aria-hidden="true">
+                  <div style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="rh-journey-empty">
+            <i aria-hidden="true" className="ti ti-route" />
+            {journeyMessage}
+          </p>
+        )}
+      </div>
       <div className="rh-hero-action rh-hero-action--narrow">{action}</div>
     </section>
   );
