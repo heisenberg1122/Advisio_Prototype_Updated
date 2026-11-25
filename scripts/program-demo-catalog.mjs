@@ -13,7 +13,7 @@ export const PROGRAMS = [
       "Clinical Preparation and Learning Confidence among Nursing Students",
       "Learning Support and Stress Management during Clinical Preparation",
     ],
-    work: "Ethics clearance, instrument validation, fictional data collection, and analysis",
+    work: "Fictional data collection, analysis, and nursing manuscript completion",
   },
   {
     code: "BSA",
@@ -25,7 +25,7 @@ export const PROGRAMS = [
       "Bookkeeping Practices among Community Microenterprises",
       "Digital Record Keeping Readiness among Small Retail Enterprises",
     ],
-    work: "Research ethics clearance, data gathering, analysis, and remaining chapters",
+    work: "Data gathering, analysis, and remaining research chapters",
   },
   {
     code: "BSCPE",
@@ -37,7 +37,7 @@ export const PROGRAMS = [
       "Sensor-Based Campus Water Monitoring Prototype",
       "Low-Power Classroom Occupancy Monitoring Prototype",
     ],
-    work: "Engineering design, prototype implementation, safety review, and testing",
+    work: "Prototype implementation, test execution, and technical manuscript completion",
   },
   {
     code: "BEED",
@@ -49,7 +49,7 @@ export const PROGRAMS = [
       "Teacher Experiences with Reading Support in Elementary Classrooms",
       "Classroom Feedback Practices and Learner Participation",
     ],
-    work: "UAREB application, instrument validation, fictional interviews, and manuscript completion",
+    work: "Fictional interviews, qualitative analysis, and manuscript completion",
   },
 ];
 
