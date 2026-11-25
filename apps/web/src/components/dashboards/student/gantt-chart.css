@@ -92,7 +92,7 @@
 .gc-label {
   position: sticky;
   left: 0;
-  z-index: 2;
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: 11px;
@@ -193,6 +193,10 @@
 .gc-dates {
   position: absolute;
   top: 50%;
+  z-index: 2;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--gc-row-bg, var(--color-surface));
   font-size: 12px;
   color: var(--color-text-secondary);
   white-space: nowrap;
@@ -207,7 +211,8 @@
 .gc-row[data-status="completed"] .gc-bar { border: 0; background: var(--gc-done); }
 
 .gc-row[data-status="active"] {
-  background: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface));
+  --gc-row-bg: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface));
+  background: var(--gc-row-bg);
 }
 .gc-row[data-status="active"] .gc-label {
   background: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface));
@@ -240,12 +245,83 @@
   --gc-plan: color-mix(in srgb, var(--color-text-secondary) 55%, transparent);
 }
 
+/* Phones show one month at a time (GanttPhoneMonths). */
 @media (max-width: 767px) {
-  .gc { --gc-label: 168px; }
-  .gc-head, .gc-legend, .gc-note { padding-inline: 16px; }
-  .gc-label { padding-left: 14px; gap: 8px; }
-  .gc-name { font-size: 13px; }
-  .gc-stats { gap: 20px; }
-  .gc-stats div { text-align: left; }
-  .gc-legend-today { margin-left: 0; }
+  .gc-head { gap: 6px; padding: 13px 14px 10px; }
+  .gc-stats { gap: 16px; font-size: 13px; }
+  .gc-stats div { display: flex; align-items: baseline; gap: 4px; text-align: left; }
+  .gc-stats div:first-child { flex-direction: row-reverse; }
+  .gc-stats dt { font-size: 13px; }
+  .gc-stats dd { font-size: 13px; }
+  .gm { border-top: 1px solid var(--color-border-subtle); }
+  .gm-pager { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; }
+  .gm-pager strong { font-size: 16px; color: var(--color-text-primary); }
+  .gm-pager button {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    font-size: 18px;
+  }
+  .gm-pager button:disabled { opacity: 0.4; }
+  .gm-months { display: flex; gap: 6px; padding: 0 10px 10px; overflow-x: auto; scrollbar-width: none; }
+  .gm-months button {
+    display: flex;
+    flex: 1 0 68px;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 40px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  .gm-months button[aria-pressed="true"] { border-color: var(--color-primary); background: var(--color-primary); color: var(--college-on-primary, #ffffff); }
+  .dark .gm-months button[aria-pressed="true"] { color: var(--college-on-primary-dark, #ffffff); }
+  .gm-months em { font-size: 11px; font-style: normal; opacity: 0.75; }
+  .gm-ruler { position: relative; height: 24px; margin: 0 14px; border-bottom: 1px solid var(--color-border-subtle); font-size: 11.5px; color: var(--color-text-secondary); }
+  .gm-ruler span { position: absolute; top: 3px; }
+  .gm-ruler i { position: absolute; bottom: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--gc-today-color); transform: translateX(-50%); }
+  .gm-rows { margin: 0; padding: 0; list-style: none; }
+  .gm-row { padding: 9px 14px 11px; border-bottom: 1px solid var(--color-border-subtle); }
+  .gm-row[data-status="active"] { background: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface)); }
+  .gm-line { display: flex; align-items: center; gap: 8px; }
+  .gm .gc-num { width: 22px; height: 22px; font-size: 11px; }
+  .gm .gc-num .ti { font-size: 13px; }
+  .gm-name { flex: 1; min-width: 0; overflow: hidden; color: var(--color-text-secondary); font-size: 14px; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; }
+  .gm-dates { flex: none; color: var(--color-text-secondary); font-size: 12.5px; white-space: nowrap; }
+  .gm-row[data-status="completed"] .gc-num { color: color-mix(in srgb, var(--color-success) 70%, var(--color-text-primary)); background: color-mix(in srgb, var(--color-success) 14%, var(--color-surface)); }
+  .gm-row[data-status="completed"] .gm-name { color: var(--color-text-primary); }
+  .gm-row[data-status="active"] .gc-num { color: color-mix(in srgb, var(--color-warning) 55%, var(--color-text-primary)); background: color-mix(in srgb, var(--color-warning) 18%, var(--color-surface)); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--color-warning) 55%, transparent); }
+  .gm-row[data-status="active"] .gm-name { color: var(--color-text-primary); font-weight: 700; }
+  .gm-track {
+    position: relative;
+    height: 9px;
+    margin-top: 8px;
+    border-radius: 5px;
+    background-color: var(--color-surface-subtle);
+    background-image: linear-gradient(to right, var(--color-border-subtle) 1px, transparent 1px);
+    background-size: calc(100% * 7 / var(--gm-days)) 100%;
+  }
+  .gm-bar { position: absolute; top: 0; height: 9px; border: 1.5px dashed var(--gc-plan); border-radius: 5px; background: var(--color-surface); }
+  .gm-bar[data-before] { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  .gm-bar[data-after] { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .gm-row[data-status="completed"] .gm-bar { border: 0; background: var(--gc-done); }
+  .gm-row[data-status="active"] .gm-bar { border: 0; background: var(--gc-now); }
+  .gm-today { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--gc-today-color); transform: translateX(-50%); }
+  .gm-empty { padding: 26px 14px; color: var(--color-text-secondary); font-size: 14px; text-align: center; }
+  .gm-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 9px 14px; color: var(--color-text-secondary); font-size: 12px; }
+  .gm-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .gm-legend i { width: 15px; height: 7px; border-radius: 4px; }
+  .gm-legend i[data-tone="completed"] { background: var(--gc-done); }
+  .gm-legend i[data-tone="active"] { background: var(--gc-now); }
+  .gm-legend i[data-tone="upcoming"] { border: 1.5px dashed var(--gc-plan); }
+  .gm-legend i[data-tone="today"] { width: 2px; height: 12px; border-radius: 1px; background: var(--gc-today-color); }
 }

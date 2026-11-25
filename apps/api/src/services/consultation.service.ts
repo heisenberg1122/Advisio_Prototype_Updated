@@ -119,6 +119,7 @@ export function serializeConsultation(consultation: any) {
     scheduledEnd: consultation.scheduledEnd,
     mode: meetingUrl ? "Google Meet" : "To be confirmed",
     meetingUrl: meetingUrl || "",
+    meetCoHostName: meetingUrl ? consultation.meetCoHostName : undefined,
     meetingKind: String(consultation.meetingKind || "SCHEDULED").toLowerCase(),
     conferenceState: String(consultation.conferenceState || "LEGACY").toLowerCase(),
     calendarUpdatePending: Boolean(consultation.pendingCalendarUpdate),
@@ -149,6 +150,18 @@ export function consultationAudience(user: AuthenticatedUser) {
     research: { collegeId: user.collegeId || "00000000-0000-0000-0000-000000000000" },
     participants: { some: { userId: user.id } },
   } satisfies Prisma.ConsultationWhereInput;
+}
+
+export const coordinatorConsultationRoles = ["PROFESSOR", "RESEARCH_COORDINATOR"];
+
+export function coordinatorConsultationProjects(userId: string, collegeId: string): Prisma.ResearchProjectWhereInput {
+  return {
+    collegeId,
+    OR: [
+      { members: { some: { userId, leftAt: null, projectRole: "COORDINATOR" } } },
+      { workflowInstance: { is: { workflow: { createdBy: userId } } } },
+    ],
+  };
 }
 
 export function joinableConsultationUrl(consultation: {

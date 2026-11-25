@@ -3,6 +3,7 @@ import { getMilestoneProgress } from "./research-workflow-integration.service.js
 import { assertMilestoneCondition } from "./milestone-condition.service.js";
 
 type Db = Prisma.TransactionClient | typeof prisma;
+type Milestone = Awaited<ReturnType<typeof getMilestoneProgress>>[number];
 export const activeDefenseStatuses = [
   "PENDING_ACKNOWLEDGEMENT",
   "NEEDS_RESCHEDULING",
@@ -20,14 +21,19 @@ export class DefenseEligibilityError extends Error {
   }
 }
 
+export function defenseRequirementsReady(milestone: Milestone) {
+  return !milestone.isBlocked &&
+    (!milestone.requiresDocument || milestone.documentRequirementSatisfied) &&
+    milestone.tasks.every((task) => !task.isRequired || task.status === "APPROVED");
+}
+
 export async function lockDefenseGroup(db: Db, researchId: string) {
   await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`defense-eligibility:${researchId}`}))`;
 }
 
 // Always use the first unconsumed gate in workflow order. Old approvals must
 // never reappear after a pass, even if the milestone is edited or re-approved.
-export async function currentDefenseEligibility(db: Db, researchId: string) {
-  const progress = await getMilestoneProgress(db, researchId);
+async function nextDefenseGate(db: Db, researchId: string, progress: Awaited<ReturnType<typeof getMilestoneProgress>>) {
   const approvals = await db.defenseEligibility.findMany({
     where: { researchId },
   });
@@ -37,11 +43,16 @@ export async function currentDefenseEligibility(db: Db, researchId: string) {
       (item) => item.milestoneId === milestone.id,
     );
     if (approval?.consumedAt) continue;
-    if (!milestone.completed) return null;
-    if (!approval) return null;
-    return { ...approval, milestoneName: milestone.name };
+    return { milestone, approval };
   }
   return null;
+}
+
+export async function currentDefenseEligibility(db: Db, researchId: string) {
+  const gate = await nextDefenseGate(db, researchId, await getMilestoneProgress(db, researchId));
+  return gate?.milestone.completed && gate.approval
+    ? { ...gate.approval, milestoneName: gate.milestone.name }
+    : null;
 }
 
 export async function approveDefenseEligibility(
@@ -137,10 +148,15 @@ export async function requireDefenseEligibility(
 }
 
 // Readiness is scoped to the next defense cycle, not completion of the workflow.
-export async function getDefenseReadiness(db: Db, researchId: string) {
-  const eligibility = await currentDefenseEligibility(db, researchId);
+export async function getDefenseReadiness(db: Db, researchId: string, progress?: Awaited<ReturnType<typeof getMilestoneProgress>>) {
+  const gate = await nextDefenseGate(db, researchId, progress ?? await getMilestoneProgress(db, researchId));
+  const eligibility = gate?.milestone.completed ? gate.approval : null;
   return {
     workflowApproved: Boolean(eligibility),
+    requirementsReady: Boolean(gate && defenseRequirementsReady(gate.milestone)),
+    milestoneId: gate?.milestone.id ?? null,
+    milestoneName: gate?.milestone.name ?? null,
+    deanApprovalRequested: Boolean(eligibility?.deanApprovalDocumentId),
     deanApprovalSigned: eligibility
       ? await hasSignedDefenseApproval(db, eligibility.deanApprovalDocumentId)
       : false,

@@ -70,8 +70,8 @@ const panelistCommunication = {
 const coordinator = [
   chapter("home", "Home", "/professor/dashboard", [
     step("welcome", "Welcome to Research Coordination", "Home helps you oversee research projects, coursework and defenses. Start here to see what is in progress and where your attention is needed.", ["id:coordinator-home-title"]),
-    step("metrics", "Understand the summary", "The cards count monitored students, active projects and milestones. Use them to identify which area to review in more detail.", ["css:[aria-label='Coordination metrics'] button", "id:coordinator-monitoring-title"]),
-    step("attention", "See what needs attention", "The progress and submission panels summarize recent work. Quick actions open views such as submissions and group monitoring.", ["id:coordinator-attention-title", "id:coordinator-monitoring-title"]),
+    step("metrics", "Understand the summary", "The banner counts monitored students, active groups, milestones and work to review. Select a number to open that area.", ["css:[aria-label='Coordination metrics'] button", "id:coordinator-monitoring-title"]),
+    step("attention", "See what needs attention", "Review queue lists submissions oldest first. Upcoming defenses and Group progress show what is coming and which groups are furthest behind.", ["id:coordinator-attention-title", "id:coordinator-monitoring-title"]),
     navigation("Course Workspace groups projects, submissions, class records and workflows. Academic Activities holds defenses, consultations and the calendar. Communication contains Messages, Inbox and Notifications."),
   ]),
   chapter("announcements", "Announcements", co("announcements"), [
@@ -127,7 +127,7 @@ const dean = [
   chapter("home", "Home", "/admin/dashboard", [
     step("welcome", "Welcome to the Dean’s Office", "Home summarizes research across the active college. Counts and program summaries help identify where oversight is needed.", ["orientation:dean-pipeline", heading]),
     step("scope", "Choose the oversight scope", "Academic year and program filters narrow the displayed records within your active college.", ["css:main select"]),
-    step("pipeline", "Read the pipeline and pending issues", "The pipeline shows where groups sit in the research process. Attention and activity show pending issues and recent changes.", ["orientation:dean-pipeline", heading]),
+    step("pipeline", "Read the pipeline and pending issues", "The pipeline shows where groups sit in the research process. Groups needing attention and Waiting on you show what needs action.", ["orientation:dean-pipeline", heading]),
     navigation("Research Oversight groups students, projects, advisers and defenses. Reports summarizes activity. Academic Activities and Communication hold schedules and updates."),
   ]),
   chapter("students", "Students", de("students"), [

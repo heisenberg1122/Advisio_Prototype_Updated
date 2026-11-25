@@ -20,7 +20,7 @@ import {
   type WorkspaceAccounts,
   type WorkspaceScenario,
 } from "./seed.js";
-import { DEMO_SIGNING_PASSWORD, scenarioTasks } from "./scenarios.js";
+import { scenarioTasks } from "./scenarios.js";
 import { evaluationSurveyUrl } from "./survey.js";
 import { EvaluationRequestSlots } from "./request-slots.js";
 
@@ -654,8 +654,6 @@ export class EvaluationRuntime {
           id,
           label,
         })) || [],
-      signingPassword:
-        role.id === "dean" && selected ? DEMO_SIGNING_PASSWORD : undefined,
       revisionAvailable:
         role.id === "student" && (!selected || selected.id === "in-progress"),
       projectId: session.project_id,

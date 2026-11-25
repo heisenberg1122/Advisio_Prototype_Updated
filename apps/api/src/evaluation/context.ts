@@ -36,6 +36,8 @@ export function evaluationModelWhere(model: string) {
     return { researchId: project.id };
   if (model === "DocumentVersion")
     return { document: { researchId: project.id } };
+  if (model === "ConsultationRecord")
+    return { consultation: { researchId: project.id } };
   return null;
 }
 

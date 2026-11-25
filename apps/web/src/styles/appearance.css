@@ -1,0 +1,78 @@
+/* Appearance choices: flat cards for everyone, plus optional soft colors and serif headings. */
+
+/* ---------- Flatter, squarer surfaces ---------- */
+.app-workspace :is(.au-band--home, .adviser-overview__hero),
+.app-workspace :is(.gc, .rh-card, .rs-card, .au-card, .rs-table, .rs-tile, .rs-risk, .rs-filter-card, .rh-group, .rh-lead, .rh-panel, .rounded-2xl, .rounded-3xl) {
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+.app-workspace :is(.rs-chip, .rs-primary, .rh-cta) {
+  border-radius: 6px !important;
+  box-shadow: none !important;
+}
+
+/* ---------- Soft college theme: light ---------- */
+:root[data-college-theme][data-color-tone="soft"]:not(.dark) {
+  --color-primary: color-mix(in oklab, var(--college-primary) 42%, #5a6472);
+  --color-primary-dark: color-mix(in oklab, var(--college-primary) 42%, #434c59);
+  --color-primary-hover: color-mix(in oklab, var(--college-primary) 42%, #434c59);
+  --color-primary-light: color-mix(in srgb, var(--college-primary) 7%, #eceeef);
+  --color-primary-subtle: color-mix(in srgb, var(--college-primary) 3%, #f6f7f7);
+  --color-background: color-mix(in srgb, var(--college-primary) 1.5%, #f6f7f7);
+  --sidebar-background: color-mix(in srgb, var(--college-primary) 4%, #eef0f1);
+  --header-background: color-mix(in srgb, var(--college-primary) 4%, #eef0f1);
+  --color-surface: #fcfcfc;
+  --color-surface-muted: color-mix(in srgb, var(--college-primary) 5%, #e9ebec);
+  --color-surface-subtle: color-mix(in srgb, var(--college-primary) 2.5%, #f2f3f4);
+  --nav-active-bg: color-mix(in srgb, var(--college-primary) 9%, #e6e8ea);
+  --nav-hover-bg: color-mix(in srgb, var(--college-primary) 5%, #e9ebec);
+  --color-border: color-mix(in srgb, var(--college-primary) 6%, #dcdfe2);
+  --color-border-subtle: color-mix(in srgb, var(--college-primary) 4%, #e5e7ea);
+  --color-danger: #a65f5f;
+  --color-warning: #96835c;
+  --color-success: #627f70;
+  --au-attention: #8a4d4d;
+  --au-waiting: #7c6a45;
+  --au-done: #4f6c5e;
+  --au-home: color-mix(in oklab, var(--college-primary) 40%, #545e6c);
+  --au-home-start: var(--au-home);
+  --au-home-end: var(--au-home);
+}
+
+/* ---------- Soft college theme: dark ---------- */
+.dark[data-college-theme][data-color-tone="soft"] {
+  --color-primary: color-mix(in oklab, var(--college-primary-dark-mode) 28%, #aeb5c0);
+  --color-primary-dark: color-mix(in oklab, var(--college-primary-dark-mode) 28%, #979fac);
+  --color-primary-hover: color-mix(in oklab, var(--college-primary-dark-mode) 28%, #c0c6cf);
+  --college-on-primary-dark: #14181e;
+  --color-text-inverse: #14181e;
+  --color-primary-light: color-mix(in srgb, var(--college-primary-dark-mode) 8%, #242a33);
+  --color-primary-subtle: color-mix(in srgb, var(--college-primary-dark-mode) 6%, #1d222a);
+  --color-background: color-mix(in srgb, var(--college-primary-dark-mode) 3%, #14181e);
+  --sidebar-background: color-mix(in srgb, var(--college-primary-dark-mode) 4%, #181c23);
+  --header-background: color-mix(in srgb, var(--college-primary-dark-mode) 4%, #181c23);
+  --color-surface: color-mix(in srgb, var(--college-primary-dark-mode) 3%, #1d222a);
+  --color-surface-muted: color-mix(in srgb, var(--college-primary-dark-mode) 6%, #242a33);
+  --color-surface-subtle: color-mix(in srgb, var(--college-primary-dark-mode) 4%, #20252d);
+  --nav-active-bg: color-mix(in srgb, var(--college-primary-dark-mode) 9%, #252b34);
+  --nav-hover-bg: color-mix(in srgb, var(--college-primary-dark-mode) 9%, #232932);
+  --color-border: color-mix(in srgb, var(--college-primary-dark-mode) 12%, #2d343e);
+  --color-border-subtle: color-mix(in srgb, var(--college-primary-dark-mode) 8%, #282e38);
+  --au-home: color-mix(in oklab, var(--college-primary-dark-mode) 20%, #2a313c);
+  --au-home-start: var(--au-home);
+  --au-home-end: var(--au-home);
+}
+
+[data-color-tone="soft"] .au-band--home .au-band-seal { opacity: 0.08; }
+[data-color-tone="soft"] :is(header, aside) :is([class*="text-rose-"], [class*="text-red-"]) { color: var(--au-attention); }
+[data-color-tone="soft"] header :is([class*="bg-rose-"], [class*="bg-red-"]) { background-color: var(--color-danger); }
+
+/* ---------- Optional serif headings ---------- */
+[data-heading-font="serif"] .app-workspace :is(h1, h2, h3, .au-band-title),
+.as-font-sample--serif {
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.as-theme > .as-font-sample:not(.as-swatch):not(.as-in-use) { display: block; color: var(--color-text-primary); font-size: 24px; font-weight: 700; line-height: 1.2; }
+.as-theme > .as-font-sample.as-font-sample--serif { font-weight: 600; }

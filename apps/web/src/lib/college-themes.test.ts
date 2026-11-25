@@ -6,6 +6,16 @@ import {
   CourseThemeKey,
 } from "./college-themes";
 
+describe("soft college theme preference", () => {
+  it("keeps the college theme while soft is selected", () => {
+    expect(resolvePreferredCollegeTheme({ code: "COA" }, null, "COLLEGE_SOFT").key).toBe("coa");
+  });
+
+  it("keeps System Administrators on the default theme", () => {
+    expect(resolvePreferredCollegeTheme({ code: "COA" }, null, "COLLEGE_SOFT", ["SYSTEM_ADMIN"]).key).toBe("default");
+  });
+});
+
 describe("resolveCollegeTheme", () => {
   it.each([
     ["COA", "coa"],

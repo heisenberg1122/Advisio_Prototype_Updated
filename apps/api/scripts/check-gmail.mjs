@@ -9,7 +9,7 @@ for (const key of keys) {
 }
 console.log(`Email provider: ${process.env.EMAIL_PROVIDER === "gmail" ? "gmail" : "not set to gmail"}`);
 console.log(`Event email worker: ${process.env.NOTIFICATION_EMAILS_ENABLED === "true" ? "enabled" : "disabled (value must be exactly true)"}`);
-console.log(`Application URL: ${process.env.WEB_URL === "https://advisio-prototype-updated.vercel.app" ? "matches live Vercel site" : "does not match expected production URL"}`);
+console.log(`Application URL: ${process.env.WEB_URL?.trim().replace(/\/$/, "") === "https://advisio-ua.com" ? "matches the official Advisio site" : "does not match expected production URL"}`);
 
 const args = process.argv.slice(2);
 if (args.length) {

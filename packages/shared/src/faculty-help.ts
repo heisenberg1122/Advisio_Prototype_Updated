@@ -113,11 +113,11 @@ export const facultyHelp: Record<FacultyHelpWorkspace, FacultyHelpTopic[]> = {
       "How do I configure a milestone?",
       professor + "builder",
       ["add milestone", "configure milestone", "submission requirement"],
-      "Select the draft workflow and a topic. Open Create to see milestone choices. Check the instructions, submission requirements and completion rules before saving.",
+      "Select the draft workflow. Open + Milestone in the topic where the milestone belongs, then choose its type. Check the instructions, submission requirements and completion rules before saving.",
       [
         control(
           "co-workflow-create",
-          "Select a topic first if Create is unavailable. Use this menu to choose the type of milestone or requirement.",
+          "Use + Milestone inside a topic to choose the milestone type. If the workflow is empty, add a topic first.",
         ),
       ],
       "workflow.edit",

@@ -26,6 +26,11 @@ import {
   defenseBadgeKind,
 } from "../services/defense-badge-policy.js";
 import {
+  certificateBadgeInclude,
+  certificateResearchInclude,
+  issueDefenseCertificates,
+} from "../services/defense-certificate.service.js";
+import {
   renderAnnotatedPdf,
   pdfHash,
   evaluationRevisionHash,
@@ -487,7 +492,18 @@ async function cycle(
         issuedAt: releasedAt,
         recipients: snapshot.roster,
       },
+      include: certificateBadgeInclude,
     });
+    if (badge.kind === "FINAL_DEFENSE") {
+      const [research, dean] = await Promise.all([
+        db.researchProject.findUniqueOrThrow({ where: { id: projectId }, include: certificateResearchInclude }),
+        db.user.findUniqueOrThrow({
+          where: { id: users.dean },
+          select: { firstName: true, lastName: true },
+        }),
+      ]);
+      await issueDefenseCertificates(db, badge, research, dean);
+    }
     await db.auditLog.create({
       data: {
         userId: users.professor,

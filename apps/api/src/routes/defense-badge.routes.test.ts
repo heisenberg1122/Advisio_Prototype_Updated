@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const db = vi.hoisted(() => ({
   defenseSession: { findUnique: vi.fn() },
   defenseBadge: { createMany: vi.fn(), findUniqueOrThrow: vi.fn() },
+  defenseCertificate: { createMany: vi.fn() },
+  user: { findMany: vi.fn() },
   researchMember: { findMany: vi.fn() },
   notification: { createMany: vi.fn() },
   auditLog: { create: vi.fn() },
@@ -76,6 +78,7 @@ describe("coordinator defense badge issuance", () => {
       kind: "TITLE_DEFENSE",
     });
     db.researchMember.findMany.mockResolvedValue([{ userId: "student" }]);
+    db.user.findMany.mockResolvedValue([]);
   });
 
   it.each(["RESEARCHER", "PANELIST", "ADVISER", "DEAN", "SYSTEM_ADMIN"])(
@@ -166,5 +169,47 @@ describe("coordinator defense badge issuance", () => {
     expect(res.body.badge.id).toBe("badge");
     expect(db.auditLog.create).not.toHaveBeenCalled();
     expect(db.notification.createMany).not.toHaveBeenCalled();
+  });
+
+  it("snapshots each awarded student and the sole college dean for a new final badge", async () => {
+    const recipients = [
+      { userId: "00000000-0000-4000-8000-000000000001", name: "Ana Cruz" },
+      { userId: "00000000-0000-4000-8000-000000000002", name: "Luis Santos" },
+    ];
+    db.defenseSession.findUnique.mockResolvedValue({
+      ...approved,
+      defenseEvent: { defenseType: "FINAL_DEFENSE" },
+      research: {
+        ...approved.research,
+        title: "Campus water monitoring",
+        college: { name: "College of Information Technology", code: "CIT" },
+      },
+    });
+    db.defenseBadge.findUniqueOrThrow.mockResolvedValue({
+      id: "badge",
+      recipients,
+      issuedAt: approved.releasedAt,
+      issuer: { firstName: "Research", lastName: "Coordinator" },
+      _count: { certificates: 0 },
+    });
+    db.user.findMany.mockResolvedValue([{ firstName: "College", lastName: "Dean" }]);
+    db.defenseCertificate.createMany.mockResolvedValue({ count: 2 });
+    const result = await issue();
+    expect(result.statusCode).toBe(201);
+    expect(result.body.badge._count.certificates).toBe(2);
+    expect(db.defenseCertificate.createMany).toHaveBeenCalledWith({
+      data: recipients.map((recipient) => ({
+        badgeId: "badge",
+        recipientId: recipient.userId,
+        recipientName: recipient.name,
+        coordinator: "Research Coordinator",
+        dean: "College Dean",
+        collegeName: "College of Information Technology",
+        collegeCode: "CIT",
+        researchTitle: "Campus water monitoring",
+        awardedAt: approved.releasedAt,
+      })),
+      skipDuplicates: true,
+    });
   });
 });

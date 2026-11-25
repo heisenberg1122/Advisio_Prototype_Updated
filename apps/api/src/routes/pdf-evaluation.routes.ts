@@ -1,5 +1,4 @@
 import { Router, type Request, type Response } from "express";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { PDFDocument } from "pdf-lib";
 import { Prisma, type PdfEvaluation } from "@prisma/client";
@@ -483,21 +482,11 @@ router.post(
     const input = z
       .object({
         revision: z.number().int().positive(),
-        password: z.string().min(1).max(256),
         placement: boxSchema,
         signatureImage: z.string().optional(),
         saveSignature: z.boolean().optional(),
       })
       .parse(req.body);
-    const user = await prisma.user.findUniqueOrThrow({
-      where: { id: req.user!.id },
-      select: { passwordHash: true },
-    });
-    if (
-      !user.passwordHash ||
-      !(await bcrypt.compare(input.password, user.passwordHash))
-    )
-      throw new Conflict("Password confirmation failed.", 403);
     const image = await resolveSigningImage(req.user!.id, input);
     const snapshot = await prisma.pdfEvaluation.findUnique({
       where: key(session.id, req.user!.id),

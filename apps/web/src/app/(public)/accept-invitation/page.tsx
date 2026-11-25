@@ -18,8 +18,7 @@ const roleLabels: Record<string, string> = {
 };
 type Preview = {
   email: string;
-  firstName: string;
-  lastName: string;
+  requiresProfile: boolean;
   collegeId: string;
   collegeName: string;
   roleNames: string[];
@@ -37,6 +36,11 @@ export default function AcceptInvitationPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [complete, setComplete] = useState(false);
+  const [profile, setProfile] = useState({
+    firstName: "",
+    lastName: "",
+    universityId: "",
+  });
   const validToken = /^[a-f0-9]{64}$/.test(token);
   const query = useQuery({
     queryKey: ["account-invitation-preview", token],
@@ -103,9 +107,15 @@ export default function AcceptInvitationPage() {
       setError("Passwords must match.");
       return;
     }
-    const parsed = acceptAccountInvitationSchema.safeParse({ token, password });
+    const parsed = acceptAccountInvitationSchema.safeParse({
+      token,
+      password,
+      profile: invitation?.requiresProfile ? profile : undefined,
+    });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message || "Check your password.");
+      setError(
+        parsed.error.issues[0]?.message || "Check your profile and password.",
+      );
       return;
     }
     setBusy(true);
@@ -217,8 +227,7 @@ export default function AcceptInvitationPage() {
             ) : invitation ? (
               <>
                 <p className="mt-3 leading-7 text-[var(--color-text-secondary)]">
-                  Welcome, {invitation.firstName}. You have been invited to
-                  approved roles in {invitation.collegeName}.
+                  You’ve been invited to join {invitation.collegeName}.
                 </p>
                 <div className="my-6 space-y-3 rounded-2xl bg-[var(--color-surface-muted)] p-4">
                   <p className="flex items-center gap-2 text-sm">
@@ -250,12 +259,20 @@ export default function AcceptInvitationPage() {
                       </Link>
                     ) : user.email.toLowerCase() ===
                       invitation.email.toLowerCase() ? (
-                      <Button
-                        isLoading={busy}
-                        onClick={() => void acceptExisting()}
-                      >
-                        Accept college access
-                      </Button>
+                      <div className="space-y-3">
+                        <p className="text-sm">
+                          Signed in as{" "}
+                          <strong>
+                            {user.firstName} {user.lastName}
+                          </strong>
+                        </p>
+                        <Button
+                          isLoading={busy}
+                          onClick={() => void acceptExisting()}
+                        >
+                          Accept college access
+                        </Button>
+                      </div>
                     ) : (
                       <>
                         <p role="alert" className="text-sm">
@@ -280,9 +297,44 @@ export default function AcceptInvitationPage() {
                 ) : (
                   <form onSubmit={accept} className="space-y-4">
                     <p className="text-sm text-[var(--color-text-secondary)]">
-                      Set your own password to accept this invitation. Use at
-                      least 12 characters.
+                      {invitation.requiresProfile
+                        ? "Complete your profile and set a password to create your account."
+                        : "Set a password to create your account."}
                     </p>
+                    {invitation.requiresProfile && (
+                      <fieldset
+                        disabled={busy}
+                        className="grid gap-4 sm:grid-cols-2"
+                      >
+                        {(
+                          [
+                            ["firstName", "First name", "given-name", 100],
+                            ["lastName", "Last name", "family-name", 100],
+                            ["universityId", "Institutional ID", "off", 50],
+                          ] as const
+                        ).map(([field, label, autoComplete, maxLength]) => (
+                          <label
+                            key={field}
+                            className={`block text-sm font-semibold ${field === "universityId" ? "sm:col-span-2" : ""}`}
+                          >
+                            {label}
+                            <input
+                              required
+                              autoComplete={autoComplete}
+                              maxLength={maxLength}
+                              value={profile[field]}
+                              onChange={(event) =>
+                                setProfile({
+                                  ...profile,
+                                  [field]: event.target.value,
+                                })
+                              }
+                              className={inputClass}
+                            />
+                          </label>
+                        ))}
+                      </fieldset>
+                    )}
                     <label className="block text-sm font-semibold">
                       New password
                       <input

@@ -10,7 +10,6 @@ export type EvaluationSession = {
   scenario?: string | null;
   scenarioLabel?: string | null;
   scenarios?: { id: string; label: string }[];
-  signingPassword?: string;
   revisionAvailable?: boolean;
   title: string;
   home: string;

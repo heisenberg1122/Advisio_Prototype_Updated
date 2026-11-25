@@ -4,12 +4,12 @@ import { useAuth } from "@/providers/auth-provider";
 import type { MonitoringScope } from "@research-management/shared/src/dean-monitoring";
 
 export const panelClass =
-  "rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]";
+  "rounded-[17px] border border-[var(--color-border)] bg-[var(--color-white)] shadow-[0_1px_2px_rgb(20_35_50/4%),0_6px_18px_rgb(20_35_50/6%)] dark:bg-[var(--color-surface)] dark:shadow-none";
 export const filtersClass = `${panelClass} grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] items-end gap-3 p-4`;
 export const inputClass =
-  "h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text-primary)] outline-none focus:ring-2 focus:ring-[var(--college-focus-ring)]";
+  "h-[38px] w-full rounded-[10px] border border-[var(--color-border)] bg-[var(--color-white)] px-3 text-[13px] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)] outline-none focus:ring-2 focus:ring-[var(--college-focus-ring)]";
 export const actionClass =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold transition hover:bg-[var(--color-surface-muted)] disabled:opacity-50";
+  "inline-flex min-h-9 items-center justify-center gap-2 rounded-[10px] border border-[var(--color-border)] bg-[var(--color-white)] px-3 text-[13px] font-semibold transition dark:bg-[var(--color-surface)] hover:bg-[var(--color-surface-muted)] disabled:opacity-50";
 export const readable = (v: string) =>
   v
     .toLowerCase()
@@ -117,7 +117,7 @@ export function FilterField({
 }) {
   const id = useId();
   return (
-    <label className="flex min-w-0 flex-col gap-1.5 text-xs font-bold text-[var(--color-text-secondary)]">
+    <label className="flex min-w-0 flex-col gap-1 text-xs font-semibold text-[var(--color-text-secondary)]">
       <span id={id}>{label}</span>
       {React.cloneElement(children, { "aria-labelledby": id })}
     </label>

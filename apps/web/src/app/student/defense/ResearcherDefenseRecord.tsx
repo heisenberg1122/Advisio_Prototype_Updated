@@ -6,6 +6,7 @@ import {
 } from "@research-management/validations";
 import { apiClient } from "@/lib/api-client";
 import { DefenseBadgeCard } from "@/components/defense/DefenseBadgeCard";
+import { ViewDefenseCertificate } from "@/components/defense/ViewDefenseCertificate";
 import { SharedManuscriptFeedback } from "@/components/documents/SharedManuscriptFeedback";
 import { DefenseEvaluationsSkeleton } from "@/components/ui/Skeleton";
 
@@ -148,6 +149,18 @@ export function ResearcherOfficialResult({
           <p className="rdf-secondary">
             Released {new Date(session.releasedAt).toLocaleString()}
           </p>
+          {session.releasedFeedback && (
+            <div className="rdf-feedback-body">
+              <h3>Feedback and revision instructions</h3>
+              <p className="whitespace-pre-line">{session.releasedFeedback}</p>
+            </div>
+          )}
+          {!revisionClearance && ["APPROVED_WITH_MINOR_REVISIONS", "MAJOR_REVISIONS_REQUIRED"].includes(session.decision) && (
+            <p className="rdf-secondary">
+              Submit the revised manuscript for faculty review. The professor or coordinator confirms clearance after the revised version is approved.{" "}
+              <Link to={`/student/tasks?projectId=${encodeURIComponent(session.researchId)}`}>Open Tasks & Requirements</Link>
+            </p>
+          )}
           <p className="rdf-caption">
             Panelist recommendations and averages do not automatically determine
             the official decision.
@@ -405,6 +418,7 @@ export function ResearcherDefenseRecord({
   packet,
   packetHistoryData,
   documents,
+  researcherId,
   projectHref,
 }: {
   selectedSession: any;
@@ -412,11 +426,13 @@ export function ResearcherDefenseRecord({
   packet: any;
   packetHistoryData: any;
   documents: any[];
+  researcherId?: string;
   projectHref: (path: string) => string;
 }) {
   const showEvaluations = Boolean(
     selectedSession?.packet?.evaluationMode === "STRUCTURED" &&
-    selectedSession?.releasedAt,
+    selectedSession?.releasedAt &&
+    !selectedSession?.decisionAndFeedbackOnly,
   );
   // Same key, endpoint, release gate and researcher polling policy as the
   // original student ConsolidatedEvaluations instance. No additional sources.
@@ -434,11 +450,7 @@ export function ResearcherDefenseRecord({
       {selectedSession && (
         <ResearcherOfficialResult
           session={selectedSession}
-          revisionClearance={
-            showEvaluations && !query.isPending && !query.isError
-              ? query.data?.revisionClearance
-              : undefined
-          }
+          revisionClearance={query.data?.revisionClearance ?? selectedSession.revisionClearance}
         />
       )}
       {sessions.some((session: any) => session.badge) && (
@@ -450,7 +462,16 @@ export function ResearcherDefenseRecord({
           {sessions
             .filter((session: any) => session.badge)
             .map((session: any) => (
-              <DefenseBadgeCard key={session.id} badge={session.badge} />
+              <DefenseBadgeCard
+                key={session.id}
+                badge={session.badge}
+                action={
+                  session.badge.kind === "FINAL_DEFENSE" && researcherId && session.badge._count?.certificates > 0 &&
+                  session.badge.recipients.some((recipient: { userId: string }) => recipient.userId === researcherId)
+                    ? <ViewDefenseCertificate sessionId={session.id} researcherId={researcherId} />
+                    : undefined
+                }
+              />
             ))}
         </section>
       )}

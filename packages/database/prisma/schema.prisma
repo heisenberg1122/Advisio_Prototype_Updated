@@ -41,6 +41,12 @@ enum AppearancePreference {
 enum ColorThemePreference {
   DEFAULT_ADVISIO
   COLLEGE_PROGRAM
+  COLLEGE_SOFT
+}
+
+enum HeadingFontPreference {
+  STANDARD
+  SERIF
 }
 
 enum ResearcherDegreeLevel {
@@ -545,6 +551,7 @@ model User {
   programId                String?              @map("program_id") @db.Uuid
   appearancePreference     AppearancePreference @default(SYSTEM) @map("appearance_preference")
   colorThemePreference     ColorThemePreference @default(COLLEGE_PROGRAM) @map("color_theme_preference")
+  headingFontPreference    HeadingFontPreference @default(STANDARD) @map("heading_font_preference")
   status                   UserStatus           @default(PENDING)
   maxAdviseeGroups         Int                  @default(5) @map("max_advisee_groups")
   isAcceptingAdvisees      Boolean              @default(true) @map("is_accepting_advisees")
@@ -635,13 +642,13 @@ model User {
 model AccountInvitation {
   id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                 String                  @db.Citext
-  universityId          String                  @map("university_id") @db.VarChar(50)
-  firstName             String                  @map("first_name") @db.VarChar(100)
-  lastName              String                  @map("last_name") @db.VarChar(100)
+  universityId          String?                 @map("university_id") @db.VarChar(50)
+  firstName             String?                 @map("first_name") @db.VarChar(100)
+  lastName              String?                 @map("last_name") @db.VarChar(100)
   roleNames             InstitutionalRole[]      @map("role_names")
   collegeId             String                  @map("college_id") @db.Uuid
   createdById           String                  @map("created_by_id") @db.Uuid
-  verificationNote      String                  @map("verification_note") @db.VarChar(1000)
+  verificationNote      String?                 @map("verification_note") @db.VarChar(1000)
   tokenHash             String                  @unique @map("token_hash") @db.VarChar(64)
   status                AccountInvitationStatus @default(PENDING)
   expiresAt             DateTime                @map("expires_at")
@@ -2138,6 +2145,8 @@ model DefenseSession {
   startedBy      String?              @map("started_by") @db.Uuid
   endedAt        DateTime?            @map("ended_at")
   releasedAt     DateTime?            @map("released_at")
+  decisionAndFeedbackOnly Boolean     @default(false) @map("decision_and_feedback_only")
+  releasedFeedback String?            @map("released_feedback")
   releasedBy     String?              @map("released_by") @db.Uuid
   createdAt      DateTime             @default(now()) @map("created_at")
   updatedAt      DateTime             @updatedAt @map("updated_at")
@@ -2225,9 +2234,28 @@ model DefenseBadge {
 
   session DefenseSession @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
   issuer  User           @relation(fields: [issuedBy], references: [id], onDelete: Restrict)
+  certificates DefenseCertificate[]
 
   @@index([issuedBy])
   @@map("defense_badges")
+}
+
+model DefenseCertificate {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  badgeId        String   @map("badge_id") @db.Uuid
+  recipientId    String   @map("recipient_id") @db.Uuid
+  recipientName  String   @map("recipient_name")
+  coordinator    String
+  dean           String
+  collegeName    String   @map("college_name")
+  collegeCode    String   @map("college_code")
+  researchTitle  String   @map("research_title")
+  awardedAt      DateTime @map("awarded_at")
+
+  badge DefenseBadge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([badgeId, recipientId])
+  @@map("defense_certificates")
 }
 
 // Each reviewer owns a separate source snapshot and editable annotation draft.
@@ -2378,6 +2406,7 @@ model Consultation {
   meetingKind     ConsultationMeetingKind @default(SCHEDULED) @map("meeting_kind")
   conferenceState ConsultationConferenceState @default(LEGACY) @map("conference_state")
   googleEventId   String?            @unique @map("google_event_id") @db.VarChar(255)
+  meetCoHostName  String?            @map("meet_co_host_name")
   approverId      String?            @map("approver_id") @db.Uuid
   requestKey      String?            @unique @map("request_key") @db.VarChar(64)
   requestHash     String?            @map("request_hash") @db.VarChar(64)
@@ -2391,11 +2420,32 @@ model Consultation {
   research     ResearchProject           @relation(fields: [researchId], references: [id], onDelete: Cascade)
   participants ConsultationParticipant[]
   notes        ConsultationNote[]
+  record       ConsultationRecord?
 
   @@index([researchId])
   @@index([scheduledStart])
   @@index([calendarCancellationPending])
   @@map("consultations")
+}
+
+model ConsultationRecord {
+  consultationId String   @id @map("consultation_id") @db.Uuid
+  actualStart    DateTime @map("actual_start")
+  actualEnd      DateTime @map("actual_end")
+  summary        String   @db.Text
+  nextSteps      String   @map("next_steps") @db.Text
+  submittedById  String   @map("submitted_by_id") @db.Uuid
+  submittedBy    String   @map("submitted_by")
+  submittedAt    DateTime @map("submitted_at")
+  reviewerId     String   @map("reviewer_id") @db.Uuid
+  reviewer       String
+  reviewedAt     DateTime? @map("reviewed_at")
+  correction     String?  @db.Text
+  revision       Int
+
+  consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@map("consultation_records")
 }
 
 model ConsultationParticipant {

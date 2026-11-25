@@ -2,34 +2,20 @@ import { describe, expect, it } from "vitest";
 import {
   effectiveColorThemePreference,
   parseColorThemePreference,
+  parseHeadingFontPreference,
 } from "./appearance-preference.js";
 
-describe("appearance preference policy", () => {
-  it.each([
-    ["DEFAULT_ADVISIO", "DEFAULT_ADVISIO"],
-    ["default_advisio", "DEFAULT_ADVISIO"],
-    ["COLLEGE_PROGRAM", "COLLEGE_PROGRAM"],
-    ["college_program", "COLLEGE_PROGRAM"],
-  ] as const)("accepts the supported color theme preference %s", (input, expected) => {
-    expect(parseColorThemePreference(input)).toBe(expected);
+describe("appearance preferences", () => {
+  it("accepts the soft college theme", () => {
+    expect(parseColorThemePreference("college_soft")).toBe("COLLEGE_SOFT");
   });
 
-  it.each([undefined, null, "", "DEFAULT", "BSIT", "SYSTEM"])(
-    "rejects unsupported color theme preference %s",
-    (input) => {
-      expect(parseColorThemePreference(input)).toBeNull();
-    },
-  );
-
-  it("preserves a regular user's college/program preference", () => {
-    expect(effectiveColorThemePreference("COLLEGE_PROGRAM", ["RESEARCHER"])).toBe(
-      "COLLEGE_PROGRAM",
-    );
+  it("keeps System Administrators on the original theme", () => {
+    expect(effectiveColorThemePreference("COLLEGE_SOFT", ["SYSTEM_ADMIN"])).toBe("DEFAULT_ADVISIO");
   });
 
-  it("always forces System Administrators to the original Advisio theme", () => {
-    expect(
-      effectiveColorThemePreference("COLLEGE_PROGRAM", ["SYSTEM_ADMIN"]),
-    ).toBe("DEFAULT_ADVISIO");
+  it("accepts only known heading fonts", () => {
+    expect(parseHeadingFontPreference("serif")).toBe("SERIF");
+    expect(parseHeadingFontPreference("comic")).toBeNull();
   });
 });

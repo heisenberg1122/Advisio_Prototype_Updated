@@ -1,5 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { apiClient } from "@/lib/api-client";
 const button =
   "rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-bold text-[var(--color-text-primary)] disabled:opacity-50";
@@ -13,7 +14,10 @@ export function WorkflowAccessManager({
   children: ReactNode;
 }) {
   const client = useQueryClient();
-  const [tab, setTab] = useState("Members");
+  const [params] = useSearchParams();
+  const requestId = params.get("accessRequestId");
+  const highlightedRequest = useRef<HTMLElement>(null);
+  const [tab, setTab] = useState(requestId ? "Join requests" : "Members");
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Record<string, any>>({});
@@ -22,13 +26,13 @@ export function WorkflowAccessManager({
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    setTab("Members");
+    setTab(requestId ? "Join requests" : "Members");
     setSelected({});
     setResults([]);
     setError("");
     setNotice("");
     setSearch("");
-  }, [workflowId]);
+  }, [workflowId, requestId]);
   useEffect(() => {
     const timer = window.setTimeout(() => setQuery(search), 250);
     return () => window.clearTimeout(timer);
@@ -41,6 +45,10 @@ export function WorkflowAccessManager({
     refetchInterval: 15000,
     retry: false,
   });
+  const hasLinkedRequest = access.data?.entries.some((entry) => entry.id === requestId && entry.status === "PENDING");
+  useEffect(() => {
+    if (tab === "Join requests" && hasLinkedRequest) highlightedRequest.current?.focus();
+  }, [tab, hasLinkedRequest, requestId]);
   const contacts = useQuery({
     queryKey: ["workflow-access-contacts", workflowId, query],
     queryFn: () =>
@@ -314,7 +322,9 @@ export function WorkflowAccessManager({
             shown.map((e) => (
               <article
                 key={e.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"
+                ref={e.id === requestId ? highlightedRequest : undefined}
+                tabIndex={e.id === requestId ? -1 : undefined}
+                className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3 ${e.id === requestId ? "ring-2 ring-[var(--color-primary)]" : ""}`}
               >
                 <div>
                   <strong className="text-sm">

@@ -44,13 +44,24 @@ it("renders a dean’s private invitation after a fresh load and rechecks the sa
         expect(api.post).toHaveBeenLastCalledWith("/api/consultations/invited/join", {});
         expect(popup.opener).toBeNull();
         expect(popup.location.replace).toHaveBeenLastCalledWith(meetingUrl);
+        if (load === 1) {
+          const history = host.querySelector<HTMLButtonElement>('[aria-label="Consultation view"] button[aria-pressed="false"]');
+          expect(history).not.toBeNull();
+          await act(async () => history!.click());
+          await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+          expect(api.get).toHaveBeenLastCalledWith("/api/consultations/workspace/dean", {
+            params: expect.objectContaining({ page: 1, view: "history" }),
+          });
+          expect(host.textContent).toContain("Consultation history");
+          expect(host.textContent).not.toContain("Join Meet");
+        }
       } finally {
         await act(async () => root.unmount());
         client.clear();
         host.remove();
       }
     }
-    expect(api.get).toHaveBeenCalledTimes(2);
+    expect(api.get).toHaveBeenCalledTimes(3);
   } finally {
     open.mockRestore();
     vi.unstubAllGlobals();

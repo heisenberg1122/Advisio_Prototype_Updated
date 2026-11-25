@@ -77,6 +77,7 @@ export function AdviserConsultationsWorkspace({
   const approvals = sessions.filter((item) => item.stage === "approval").sort((a, b) => a.startsAt - b.startsAt);
   const upcoming = sessions.filter((item) => item.stage === "upcoming").sort((a, b) => a.startsAt - b.startsAt);
   const past = sessions.filter((item) => item.stage === "past").sort((a, b) => b.startsAt - a.startsAt);
+  const needsAction = sessions.filter(({ proof }) => proof && "needsAction" in proof && proof.needsAction);
   const hasLinkedItem = sessions.some(({ id }) => id === linkedId);
   useEffect(() => {
     if (!hasLinkedItem || !linkedId) return;
@@ -125,7 +126,7 @@ export function AdviserConsultationsWorkspace({
 
   return (
     <div className="adviser-overview mx-auto flex w-full max-w-[1360px] flex-col gap-6">
-      <section className="adviser-overview__hero" aria-labelledby="adviser-consultations-title">
+      <section className="adviser-overview__hero phone-slim-hero" aria-labelledby="adviser-consultations-title">
         {seal && <img className="adviser-overview__seal" src={seal} alt="" aria-hidden="true" draggable={false} />}
         <header className="adviser-overview__hero-heading">
           <div>
@@ -145,7 +146,7 @@ export function AdviserConsultationsWorkspace({
           </dl>
         </header>
         <div className="adviser-overview__hero-actions">
-          <button type="button" data-guide="adviser-consultation-open" className="adviser-overview__hero-primary" onClick={onSchedule}>
+          <button type="button" data-guide="adviser-consultation-open" className="adviser-overview__hero-primary" data-phone-label="Schedule" onClick={onSchedule}>
             <i className="ti ti-plus" aria-hidden="true" /> Schedule consultation
           </button>
           <button type="button" className="ac-secondary" onClick={onInstantMeet}>
@@ -201,6 +202,7 @@ export function AdviserConsultationsWorkspace({
                     <div className="ac-text">
                       <h3>{item.topic}</h3>
                       <p>{item.groupName || "Research group"} · {item.time}</p>
+                      {item.meetingUrl && item.meetCoHostName && <p>Meet co-host · {item.meetCoHostName}</p>}
                     </div>
                     <StatusDot tone={item.tone}>{item.label}</StatusDot>
                     <div className="ac-actions">
@@ -282,6 +284,18 @@ export function AdviserConsultationsWorkspace({
         </aside>
       </div>
 
+      {needsAction.length > 0 && (
+        <section className="ac-panel" aria-labelledby="ac-record-actions">
+          <h2 id="ac-record-actions">Needs your action</h2>
+          <ul>
+            {needsAction.map((item) => <li key={item.id}>
+              <a className="underline" href={`#consultation-${item.id}`}>
+                {item.proof?.status === "correction_requested" ? "Revise record" : "Confirm record"} · {item.topic}
+              </a>
+            </li>)}
+          </ul>
+        </section>
+      )}
       {past.length > 0 && (
         <section className="ac-panel" aria-labelledby="ac-past">
           <div className="ac-head">

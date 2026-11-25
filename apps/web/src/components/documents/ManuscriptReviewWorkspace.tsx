@@ -23,7 +23,8 @@ import { Button } from "@/components/ui/Button";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { EmptyNote } from "@/components/ui/advisio";
+import { EmptyNote, StatusDot } from "@/components/ui/advisio";
+import { RoleBand } from "@/components/dashboards/RoleScreenParts";
 import { Modal } from "@/components/ui/Modal";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -359,7 +360,7 @@ export function ManuscriptReviewWorkspace({
       </CardHeader>
 
       <CardContent>
-        <div className="grid gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 text-xs sm:grid-cols-3">
+        <div className="phone-compact-facts grid gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 text-xs sm:grid-cols-3">
           <div>
             <span className="block font-bold text-[var(--color-text-primary)]">
               Milestone
@@ -491,7 +492,7 @@ export function ManuscriptReviewWorkspace({
             </div>
           </div>
 
-          <dl className="mt-5 grid gap-x-6 gap-y-3 border-y border-[var(--color-border-subtle)] py-4 sm:grid-cols-2">
+          <dl className="phone-inline-facts mt-5 grid gap-x-6 gap-y-3 border-y border-[var(--color-border-subtle)] py-4 sm:grid-cols-2">
             <div>
               <dt className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Milestone
@@ -694,7 +695,7 @@ export function ManuscriptReviewWorkspace({
   const adviserSummary = !loading && (
     <section
       aria-label="Review assignment summary"
-      className="grid gap-3 sm:grid-cols-3"
+      className="phone-stat-strip grid gap-3 sm:grid-cols-3"
     >
       {[
         {
@@ -741,6 +742,107 @@ export function ManuscriptReviewWorkspace({
     </section>
   );
 
+  const facultyFeedback = (assignment: Assignment) =>
+    assignment.review?.status === "SUBMITTED" ? (
+      <details className="rs-details">
+        <summary>
+          {assignment.review.recommendation ? readableStatus(assignment.review.recommendation) : "Decision submitted"}
+        </summary>
+        {assignment.review.overallComment && <p>{assignment.review.overallComment}</p>}
+        {assignment.review.comments.map((comment) => (
+          <p key={comment.id}>
+            {[comment.locationData?.section, comment.locationData?.page ? `Page ${comment.locationData.page}` : ""].filter(Boolean).join(" · ")}
+            {comment.locationData?.section || comment.locationData?.page ? ": " : ""}
+            {comment.comment}
+          </p>
+        ))}
+      </details>
+    ) : null;
+
+  const facultyMeta = (assignment: Assignment) =>
+    [
+      assignment.research.groupName || assignment.research.title,
+      `Version ${assignment.documentVersion.versionNumber}`,
+      assignment.documentVersion.milestone?.name || "General manuscript",
+      `Submitted ${dateLabel(assignment.documentVersion.submittedAt)}`,
+    ].join(" · ");
+
+  const facultyActions = (assignment: Assignment, actionable: boolean, strong: boolean) => (
+    <span className="rs-actions">
+      <Button
+        variant="secondary"
+        size="sm"
+        icon={<ExternalLink className="h-4 w-4" />}
+        data-orientation-review={assignment.id}
+        isLoading={openingId === assignment.id}
+        onClick={() => void openSnapshot(assignment)}
+      >
+        Open frozen version
+      </Button>
+      {actionable && (
+        <button type="button" className={strong ? "rh-cta" : "rs-primary"} data-guide="faculty-review-open" onClick={() => void openDecision(assignment)}>
+          {assignment.review?.status === "DRAFT" ? "Continue review" : "Review and decide"}
+          {strong && <i className="ti ti-arrow-right" aria-hidden="true" />}
+        </button>
+      )}
+    </span>
+  );
+
+  const facultyPending = (
+    <div className="rs">
+      {active.slice(0, 1).map((assignment) => (
+        <div key={assignment.id} className="rh-lead" style={{ marginTop: 0 }}>
+          <div className="rh-text">
+            <span className="rh-tag">
+              <i className="ti ti-clock" aria-hidden="true" /> {active.length > 1 ? "Next to review" : "Waiting for you"} · {assignment.isRequired ? "Required" : "Optional"} · {assignment.reviewType.replace(/_/g, " ").toLowerCase()}
+            </span>
+            <h3>{assignment.document.title}</h3>
+            <p>{facultyMeta(assignment)}</p>
+          </div>
+          {facultyActions(assignment, true, true)}
+        </div>
+      ))}
+      {active.length > 1 && (
+        <ul className="rh-rows">
+          {active.slice(1).map((assignment) => (
+            <li key={assignment.id}>
+              <div className="rh-row" style={{ flexWrap: "wrap" }}>
+                <span className="rh-icon" aria-hidden="true"><i className="ti ti-file-search" /></span>
+                <div className="rh-text">
+                  <h3>{assignment.document.title}</h3>
+                  <p>{facultyMeta(assignment)} · {assignment.isRequired ? "Required" : "Optional"}</p>
+                </div>
+                {facultyActions(assignment, true, false)}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  const facultyHistory = (
+    <ul className="rh-rows">
+      {history.map((assignment) => {
+        const state = assignmentDisplayState(assignment);
+        return (
+          <li key={assignment.id}>
+            <div className="rh-row" style={{ flexWrap: "wrap" }}>
+              <span className="rh-icon" aria-hidden="true"><i className="ti ti-file-check" /></span>
+              <div className="rh-text">
+                <h3>{assignment.document.title}</h3>
+                <p>{facultyMeta(assignment)}</p>
+                {facultyFeedback(assignment)}
+              </div>
+              <StatusDot tone={assignment.review?.status === "SUBMITTED" ? "done" : "neutral"}>{state.label}</StatusDot>
+              {facultyActions(assignment, false, false)}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
   return (
     <PageContainer
       maxWidth={isAdviserPresentation ? "full" : "default"}
@@ -749,7 +851,7 @@ export function ManuscriptReviewWorkspace({
       )}
     >
       {isAdviserPresentation ? (
-        <header className="college-hero-surface relative overflow-hidden rounded-3xl border p-5 text-[var(--color-text-primary)] shadow-lg sm:p-6 lg:p-7">
+        <header className="phone-compact-header college-hero-surface relative overflow-hidden rounded-3xl border p-5 text-[var(--color-text-primary)] shadow-lg sm:p-6 lg:p-7">
           <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="max-w-3xl">
               <h1 className="mt-2 text-2xl font-black tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
@@ -762,7 +864,7 @@ export function ManuscriptReviewWorkspace({
             <Button
               variant="secondary"
               size="sm"
-              className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:bg-[var(--nav-hover-bg)]"
+              className="phone-icon-action border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:bg-[var(--nav-hover-bg)]"
               icon={<RefreshCw className="h-4 w-4" />}
               onClick={() => void loadAssignments()}
               isLoading={loading}
@@ -773,7 +875,23 @@ export function ManuscriptReviewWorkspace({
           {adviserSummary}
         </header>
       ) : (
+        presentation === "default" ? (
+          <RoleBand
+            eyebrow="Research workspace"
+            title="Manuscript reviews"
+            titleId="faculty-reviews-title"
+            meta="Review the exact frozen version assigned to you. Decisions are permanent and visible in the research workflow."
+            counts={[
+              { label: "Pending", value: active.length, tone: active.length ? "waiting" : undefined },
+              { label: "Completed", value: completedCount },
+              { label: "Total", value: assignments.length },
+            ]}
+            countsLabel="Review assignment summary"
+            secondary={[{ label: "Refresh", icon: "ti-refresh", isLoading: loading, onClick: () => void loadAssignments() }]}
+          />
+        ) : (
         <PageHeader
+          className="phone-slim-header"
           title="Manuscript Reviews"
           subtitle="Review the exact frozen version assigned to you. Decisions are permanent, version-scoped, and visible in the research workflow."
           category="Research workspace"
@@ -782,6 +900,7 @@ export function ManuscriptReviewWorkspace({
             <Button
               variant="secondary"
               size="sm"
+              className="phone-icon-action"
               icon={<RefreshCw className="h-4 w-4" />}
               onClick={() => void loadAssignments()}
               isLoading={loading}
@@ -790,6 +909,7 @@ export function ManuscriptReviewWorkspace({
             </Button>
           }
         />
+        )
       )}
 
       {orientationReview && (
@@ -845,6 +965,7 @@ export function ManuscriptReviewWorkspace({
           <section
             className={cn(
               "space-y-4",
+              presentation === "default" && "rs-card-panel",
               isAdviserPresentation &&
                 "rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 sm:p-5",
             )}
@@ -857,9 +978,9 @@ export function ManuscriptReviewWorkspace({
                   id="pending-review-heading"
                   data-guide={!error ? (isAdviserPresentation ? "adviser-review-queue" : panelistTarget("queue")) : undefined}
                   data-guide-empty={!active.length}
-                  className="flex items-center gap-2 text-xl font-black text-[var(--color-text-primary)]"
+                  className={presentation === "default" ? "rs-panel-title" : "flex items-center gap-2 text-xl font-black text-[var(--color-text-primary)]"}
                 >
-                  <Clock3 className="h-5 w-5 text-[var(--color-primary)]" />{" "}
+                  {presentation !== "default" && <><Clock3 className="h-5 w-5 text-[var(--color-primary)]" />{" "}</>}
                   Pending reviews
                 </h2>
                 {!isAdviserPresentation && (
@@ -878,18 +999,18 @@ export function ManuscriptReviewWorkspace({
               <div
                 className={cn(
                   "grid gap-4",
-                  !isAdviserPresentation && "xl:grid-cols-2",
+                  presentation === "panelist" && "xl:grid-cols-2",
                 )}
               >
-                {active.map((item) =>
+                {presentation === "default" ? facultyPending : active.map((item) =>
                   isAdviserPresentation
                     ? adviserPendingCard(item)
                     : assignmentCard(item, true),
                 )}
               </div>
             ) : (
-              presentation === "panelist" ? (
-                <div className="au-card">
+              presentation !== "adviser" ? (
+                <div className={presentation === "default" ? undefined : "au-card"}>
                   <EmptyNote
                     layout="row"
                     tone="ok"
@@ -911,6 +1032,7 @@ export function ManuscriptReviewWorkspace({
           <section
             className={cn(
               "space-y-4",
+              presentation === "default" && "rs-card-panel",
               isAdviserPresentation &&
                 "rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5",
             )}
@@ -919,9 +1041,9 @@ export function ManuscriptReviewWorkspace({
             <div>
               <h2
                 id="review-history-heading"
-                className="flex items-center gap-2 text-xl font-black text-[var(--color-text-primary)]"
+                className={presentation === "default" ? "rs-panel-title" : "flex items-center gap-2 text-xl font-black text-[var(--color-text-primary)]"}
               >
-                <FileSearch className="h-5 w-5 text-[var(--color-primary)]" />{" "}
+                {presentation !== "default" && <><FileSearch className="h-5 w-5 text-[var(--color-primary)]" />{" "}</>}
                 Review history
               </h2>
               <p className="mt-1 text-base text-[var(--color-text-secondary)]">
@@ -934,18 +1056,18 @@ export function ManuscriptReviewWorkspace({
               <div
                 className={cn(
                   "grid gap-3",
-                  !isAdviserPresentation && "gap-4 xl:grid-cols-2",
+                  presentation === "panelist" && "gap-4 xl:grid-cols-2",
                 )}
               >
-                {history.map((item) =>
+                {presentation === "default" ? facultyHistory : history.map((item) =>
                   isAdviserPresentation
                     ? adviserHistoryRow(item)
                     : assignmentCard(item, false),
                 )}
               </div>
             ) : (
-              presentation === "panelist" ? (
-                <div className="au-card">
+              presentation !== "adviser" ? (
+                <div className={presentation === "default" ? undefined : "au-card"}>
                   <EmptyNote
                     layout="row"
                     icon="ti-history"

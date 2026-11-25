@@ -13,7 +13,8 @@ export interface UserProfile {
   college?: { id: string; name: string; code: string } | null;
   program?: { id: string; name: string; code: string } | null;
   appearancePreference?: "LIGHT" | "DARK" | "SYSTEM";
-  colorThemePreference?: "DEFAULT_ADVISIO" | "COLLEGE_PROGRAM";
+  colorThemePreference?: "DEFAULT_ADVISIO" | "COLLEGE_PROGRAM" | "COLLEGE_SOFT";
+  headingFontPreference?: "STANDARD" | "SERIF";
   roles: string[];
   permissions: string[];
   primaryCollegeId?: string | null;

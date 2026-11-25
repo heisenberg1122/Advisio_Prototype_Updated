@@ -785,14 +785,13 @@ export default function ResearchTasksPage() {
             className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6"
           >
             <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
-              Join a workflow
+              Join a class
             </p>
             <h2 className="mt-1 text-lg font-semibold text-[var(--color-text-primary)]">
               Enter professor invitation code
             </h2>
             <p className="mt-1 text-base leading-5 text-slate-500">
-              You will review the invitation before deciding to accept or reject
-              it.
+              Review the class details, then send a request for your professor to approve.
             </p>
             <div className="mt-4 flex gap-2">
               <input

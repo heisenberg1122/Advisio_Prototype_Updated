@@ -37,6 +37,7 @@ const StudentConsultationsPage = lazy(
   () => import("./app/student/consultations/page"),
 );
 const StudentDefensePage = lazy(() => import("./app/student/defense/page"));
+const CertificateVerificationPage = lazy(() => import("./app/(public)/certificate-verification/page"));
 const StudentGradesPage = lazy(() => import("./app/student/grades/page"));
 const StudentNotificationsPage = lazy(
   () => import("./app/student/notifications/page"),
@@ -203,6 +204,7 @@ export function AppRoutes() {
   return (
     <Suspense fallback={<RouteLoader />}>
       <Routes>
+        <Route path="/verify/certificate/:code" element={<CertificateVerificationPage />} />
         <Route path="/evaluate" element={<EvaluationPage />} />
         <Route path="/evaluate/print" element={<EvaluationPage print />} />
         <Route path="/evaluate/guide" element={<EvaluationGuide />} />

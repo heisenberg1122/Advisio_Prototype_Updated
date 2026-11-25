@@ -1,6 +1,7 @@
 // Shared library and dedicated document viewer for researcher, adviser and coordinator portals.
 "use client";
 
+import { PhoneFilters } from "@/components/ui/PhoneFilters";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -405,7 +406,7 @@ export function ResearcherDocumentsWorkspace({
           className="rd-library"
         >
           <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-            <div className="rd-filters">
+            <div className="rd-filters phone-filter-bar">
               <label className="relative col-span-2 block sm:col-span-1">
                 <span className="sr-only">Search documents by name</span>
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
@@ -417,6 +418,7 @@ export function ResearcherDocumentsWorkspace({
                   className="h-9 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] pl-9 pr-2 text-sm text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
                 />
               </label>
+              <PhoneFilters title="Filter and sort" label="Sort" activeCount={Number(filter !== "ALL")}>
               <label className="relative min-w-0">
                 <select
                   aria-label="Document type filter"
@@ -448,6 +450,7 @@ export function ResearcherDocumentsWorkspace({
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-secondary)]" />
               </label>
+              </PhoneFilters>
             </div>
           </div>
           <h2 className="sr-only">Working files</h2>

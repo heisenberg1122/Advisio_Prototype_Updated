@@ -16,6 +16,81 @@ export const consultationError = (statusCode: number, message: string) =>
 
 type Project = { id: string; collegeId: string };
 type Consultation = Prisma.ConsultationGetPayload<{ include: typeof consultationInclude }>;
+type ConsultationTime = { start: Date; end: Date };
+
+export async function lockConsultationSchedules(
+  tx: Prisma.TransactionClient,
+  organizerId: string,
+  participantIds: string[],
+) {
+  const advisers = await tx.collegeMembership.findMany({
+    where: {
+      userId: { in: participantIds },
+      roleNames: { has: "ADVISER" },
+      college: { isActive: true },
+    },
+    select: { userId: true },
+  });
+  const userIds = [...new Set([organizerId, ...advisers.map(({ userId }) => userId)])].sort();
+  // Different projects can share the same adviser. Lock people in a consistent order.
+  for (const userId of userIds) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`consultation-schedule:${userId}`}, 0))`;
+  }
+  return userIds;
+}
+
+export async function assertConsultationTimeAvailable(
+  tx: Prisma.TransactionClient,
+  userIds: string[],
+  { start, end }: ConsultationTime,
+  consultationId?: string,
+) {
+  if ((await consultationReservations(tx, userIds, { start, end }, consultationId)).length) {
+    throw consultationError(409, "A consultation is already booked for the organizer or an invited adviser at that time. Choose a different time.");
+  }
+}
+
+export async function consultationReservations(
+  tx: Prisma.TransactionClient,
+  userIds: string[],
+  { start, end }: ConsultationTime,
+  consultationId?: string,
+): Promise<ConsultationTime[]> {
+  const reservations = {
+    ...(consultationId && { id: { not: consultationId } }),
+    meetingKind: "SCHEDULED",
+    status: { in: ["PROVISIONING", "SCHEDULED", "ONGOING"] },
+  } satisfies Prisma.ConsultationWhereInput;
+  const existing = await tx.consultation.findMany({
+    where: {
+      ...reservations,
+      scheduledStart: { lt: end },
+      scheduledEnd: { gt: start },
+      OR: [
+        { approverId: { in: userIds } },
+        { approverId: null, createdBy: { in: userIds } },
+        { participants: { some: { userId: { in: userIds } } } },
+      ],
+    },
+    select: { scheduledStart: true, scheduledEnd: true },
+  });
+  const times = existing.map(({ scheduledStart, scheduledEnd }) => ({ start: scheduledStart, end: scheduledEnd }));
+
+  // The previous slot stays booked until the Calendar update succeeds.
+  const queued = await tx.consultation.findMany({
+    where: { ...reservations, pendingCalendarUpdate: { not: Prisma.DbNull } },
+    select: { pendingCalendarUpdate: true, approverId: true, createdBy: true },
+  });
+  for (const reservation of queued) {
+    const update = pendingCalendarUpdate.safeParse(reservation.pendingCalendarUpdate);
+    if (update.success && new Date(update.data.start) < end && new Date(update.data.end) > start &&
+        (userIds.includes(reservation.approverId ?? reservation.createdBy) ||
+         update.data.participantIds.some((userId) => userIds.includes(userId)))) {
+      times.push({ start: new Date(update.data.start), end: new Date(update.data.end) });
+    }
+  }
+  return times;
+}
 
 export function recipientPolicy(project: Project, faculty: boolean): Prisma.UserWhereInput {
   const projectMembers: Prisma.UserWhereInput = {
@@ -59,6 +134,7 @@ export async function notifyConsultation(
   consultation: Pick<Consultation, "id" | "title" | "revision" | "research">,
   ids: string[],
   title: string,
+  recordRevision?: number,
 ) {
   if (!ids.length) return;
   const users = await tx.user.findMany({
@@ -73,10 +149,11 @@ export async function notifyConsultation(
     message: consultation.title,
     entityType: "Consultation",
     entityId: consultation.id,
-    actionUrl: workspace.id === "researcher" || workspace.id === "adviser"
+    actionUrl: (workspace.id === "researcher" || workspace.id === "adviser"
       ? `${workspace.homeUrl}?tab=consultations&consultationId=${consultation.id}`
-      : `${workspace.routePrefix}/consultations?consultationId=${consultation.id}`,
-    deduplicationKey: `consultation:${consultation.id}:${consultation.revision}:${recipient.id}:${workspace.id}:${title}`,
+      : `${workspace.routePrefix}/consultations?consultationId=${consultation.id}`) +
+        (recordRevision ? "&record=1" : ""),
+    deduplicationKey: `consultation:${consultation.id}:${recordRevision ? `record:${recordRevision}` : consultation.revision}:${recipient.id}:${workspace.id}:${title}`,
   })));
   if (data.length) await tx.notification.createMany({ data, skipDuplicates: true });
 }
@@ -90,7 +167,11 @@ export async function withConsultationLock<T>(
     const row = await tx.consultation.findUnique({ where: { id }, include: consultationInclude });
     if (!row) throw consultationError(404, "Consultation not found.");
     return operation(tx, row);
-  }, { timeout: 40_000, maxWait: 5_000 });
+  }, {
+    timeout: 40_000,
+    maxWait: 5_000,
+    isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+  });
 }
 
 export function assertParticipant(row: Consultation, user: AuthenticatedUser) {
@@ -118,23 +199,83 @@ export function googleEventKey(consultationId: string) {
   return `advisio${consultationId.replaceAll("-", "").toLowerCase()}`;
 }
 
-export function consultationEventOptions(
+const hostRolePriority = ["DEAN", "RESEARCH_COORDINATOR", "PANELIST", "ADVISER"];
+type HostCandidate = Prisma.UserGetPayload<{ select: typeof recipientSelect }>;
+type HostContext = Pick<Consultation, "createdBy" | "approverId"> & {
+  research: { collegeId: string; members: { userId: string }[] };
+};
+
+export function consultationHostId(row: HostContext, participants: HostCandidate[]) {
+  const hasResearcher = participants.some((person) => person.collegeId === row.research.collegeId &&
+    person.roles.some(({ role }) => role.name === "RESEARCHER"));
+  const responsible = row.approverId ?? row.createdBy;
+  return participants.flatMap((person) => {
+    const roles = person.collegeMemberships.find(({ collegeId }) => collegeId === row.research.collegeId)?.roleNames || [];
+    const assignedAdviser = hasResearcher && roles.includes("ADVISER") &&
+      row.research.members.some(({ userId }) => userId === person.id);
+    const rank = assignedAdviser ? -1 : hostRolePriority.findIndex((role) => roles.some((entry) => entry === role));
+    return assignedAdviser || rank >= 0 ? [{ id: person.id, rank }] : [];
+  }).sort((a, b) => a.rank - b.rank || Number(b.id === responsible) - Number(a.id === responsible) || a.id.localeCompare(b.id))[0]?.id;
+}
+
+export async function consultationCompletionCandidates(
+  db: Pick<Prisma.TransactionClient, "user">,
+  participantIds: string[],
+) {
+  if (!participantIds.length) return [];
+  return db.user.findMany({
+    where: { id: { in: [...new Set(participantIds)] }, status: "ACTIVE" },
+    select: {
+      ...recipientSelect,
+      collegeMemberships: {
+        where: { college: { isActive: true } },
+        select: recipientSelect.collegeMemberships.select,
+      },
+    },
+  });
+}
+
+export function canCompleteConsultation(
+  row: HostContext & { meetingKind: string; participants: { userId: string }[] },
+  user: AuthenticatedUser,
+  candidates: HostCandidate[],
+) {
+  if (row.research.collegeId !== user.collegeId) return false;
+  const invited = new Set(row.participants.map(({ userId }) => userId));
+  if (!invited.has(user.id)) return false;
+  const host = consultationHostId(row, candidates.filter(({ id }) => invited.has(id)));
+  return host ? !user.researcherPanel && host === user.id
+    : row.meetingKind === "INSTANT" && row.createdBy === user.id;
+}
+
+export async function consultationEventOptions(
+  tx: Prisma.TransactionClient,
   row: Consultation,
   participants = row.participants.map(({ user }) => user),
 ) {
+  const scoped = await findConsultationRecipients(
+    { id: row.researchId, collegeId: row.research.collegeId },
+    true,
+    { id: { in: participants.map(({ id }) => id) } },
+    undefined,
+    tx,
+  );
+  const hostId = consultationHostId(row, scoped);
+  const host = participants.find(({ id }) => id === hostId);
   return {
     title: `Advisio Consultation: ${row.title}`,
     description: row.description,
     scheduledStart: row.scheduledStart,
     scheduledEnd: row.scheduledEnd,
     attendees: participants.map((user) => ({ email: user.email, displayName: `${user.firstName} ${user.lastName}` })),
+    coHost: host ? { email: host.email, displayName: `${host.firstName} ${host.lastName}`.trim() || "Assigned faculty" } : undefined,
     manualMeetingUrl: row.conferenceState === "MANUAL" || row.status === "PROVISIONING"
       ? googleMeetUrl(row.meetingUrl) || undefined
       : undefined,
   };
 }
 
-export async function provisionConsultation(id: string, user: AuthenticatedUser, range?: { start: Date; end: Date }) {
+export async function provisionConsultation(id: string, user: AuthenticatedUser, range?: ConsultationTime) {
   // Persist the Calendar identity and any approved time before contacting Google.
   await withConsultationLock(id, async (tx, row) => {
     await assertOrganizer(tx, row, user, true);
@@ -147,9 +288,12 @@ export async function provisionConsultation(id: string, user: AuthenticatedUser,
       throw consultationError(409, "Retry the current Google Calendar operation before changing its time.");
     }
     if (row.status === "REQUESTED") {
-      if ((range?.end || row.scheduledEnd).getTime() <= Date.now()) {
+      const time = range ?? { start: row.scheduledStart, end: row.scheduledEnd };
+      if (time.end.getTime() <= Date.now()) {
         throw consultationError(409, "Choose a new time for this request before approving.");
       }
+      const userIds = await lockConsultationSchedules(tx, user.id, row.participants.map(({ userId }) => userId));
+      await assertConsultationTimeAvailable(tx, userIds, time, row.id);
       await tx.consultation.update({
         where: { id },
         data: {
@@ -183,7 +327,7 @@ export async function provisionConsultation(id: string, user: AuthenticatedUser,
     if (eligible !== row.participants.length) {
       throw consultationError(409, "A participant is no longer eligible for this research group or college. Cancel and choose eligible participants.");
     }
-    const options = consultationEventOptions(row);
+    const options = await consultationEventOptions(tx, row);
     let meet;
     try {
       meet = await googleCalendarService.createMeetConsultation(row.googleEventId, options);
@@ -198,6 +342,7 @@ export async function provisionConsultation(id: string, user: AuthenticatedUser,
       where: { id },
       data: {
         meetingUrl: meet.meetingUrl,
+        meetCoHostName: meet.coHostName ?? null,
         conferenceState: options.manualMeetingUrl ? "MANUAL" : "GOOGLE_VERIFIED",
         status: row.meetingKind === "INSTANT" ? "ONGOING" : "SCHEDULED",
         revision: { increment: 1 },
@@ -267,14 +412,15 @@ export async function syncConsultationUpdate(id: string) {
     if (attendees.length !== update.participantIds.length) {
       throw consultationError(409, "A participant is no longer eligible for this research group or college. Cancel and choose eligible participants.");
     }
-    const options = { ...consultationEventOptions(row, attendees), scheduledStart, scheduledEnd };
+    const options = { ...await consultationEventOptions(tx, row, attendees), scheduledStart, scheduledEnd };
     const legacy = row.conferenceState === "LEGACY";
     const meet = legacy ? await googleCalendarService.createMeetConsultation(row.googleEventId, options) : null;
-    if (!legacy) await googleCalendarService.updateConsultation(row.googleEventId, options, row.meetingUrl);
+    const meetCoHostName = legacy ? meet?.coHostName ?? null
+      : await googleCalendarService.updateConsultation(row.googleEventId, options, row.meetingUrl);
     const changed = await tx.consultation.update({
       where: { id },
       data: {
-        scheduledStart, scheduledEnd, pendingCalendarUpdate: Prisma.DbNull, revision: { increment: 1 },
+        scheduledStart, scheduledEnd, meetCoHostName, pendingCalendarUpdate: Prisma.DbNull, revision: { increment: 1 },
         ...(meet ? { meetingUrl: meet.meetingUrl, conferenceState: "GOOGLE_VERIFIED" } : {}),
         participants: { deleteMany: { userId: { in: removed } }, create: added.map((userId) => ({ userId })) },
       },

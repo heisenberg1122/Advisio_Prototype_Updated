@@ -388,3 +388,8 @@
     transition: none;
   }
 }
+
+.professor-workflow .workflow-builder-tabs {
+  border-radius: 0;
+  background: transparent;
+}

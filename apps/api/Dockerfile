@@ -17,6 +17,8 @@ RUN npm ci --workspaces --include-workspace-root=false
 
 # Copy source
 COPY apps/api ./apps/api
+COPY apps/web/public/school-logo.png apps/web/public/advisio-logo.png ./apps/web/public/
+COPY apps/web/public/college-logos ./apps/web/public/college-logos
 COPY packages ./packages
 
 # Generate Prisma client and build

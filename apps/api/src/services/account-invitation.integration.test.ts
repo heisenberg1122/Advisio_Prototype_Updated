@@ -217,6 +217,53 @@ databaseDescribe("account invitation persistence and access", () => {
     expect(email.html).toContain(`/accept-invitation#token=${token}`);
     expect(email.text).toContain("48 hours");
   });
+  it("accepts email-only invitations with an invitee profile and preserves the link on ID conflict", async () => {
+    const existing = await faculty(collegeId, ["ADVISER"]);
+    const { email, firstName, lastName, universityId } = payload();
+    const response = await post(
+      "/",
+      {
+        email,
+        collegeId,
+        roleNames: ["ADVISER"],
+        verificationConfirmed: true,
+      },
+      true,
+    );
+    expect(response.status).toBe(201);
+    const token = tokenFromEmail();
+    const preview = await (await post("/preview", { token })).json();
+    expect(preview).toMatchObject({
+      invitation: { requiresProfile: true, accountExists: false },
+    });
+
+    const password = "Unique invitation password 42";
+    expect((await post("/accept", { token, password })).status).toBe(400);
+    const conflict = await post("/accept", {
+      token,
+      password,
+      profile: { firstName, lastName, universityId: existing.universityId },
+    });
+    expect(conflict.status).toBe(409);
+    expect(await conflict.json()).toMatchObject({
+      error: expect.stringContaining("institutional ID"),
+    });
+
+    expect(
+      (
+        await post("/accept", {
+          token,
+          password,
+          profile: { firstName, lastName, universityId },
+        })
+      ).status,
+    ).toBe(200);
+    expect(await prisma.user.findUnique({ where: { email } })).toMatchObject({
+      firstName,
+      lastName,
+      universityId,
+    });
+  });
   it.each(["ADVISER", "DEAN", "PANELIST", "RESEARCH_COORDINATOR"])(
     "creates only the approved %s role",
     async (role) => {

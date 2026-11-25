@@ -53,6 +53,14 @@ beforeEach(() => {
 });
 
 describe("account archive and restoration", () => {
+  it("keeps an account active if it was approved before a pending rejection", async () => {
+    await expect(
+      changeAccountStatus({ ...options, expectedStatus: "PENDING" }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(db.update).not.toHaveBeenCalled();
+    expect(db.audit).not.toHaveBeenCalled();
+  });
+
   it("archives through a status-only update and audits the reason", async () => {
     await changeAccountStatus(options);
     expect(db.update.mock.calls[0][0].data).toEqual({

@@ -433,7 +433,7 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
             <button
               type="button"
               onClick={() => setIsComposerOpen((value) => !value)}
-              className="flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-3.5 text-sm font-semibold text-white shadow-xs transition hover:bg-[#072A3D] active:scale-[0.99] dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+              className="flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-3.5 text-sm font-semibold text-[var(--college-on-primary)] shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.99] dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
             >
               <MessageSquarePlus className="h-4 w-4" />
               <span>New group conversation</span>
@@ -448,35 +448,35 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-sm font-bold uppercase tracking-wider text-[#58647A] dark:text-slate-400">New message</p>
-                    <h3 className="mt-0.5 text-lg font-bold text-[#0B3A53] dark:text-white">Create a group conversation</h3>
+                    <h3 className="mt-0.5 text-lg font-bold text-[var(--color-text-primary)] dark:text-white">Create a group conversation</h3>
                   </div>
                   <button type="button" onClick={resetComposer} className="grid h-7 w-7 place-items-center rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10">
                     <X className="h-4 w-4" />
                   </button>
                 </div>
-                <label className="mt-3.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                <label className="mt-3.5 block text-sm font-semibold text-[var(--color-text-primary)]">
                   Conversation title
                   <input
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
                     maxLength={200}
                     placeholder="e.g. Thesis Defense Committee"
-                    className="mt-1.5 h-9.5 w-full rounded-xl border border-slate-200 bg-white px-3 text-base outline-none focus:border-[#0B3A53] dark:border-slate-700 dark:bg-white/5 dark:focus:border-sky-400"
+                    className="mt-1.5 h-9.5 w-full rounded-xl border border-slate-200 bg-white px-3 text-base outline-none focus:border-[var(--color-primary)] dark:border-slate-700 dark:bg-white/5 dark:focus:border-sky-400"
                   />
                 </label>
-                <label className="mt-2.5 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                <label className="mt-2.5 block text-sm font-semibold text-[var(--color-text-primary)]">
                   Description
                   <textarea
                     value={description}
                     onChange={(event) => setDescription(event.target.value)}
                     rows={2}
                     placeholder="Enter group description…"
-                    className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 bg-white p-2.5 text-base outline-none focus:border-[#0B3A53] dark:border-slate-700 dark:bg-white/5 dark:focus:border-sky-400"
+                    className="mt-1.5 w-full resize-none rounded-xl border border-slate-200 bg-white p-2.5 text-base outline-none focus:border-[var(--color-primary)] dark:border-slate-700 dark:bg-white/5 dark:focus:border-sky-400"
                   />
                 </label>
-                <div className="my-3.5 border-t border-slate-100 dark:border-white/10" />
+                <div className="my-3.5 border-t border-[var(--color-border)]" />
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Select recipients</span>
+                  <span className="text-xs font-semibold text-[var(--color-text-primary)]">Select recipients</span>
                   <button type="button" onClick={selectFiltered} className="text-sm font-semibold text-sky-700 hover:underline dark:text-sky-400">
                     Select filtered
                   </button>
@@ -498,7 +498,7 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                       onClick={() => setFilter(item.id)}
                       className={`shrink-0 rounded-full border px-2.5 py-0.5 text-sm font-semibold transition ${
                         filter === item.id
-                          ? "border-[#0B3A53] bg-[#0B3A53] text-white dark:border-sky-400 dark:bg-sky-400 dark:text-slate-950"
+                          ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--college-on-primary)] dark:border-sky-400 dark:bg-sky-400 dark:text-slate-950"
                           : "border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-white/5"
                       }`}
                     >
@@ -527,12 +527,12 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                           onClick={() => toggleRecipient(recipient.id)}
                           className="flex w-full items-center gap-2.5 rounded-xl p-2 text-left hover:bg-slate-50 dark:hover:bg-white/5"
                         >
-                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#EAF3F7] text-xs font-bold text-[#0B3A53] dark:bg-sky-400/15 dark:text-sky-300">
+                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#EAF3F7] text-xs font-bold text-[var(--color-text-primary)] dark:bg-sky-400/15 dark:text-sky-300">
                             {initials(recipient.name)}
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-bold">{recipient.name}</span>
-                            <span className="block truncate text-sm text-slate-500 dark:text-slate-400">
+                            <span className="block truncate text-sm text-[var(--color-text-secondary)]">
                               {recipient.role}
                               {recipient.isAssignedStudent ? " · Assigned student" : ""}
                             </span>
@@ -540,8 +540,8 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                           <span
                             className={`grid h-4.5 w-4.5 place-items-center rounded-full border transition ${
                               selected
-                                ? "border-[#0B3A53] bg-[#0B3A53] text-white dark:border-sky-400 dark:bg-sky-400 dark:text-slate-950"
-                                : "border-slate-300 dark:border-white/20"
+                                ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--college-on-primary)] dark:border-sky-400 dark:bg-sky-400 dark:text-slate-950"
+                                : "border-[var(--color-border)]"
                             }`}
                           >
                             {selected && <Check className="h-3 w-3" />}
@@ -550,7 +550,7 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                       );
                     })
                   ) : (
-                    <div className="p-4 text-center text-xs text-slate-400 dark:text-slate-500">
+                    <div className="p-4 text-center text-xs text-[var(--color-text-secondary)]">
                       No eligible recipients found for this filter.
                     </div>
                   )}
@@ -598,17 +598,17 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                   key={invitation.id}
                   className="mb-2 rounded-xl border border-amber-200/70 bg-amber-50/40 p-3 transition-all dark:border-amber-500/20 dark:bg-amber-500/5"
                 >
-                  <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
+                  <p className="truncate text-sm font-bold text-[var(--color-text-primary)]">
                     {chat?.title || "Group invitation"}
                   </p>
-                  <p className="mt-0.5 text-base text-slate-500 dark:text-slate-400">
+                  <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
                     Invited by {chat?.adviserName || "Faculty member"}
                   </p>
                   <div className="mt-2.5 flex gap-2">
                     <button
                       type="button"
                       onClick={() => respondToInvitation(invitation, "accepted")}
-                      className="flex-1 rounded-lg bg-[#0B3A53] py-1.5 text-sm font-semibold text-white shadow-2xs transition-colors hover:bg-[#072A3D] dark:bg-sky-400 dark:text-slate-950"
+                      className="flex-1 rounded-lg bg-[var(--color-primary)] py-1.5 text-sm font-semibold text-[var(--college-on-primary)] shadow-2xs transition-colors hover:bg-[var(--color-primary-dark)] dark:bg-sky-400 dark:text-slate-950"
                     >
                       Accept
                     </button>
@@ -648,18 +648,18 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                     onClick={() => openConversation(chat.id)}
                     className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
                       isSelected
-                        ? "bg-[#EAF3F7] text-[#0B3A53] shadow-2xs dark:bg-sky-400/10 dark:text-white"
+                        ? "bg-[#EAF3F7] text-[var(--color-text-primary)] shadow-2xs dark:bg-sky-400/10 dark:text-white"
                         : "text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.04]"
                     }`}
                   >
                     {isSelected && (
-                      <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[#0B3A53] dark:bg-sky-400" />
+                      <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-[var(--color-primary)] dark:bg-sky-400" />
                     )}
                     <span
                       className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold transition-colors ${
                         isSelected
-                          ? "bg-[#0B3A53] text-white dark:bg-sky-400 dark:text-slate-950"
-                          : "bg-[#58647A]/15 text-[#0B3A53] dark:bg-white/10 dark:text-sky-300 group-hover:bg-[#0B3A53]/20"
+                          ? "bg-[var(--color-primary)] text-[var(--college-on-primary)] dark:bg-sky-400 dark:text-slate-950"
+                          : "bg-[#58647A]/15 text-[var(--color-text-primary)] dark:bg-white/10 dark:text-sky-300 group-hover:bg-[var(--color-primary)]/20"
                       }`}
                     >
                       {initials(chat.title)}
@@ -668,7 +668,7 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                       <span className="block truncate text-sm font-bold leading-tight text-slate-900 dark:text-slate-100">
                         {chat.title}
                       </span>
-                      <span className="mt-0.5 block truncate text-sm text-slate-500 dark:text-slate-400">
+                      <span className="mt-0.5 block truncate text-sm text-[var(--color-text-secondary)]">
                         {memberCount} member{memberCount !== 1 ? "s" : ""} · {chat.isFacultyOnly ? "Faculty" : "Research group"}
                       </span>
                     </span>
@@ -698,10 +698,10 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
             <div className="mb-3.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800/80 dark:text-slate-500">
               <MessageSquareText className="h-6 w-6 stroke-[1.5]" />
             </div>
-            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
               {acceptedChats.length ? "Pick a conversation" : "Talk with your group in one place"}
             </h3>
-            <p className="mt-1 max-w-sm text-base text-slate-500 dark:text-slate-400">
+            <p className="mt-1 max-w-sm text-base text-[var(--color-text-secondary)]">
               {acceptedChats.length
                 ? "Choose a chat on the left to read and reply."
                 : canCreate
@@ -727,7 +727,7 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                   </button>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="truncate text-lg font-bold text-[#0B3A53] dark:text-white">
+                      <h3 className="truncate text-lg font-bold text-[var(--color-text-primary)] dark:text-white">
                         {activeChat.title}
                       </h3>
                       {activeChat.isFacultyOnly && (
@@ -741,13 +741,13 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                       )}
                     </div>
                     {activeChat.description && (
-                      <p className="mt-0.5 truncate text-sm text-slate-500 dark:text-slate-400">
+                      <p className="mt-0.5 truncate text-sm text-[var(--color-text-secondary)]">
                         {activeChat.description}
                       </p>
                     )}
                   </div>
                 </div>
-                <span className="shrink-0 text-xs font-semibold text-slate-400 dark:text-slate-500">
+                <span className="shrink-0 text-xs font-semibold text-[var(--color-text-secondary)]">
                   {activeChat.participants.filter((item) => item.status === "accepted").length} members
                 </span>
               </div>
@@ -786,27 +786,27 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                     <div
                       className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2.5 shadow-2xs ${
                         mine
-                          ? "rounded-br-xs bg-[#0B3A53] text-white dark:bg-sky-400 dark:text-slate-950"
+                          ? "rounded-br-xs bg-[var(--color-primary)] text-[var(--college-on-primary)] dark:bg-sky-400 dark:text-slate-950"
                           : "rounded-bl-xs border border-slate-200/80 bg-slate-50/70 text-slate-800 dark:border-slate-800 dark:bg-[#141f30] dark:text-slate-100"
                       }`}
                     >
                       <div
                         className={`mb-1 text-xs font-bold ${
-                          mine ? "text-sky-100/90 dark:text-slate-800 font-extrabold" : "text-[#58647A] dark:text-slate-400"
+                          mine ? "text-sky-100/90 dark:text-slate-800 font-semibold" : "text-[#58647A] dark:text-slate-400"
                         }`}
                       >
                         {item.senderName} · {item.senderRole}
                       </div>
                       <p className="whitespace-pre-wrap text-base leading-relaxed">{item.message}</p>
                     </div>
-                    <time className="mt-1 px-1 text-xs text-slate-400 dark:text-slate-500">
+                    <time className="mt-1 px-1 text-xs text-[var(--color-text-secondary)]">
                       {formatMessageTime(item.createdAt)}
                     </time>
                   </article>
                 );
               })}
               {!activeMessages.length && (
-                <div className="flex h-full min-h-60 flex-col items-center justify-center text-center text-xs text-slate-400 dark:text-slate-500">
+                <div className="flex h-full min-h-60 flex-col items-center justify-center text-center text-xs text-[var(--color-text-secondary)]">
                   <MessageSquareText className="h-8 w-8 stroke-[1.2] text-slate-300 dark:text-slate-600 mb-2" />
                   <p>No messages yet in this conversation.</p>
                   <p className="mt-0.5 text-base text-slate-400">Send a message below to start collaborating.</p>
@@ -820,7 +820,7 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
               onSubmit={sendMessage}
               className="border-t border-slate-200/80 bg-white p-3.5 dark:border-slate-800 dark:bg-[#0e1726] sm:px-6"
             >
-              <div className="flex items-end gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2 transition focus-within:border-[#0B3A53] focus-within:bg-white focus-within:shadow-xs dark:border-slate-700 dark:bg-slate-800/40 dark:focus-within:border-sky-400 dark:focus-within:bg-[#0c1420]">
+              <div className="flex items-end gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2 transition focus-within:border-[var(--color-primary)] focus-within:bg-white focus-within:shadow-xs dark:border-slate-700 dark:bg-slate-800/40 dark:focus-within:border-sky-400 dark:focus-within:bg-[#0c1420]">
                 <textarea
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
@@ -837,7 +837,7 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                 <button
                   type="submit"
                   disabled={!message.trim() || saving}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#0B3A53] text-white transition hover:bg-[#072A3D] disabled:cursor-not-allowed disabled:opacity-40 dark:bg-sky-400 dark:text-slate-950 dark:hover:bg-sky-300"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[var(--color-primary)] text-[var(--college-on-primary)] transition hover:bg-[var(--color-primary-dark)] disabled:cursor-not-allowed disabled:opacity-40 dark:bg-sky-400 dark:text-slate-950 dark:hover:bg-sky-300"
                   aria-label="Send message"
                 >
                   <Send className="h-4 w-4" />

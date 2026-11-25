@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
+import { PDFDocument } from "pdf-lib";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import app from "../app.js";
 import { prisma, type InstitutionalRole } from "../lib/prisma.js";
@@ -18,6 +19,7 @@ const links = ["abc-defg-hij", "bcd-efgh-ijk", "cde-fghi-jkl", "def-ghij-klm", "
 type Account = { id: string; token: string; email: string };
 let student: Account, peer: Account, adviser: Account, panelist: Account, dean: Account, coordinator: Account, oversight: Account, outsider: Account;
 let projectId: string;
+const otherGroups: { researchId: string; researcher: Account }[] = [];
 let server: Server;
 let origin: string;
 
@@ -46,6 +48,10 @@ async function request(user: Account, path = "/consultations", method = "GET", b
 
 const schedule = (title: string, participantIds: string[], extra = {}) => ({
   title, researchId: projectId, participantIds, ...dates, requestKey: randomUUID(), ...extra,
+});
+const slot = (hour: number) => ({
+  scheduledStart: new Date(Date.UTC(2098, 6, 12, hour)).toISOString(),
+  scheduledEnd: new Date(Date.UTC(2098, 6, 12, hour + 1)).toISOString(),
 });
 const add = (user: Account, payload: object) => request(user, "/consultations", "POST", payload);
 const change = (user: Account, id: string, body: object) => request(user, `/consultations/${id}`, "PATCH", body);
@@ -99,6 +105,20 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
         { researchId: projectId, userId: peer.id, projectRole: "MEMBER" },
         { researchId: projectId, userId: adviser.id, projectRole: "ADVISER" },
       ] });
+      for (const group of ["Second", "Third"]) {
+        const researcher = await createUser(group, "RESEARCHER");
+        const { id: researchId } = await tx.researchProject.create({ data: {
+          title: `${marker} ${group}`, status: "APPROVED", collegeId: own.id, programId: program.id,
+          researchTypeId: researchType.id, academicYearId: year.id, createdBy: researcher.id,
+        } });
+        fixture.projectIds.push(researchId);
+        otherGroups.push({ researchId, researcher });
+        await tx.researchMember.createMany({ data: [
+          { researchId, userId: researcher.id, projectRole: "LEADER" },
+          { researchId, userId: adviser.id, projectRole: "ADVISER" },
+          { researchId, userId: coordinator.id, projectRole: "COORDINATOR" },
+        ] });
+      }
     });
     await startApi();
   });
@@ -110,8 +130,9 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
       eventId,
       meetingUrl: options.manualMeetingUrl || `https://meet.google.com/${links[index++]}`,
     }));
-    vi.spyOn(googleCalendarService, "updateConsultation").mockResolvedValue(undefined);
+    vi.spyOn(googleCalendarService, "updateConsultation").mockResolvedValue(null);
     vi.spyOn(googleCalendarService, "cancelConsultation").mockResolvedValue(undefined);
+    vi.spyOn(googleCalendarService, "consultationActualTimes").mockResolvedValue(null);
   });
 
   afterAll(async () => {
@@ -137,8 +158,17 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     expect(first.status).toBe(200);
     expect(second.data.consultation.meetingUrl).toBe(first.data.consultation.meetingUrl);
     expect(googleCalendarService.createMeetConsultation).toHaveBeenCalledTimes(1);
+    const availability = `/consultations/availability?researchId=${projectId}&adviserId=${adviser.id}&date=2098-07-12&duration=60`;
+    const openings = await request(student, availability);
+    expect(openings.status).toBe(200);
+    expect(openings.data.slots).toContain("2098-07-12T01:00:00.000Z");
+    expect(openings.data.slots).not.toContain(dates.scheduledStart);
+    expect(openings.data.slots).not.toContain("2098-07-12T02:30:00.000Z");
+    expect((await request(outsider, availability)).status).toBe(403);
+    expect((await request(student, availability.replace(adviser.id, panelist.id))).status).toBe(404);
     expect(googleCalendarService.createMeetConsultation).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
       attendees: expect.arrayContaining([{ email: student.email, displayName: "Student Test" }, { email: adviser.email, displayName: "Adviser Test" }]),
+      coHost: { email: adviser.email, displayName: "Adviser Test" },
     }));
     expect((await join(student, id)).data.meetingUrl).toBe(first.data.consultation.meetingUrl);
     expect((await request(student)).data.consultations).toContainEqual(expect.objectContaining({ id, meetingUrl: first.data.consultation.meetingUrl }));
@@ -156,7 +186,7 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     expect((await request(outsider, recipientPath)).status).toBe(403);
     expect((await request(adviser, "/calendar", "POST", { type: "CONSULTATION" })).status).toBe(400);
     expect((await add(adviser, schedule("Cross-college", [outsider.id]))).status).toBe(403);
-    const payload = schedule("Research proposal consultation", guests.map(({ id }) => id));
+    const payload = schedule("Research proposal consultation", guests.map(({ id }) => id), slot(3));
     const created = await Promise.all([add(adviser, payload), add(adviser, payload)]);
     expect(created.map(({ status }) => status)).toEqual([201, 201]);
     const { id, meetingUrl } = created[0].data.consultation;
@@ -180,16 +210,31 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     expect((await join(dean, id)).data.meetingUrl).toBe(meetingUrl);
   });
 
+  it("chooses the highest-ranked invited faculty member for faculty-only meetings", async () => {
+    const created = await add(adviser, schedule("Faculty planning", [panelist.id, dean.id, coordinator.id], { instant: true }));
+    expect(created.status).toBe(201);
+    expect(googleCalendarService.createMeetConsultation).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      coHost: { email: dean.email, displayName: "Dean Test" },
+    }));
+    const { id } = created.data.consultation;
+    expect((await request(dean, "/consultations/workspace/dean")).data.consultations)
+      .toContainEqual(expect.objectContaining({ id, canComplete: true }));
+    expect((await change(adviser, id, { action: "complete" })).status).toBe(403);
+    expect((await change(dean, id, { action: "complete" })).data.consultation.status).toBe("completed");
+  });
+
   it("retains an actionable failed or pending state, then reuses the same event identity for retry", async () => {
     vi.mocked(googleCalendarService.createMeetConsultation)
       .mockRejectedValueOnce(new ConsultationCalendarError("Google Calendar is not configured."))
       .mockRejectedValueOnce(new ConsultationCalendarError("Still preparing.", true));
-    const payload = schedule("Retryable consultation", [student.id]);
+    const payload = schedule("Retryable consultation", [student.id], slot(4));
     const failed = await add(adviser, payload);
     expect(failed.status).toBe(502);
     expect(failed.data.consultation).toMatchObject({ status: "provisioning", conferenceState: "failed", meetingUrl: "" });
     const id = failed.data.consultation.id;
     expect((await join(student, id)).status).toBe(409);
+    expect((await add(adviser, schedule("Conflicts while preparing", [student.id], slot(4)))).status).toBe(409);
+    expect(googleCalendarService.createMeetConsultation).toHaveBeenCalledTimes(1);
     const pending = await add(adviser, payload);
     expect(pending.status).toBe(202);
     expect(pending.data.consultation).toMatchObject({ id, status: "provisioning", conferenceState: "pending", meetingUrl: "" });
@@ -200,7 +245,8 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
   });
 
   it("updates the existing event and participant access, then queues a failed cancellation for retry", async () => {
-    const result = await add(adviser, schedule("Reschedule and cancel", [student.id, panelist.id]));
+    const original = slot(5);
+    const result = await add(adviser, schedule("Reschedule and cancel", [student.id, panelist.id], original));
     const { id, revision, meetingUrl } = result.data.consultation;
     const before = await prisma.consultation.findUniqueOrThrow({ where: { id } });
     const edited = {
@@ -210,11 +256,16 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     vi.mocked(googleCalendarService.updateConsultation).mockRejectedValueOnce(new ConsultationCalendarError("Temporary failure"));
     const queued = await change(adviser, id, edited);
     expect(queued.status).toBe(202);
-    expect(queued.data.consultation).toMatchObject({ id, meetingUrl, scheduledStart: dates.scheduledStart, calendarUpdatePending: true });
+    expect(queued.data.consultation).toMatchObject({ id, meetingUrl, scheduledStart: original.scheduledStart, calendarUpdatePending: true });
+    expect((await add(adviser, schedule("Current slot still reserved", [student.id], original))).status).toBe(409);
+    expect((await add(adviser, schedule("New slot already reserved", [student.id], {
+      scheduledStart: edited.scheduledStart, scheduledEnd: edited.scheduledEnd,
+    }))).status).toBe(409);
     const changed = await syncConsultationUpdate(id);
     expect(changed).toMatchObject({ id, meetingUrl, scheduledStart: new Date(edited.scheduledStart), pendingCalendarUpdate: null });
     expect((await change(adviser, id, edited)).status).toBe(200);
     expect(googleCalendarService.updateConsultation).toHaveBeenCalledTimes(2);
+    expect((await add(adviser, schedule("Previous slot released", [student.id], original))).status).toBe(201);
     expect(googleCalendarService.updateConsultation).toHaveBeenCalledWith(before.googleEventId, expect.objectContaining({
       scheduledStart: new Date(edited.scheduledStart), attendees: expect.arrayContaining([expect.objectContaining({ email: dean.email })]),
     }), meetingUrl);
@@ -233,7 +284,7 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
   });
 
   it("isolates concurrent instant sessions from each other and a scheduled meeting", async () => {
-    const scheduled = (await add(adviser, schedule("Scheduled", [student.id]))).data.consultation;
+    const scheduled = (await add(adviser, schedule("Scheduled", [student.id], slot(6)))).data.consultation;
     const one = schedule("Student instant", [adviser.id], { instant: true });
     const two = schedule("Adviser instant", [student.id], { instant: true });
     const [studentMeeting, adviserMeeting] = await Promise.all([add(student, one), add(adviser, two)]);
@@ -245,8 +296,11 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     expect((await join(adviser, first.id)).data.meetingUrl).toBe(first.meetingUrl);
     expect((await join(student, second.id)).data.meetingUrl).toBe(second.meetingUrl);
     expect((await join(student, scheduled.id)).data.meetingUrl).toBe(scheduled.meetingUrl);
-    expect((await change(adviser, first.id, { action: "complete" })).status).toBe(403);
-    expect((await change(student, first.id, { action: "complete" })).data.consultation.status).toBe("completed");
+    expect((await request(student)).data.consultations).toContainEqual(expect.objectContaining({ id: first.id, canComplete: false, canManage: false }));
+    expect((await request(adviser)).data.consultations).toContainEqual(expect.objectContaining({ id: first.id, canComplete: true }));
+    expect((await change(student, first.id, { action: "complete" })).status).toBe(403);
+    expect((await change(student, first.id, { action: "cancel" })).status).toBe(403);
+    expect((await change(adviser, first.id, { action: "complete" })).data.consultation.status).toBe("completed");
     expect((await join(adviser, first.id)).status).toBe(409);
     expect(googleCalendarService.cancelConsultation).not.toHaveBeenCalled();
   });
@@ -258,13 +312,44 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     const range = { scheduledStart: "2098-07-13T04:00:00.000Z", scheduledEnd: "2098-07-13T05:00:00.000Z" };
     expect((await approve(adviser, proposed.data.consultation.id, range)).data.consultation.scheduledStart).toBe(range.scheduledStart);
     const manual = "https://meet.google.com/xyz-abcd-efg";
-    const existing = await add(adviser, schedule("Existing room", [student.id], { meetingUrl: manual }));
+    const existing = await add(adviser, schedule("Existing room", [student.id], { ...slot(7), meetingUrl: manual }));
     expect(existing.data.consultation).toMatchObject({ meetingUrl: manual, conferenceState: "manual" });
     expect((await add(adviser, schedule("Invalid room", [student.id], { meetingUrl: "https://meet.google.com/new" }))).status).toBe(400);
   });
 
+  it("keeps simultaneous requests from three groups separate and books one adviser slot", async () => {
+    const groups = [{ researchId: projectId, researcher: student }, ...otherGroups];
+    const submitted = await Promise.all(groups.map(({ researchId, researcher }) =>
+      add(researcher, schedule("Same adviser time", [], { ...slot(10), researchId, adviserId: adviser.id })),
+    ));
+    expect(submitted.map(({ status }) => status)).toEqual([201, 201, 201]);
+    expect(submitted.every(({ data }) => data.consultation.status === "requested")).toBe(true);
+    expect(googleCalendarService.createMeetConsultation).not.toHaveBeenCalled();
+
+    const ids = submitted.map(({ data }) => data.consultation.id);
+    const approved = await Promise.all(ids.map((id) => approve(adviser, id)));
+    expect(approved.map(({ status }) => status).sort()).toEqual([200, 409, 409]);
+    expect(googleCalendarService.createMeetConsultation).toHaveBeenCalledTimes(1);
+    const denied = ids.filter((_, index) => approved[index].status === 409);
+    expect(await prisma.consultation.count({ where: { id: { in: denied }, status: "REQUESTED" } })).toBe(2);
+
+    const next = await approve(adviser, denied[0], slot(11));
+    expect(next.status).toBe(200);
+    expect(next.data.consultation.scheduledStart).toBe(slot(10).scheduledEnd);
+    const overlap = await change(adviser, next.data.consultation.id, {
+      action: "reschedule", scheduledStart: "2098-07-12T10:30:00.000Z", scheduledEnd: slot(11).scheduledEnd,
+    });
+    expect(overlap.status).toBe(409);
+    expect(googleCalendarService.updateConsultation).not.toHaveBeenCalled();
+
+    const { researchId, researcher } = otherGroups[0];
+    const direct = { ...slot(10), researchId };
+    expect((await add(coordinator, schedule("Already booked adviser", [researcher.id, adviser.id], direct))).status).toBe(409);
+    expect((await add(coordinator, schedule("Separate appointment", [researcher.id], direct))).status).toBe(201);
+  });
+
   it("queues Calendar cancellation when the assigned adviser withdraws", async () => {
-    const result = await add(adviser, schedule("Adviser withdrawal", [student.id, dean.id]));
+    const result = await add(adviser, schedule("Adviser withdrawal", [student.id, dean.id], slot(8)));
     expect(result.status).toBe(201);
     const id = result.data.consultation.id;
     const withdrawal = await request(adviser, `/research/${projectId}/adviser-withdrawal`, "POST", {
@@ -279,5 +364,176 @@ databaseDescribe("consultation HTTP lifecycle with PostgreSQL", () => {
     })).toBe(1);
     await syncConsultationCancellation(id);
     expect(googleCalendarService.cancelConsultation).toHaveBeenCalledWith(saved.googleEventId);
+  });
+
+  async function recordFixture(creator: Account, organizer: Account, invitees: Account[], status: "SCHEDULED" | "COMPLETED") {
+    const start = new Date(Date.now() - 120 * 60_000);
+    const end = new Date(+start + 28 * 60_000);
+    const { id } = await prisma.consultation.create({ data: {
+      researchId: otherGroups[0].researchId, createdBy: creator.id, approverId: organizer.id,
+      title: "Consultation for participant confirmation",
+      status, scheduledStart: start, scheduledEnd: new Date(+start + 60 * 60_000),
+      participants: { create: [...new Set([creator.id, organizer.id, ...invitees.map(({ id }) => id)])].map((userId) => ({ userId })) },
+    } });
+    return {
+      id, path: `/consultations/${id}/record`,
+      draft: { action: "submit", revision: 0, actualStart: start.toISOString(), actualEnd: end.toISOString(),
+        summary: "Private discussion summary", nextSteps: "Private agreed action" },
+    };
+  }
+
+  async function recordPdf(user: Account, path: string, format: "proof" | "full") {
+    return fetch(`${origin}${path}/pdf?format=${format}`, {
+      headers: { Authorization: `Bearer ${user.token}` },
+    });
+  }
+
+  it("files a record without typed times using actual Google Meet timestamps", async () => {
+    const { researcher } = otherGroups[0];
+    const { id, path, draft } = await recordFixture(researcher, adviser, [], "SCHEDULED");
+    const { actualStart, actualEnd, ...form } = draft;
+    const meetingUrl = "https://meet.google.com/abc-defg-hij";
+    await prisma.consultation.update({ where: { id }, data: { meetingUrl } });
+    expect((await request(adviser, path, "PATCH", { ...form, reviewerId: researcher.id })).status).toBe(409);
+    vi.mocked(googleCalendarService.consultationActualTimes).mockResolvedValue({
+      actualStart: new Date(actualStart), actualEnd: new Date(actualEnd),
+    });
+    expect((await request(adviser, path)).data.actualTimes).toEqual({ actualStart, actualEnd });
+    const filed = await request(adviser, path, "PATCH", { ...form, reviewerId: researcher.id });
+    expect(filed.status).toBe(200);
+    expect(filed.data.details).toMatchObject({ actualStart, actualEnd });
+  });
+
+  it("confirms a corrected researcher record and limits oversight to proof", async () => {
+    const { researcher } = otherGroups[0];
+    const { id, path, draft } = await recordFixture(researcher, adviser, [], "SCHEDULED");
+    const submit = { ...draft, reviewerId: researcher.id };
+    expect((await request(peer, path)).status).toBe(404);
+    expect((await request(outsider, path)).status).toBe(404);
+    expect((await request(adviser, path, "PATCH", { ...submit, reviewerId: adviser.id })).status).toBe(400);
+    expect((await request(adviser, path, "PATCH", { ...submit, actualEnd: submit.actualStart })).status).toBe(400);
+
+    const filed = await request(adviser, path, "PATCH", submit);
+    expect(filed.status).toBe(200);
+    expect(filed.data.proof).toEqual({ status: "awaiting_confirmation" });
+    expect(filed.data.details.revision).toBe(1);
+    expect(await prisma.notification.count({ where: {
+      entityId: id, recipientId: researcher.id, title: "Consultation record needs confirmation",
+    } })).toBe(1);
+    expect(await prisma.consultation.findUnique({ where: { id }, select: { status: true } }))
+      .toEqual({ status: "COMPLETED" });
+    expect((await request(oversight, path)).data.details).toBeNull();
+    expect((await recordPdf(researcher, path, "proof")).status).toBe(409);
+    expect((await request(adviser, path, "PATCH", { action: "confirm", revision: 1 })).status).toBe(403);
+
+    const correction = await request(researcher, path, "PATCH", {
+      action: "request_correction", revision: 1, correction: "Please update the summary.",
+    });
+    expect(correction.data.proof).toEqual({ status: "correction_requested" });
+    expect(await prisma.notification.count({ where: {
+      entityId: id, recipientId: adviser.id, title: "Consultation record needs a correction",
+    } })).toBe(1);
+    expect((await request(adviser, path)).data.details.correction).toBe("Please update the summary.");
+    expect((await request(oversight, path)).data.details).toBeNull();
+    const revised = await request(adviser, path, "PATCH", { ...submit, revision: 1, summary: "Revised private summary" });
+    expect(revised.data.details).toMatchObject({ revision: 2, correction: null });
+    expect((await request(researcher, path, "PATCH", { action: "confirm", revision: 1 })).status).toBe(409);
+
+    const confirmed = await request(researcher, path, "PATCH", { action: "confirm", revision: 2 });
+    expect(confirmed.data.proof).toMatchObject({
+      status: "confirmed", durationMinutes: 28, submittedBy: "Adviser Test",
+      confirmedBy: "Second Test", reference: `CR-${id.toUpperCase()}`,
+    });
+    expect((await request(researcher, path)).data.details.summary).toBe("Revised private summary");
+    expect((await request(adviser, path, "PATCH", { ...submit, revision: 2 })).status).toBe(409);
+    for (const viewer of [oversight, coordinator]) {
+      const summary = await request(viewer, path);
+      expect(summary.data.proof).toEqual(confirmed.data.proof);
+      expect(summary.data.details).toBeNull();
+      expect((await recordPdf(viewer, path, "full")).status).toBe(404);
+      const pdf = await recordPdf(viewer, path, "proof");
+      expect(pdf.status).toBe(200);
+      expect(pdf.headers.get("cache-control")).toBe("private, no-store");
+      expect((await PDFDocument.load(await pdf.arrayBuffer())).getTitle()).toBe("Proof of Consultation");
+    }
+    for (const [viewer, workspace] of [[oversight, "dean"], [coordinator, "coordinator"]] as const) {
+      const result = await request(viewer, `/consultations/workspace/${workspace}?view=history&consultationId=${id}`);
+      expect(result.data.consultations).toEqual([expect.objectContaining({ id, proof: confirmed.data.proof })]);
+      expect(result.data.consultations[0]).not.toHaveProperty("details");
+    }
+    expect((await recordPdf(outsider, path, "proof")).status).toBe(404);
+    const full = await recordPdf(researcher, path, "full");
+    expect(full.status).toBe(200);
+    expect((await PDFDocument.load(await full.arrayBuffer())).getTitle()).toBe("Consultation Record");
+  });
+
+  it("allows only the designated participant to confirm a faculty-only record", async () => {
+    const { path, draft } = await recordFixture(coordinator, coordinator, [panelist, dean], "COMPLETED");
+    expect((await request(coordinator, path)).data.reviewers).toEqual(expect.arrayContaining([
+      { id: panelist.id, name: "Panelist Test" }, { id: dean.id, name: "Dean Test" },
+    ]));
+    expect((await request(coordinator, path, "PATCH", { ...draft, reviewerId: dean.id })).status).toBe(200);
+    expect((await request(panelist, path)).data.details).toBeNull();
+    expect((await request(panelist, path, "PATCH", { action: "confirm", revision: 0 })).status).toBe(403);
+    expect((await request(dean, path, "PATCH", {
+      action: "request_correction", revision: 1, correction: "Check the summary.",
+    })).status).toBe(200);
+    expect((await request(coordinator, path)).data.reviewers).toEqual([{ id: dean.id, name: "Dean Test" }]);
+    expect((await request(coordinator, path, "PATCH", { ...draft, revision: 1, reviewerId: panelist.id })).status).toBe(400);
+    expect((await request(coordinator, path, "PATCH", { ...draft, revision: 1, reviewerId: dean.id })).status).toBe(200);
+    const approvals = await Promise.all([
+      request(dean, path, "PATCH", { action: "confirm", revision: 2 }),
+      request(dean, path, "PATCH", { action: "confirm", revision: 2 }),
+    ]);
+    expect(approvals.map(({ status }) => status)).toEqual([200, 200]);
+    expect(approvals[0].data.proof).toEqual(approvals[1].data.proof);
+    expect((await request(panelist, path)).data.details.summary).toBe(draft.summary);
+    expect((await recordPdf(dean, path, "full")).status).toBe(200);
+    expect((await recordPdf(oversight, path, "full")).status).toBe(404);
+  });
+
+  it("lets the assigned adviser file a record for a completed legacy consultation", async () => {
+    const { researcher } = otherGroups[0];
+    const { id, path, draft } = await recordFixture(researcher, adviser, [], "COMPLETED");
+    await prisma.consultation.update({
+      where: { id },
+      data: { approverId: null, conferenceState: "LEGACY", participants: { deleteMany: { userId: adviser.id } } },
+    });
+    const history = await request(adviser);
+    expect(history.data.consultations).toContainEqual(expect.objectContaining({ id, status: "completed" }));
+    expect((await request(adviser, path)).data.reviewers).toEqual([{ id: researcher.id, name: "Second Test" }]);
+    expect((await request(adviser, path, "PATCH", { ...draft, reviewerId: researcher.id })).status).toBe(200);
+    expect((await request(researcher, path, "PATCH", { action: "confirm", revision: 1 })).data.proof.status).toBe("confirmed");
+  });
+
+  it("keeps a group join request visible only to its requester and links the leader to the pending request", async () => {
+    const { programId, collegeId } = await prisma.researchProject.findUniqueOrThrow({ where: { id: projectId } });
+    const role = await prisma.role.findUniqueOrThrow({ where: { name: "RESEARCHER" } });
+    const email = `join-${marker}@integration.test`;
+    const user = await prisma.user.create({ data: {
+      email, firstName: "Join", lastName: "Test", universityId: `join-${marker}`,
+      programId, collegeId, status: "ACTIVE", roles: { create: { roleId: role.id } },
+    } });
+    fixture.userIds.push(user.id);
+    const requester = { id: user.id, email, token: generateToken(user.id) };
+    const code = randomUUID().replace(/-/g, "").toUpperCase();
+    await prisma.researchProject.update({ where: { id: projectId }, data: {
+      inviteCode: code, inviteCodeEnabled: true, accessMode: "PUBLIC_APPROVAL",
+    } });
+    const joinPath = `/research/join/${code}`;
+    const [submitted, retried] = await Promise.all([
+      request(requester, joinPath, "POST"),
+      request(requester, joinPath, "POST"),
+    ]);
+    expect([submitted.status, retried.status]).toEqual([202, 202]);
+    expect(retried.data.request.id).toBe(submitted.data.request.id);
+    expect((await request(requester, `${joinPath}/preview`)).data.project.requestStatus).toBe("PENDING");
+    expect((await request(peer, `${joinPath}/preview`)).data.project).toMatchObject({ requestStatus: null, alreadyJoined: true });
+    const alerts = await prisma.notification.findMany({ where: {
+      recipientId: student.id, entityId: projectId, title: "New research group join request",
+    } });
+    expect(alerts.map(({ actionUrl }) => actionUrl)).toEqual([
+      `/student/dashboard?tab=group&section=my-group&projectId=${projectId}#join-request-${submitted.data.request.id}`,
+    ]);
   });
 });

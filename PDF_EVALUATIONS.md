@@ -8,7 +8,7 @@ Comments appear as numbered markers with their full text on appended comment pag
 
 Added text uses the standard PDF Latin font in this first version. Unsupported characters produce a validation message rather than being replaced or omitted.
 
-Panelists may place a saved, drawn, or typed signature with password confirmation. A newly drawn/typed signature can optionally be saved to their private profile. Editing afterward invalidates the signature and preview. If the professor requires a signature, submission is blocked until it is applied.
+Panelists may place a saved, drawn, or typed signature without password re-entry. A newly drawn/typed signature can optionally be saved to their private profile. Editing afterward invalidates the signature and preview. If the professor requires a signature, submission is blocked until it is applied.
 
 Panelists preview the current revision, confirm review, and submit. Final PDF bytes and their SHA-256 checksum are retained and locked. Professors see only final PDFs under **Review packet → Submitted PDF evaluations**. Panelists can reopen their final copy from Results or the defense's evaluation link, including after the defense ends.
 

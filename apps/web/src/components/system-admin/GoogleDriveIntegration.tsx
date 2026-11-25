@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { RoleBand } from "@/components/dashboards/RoleScreenParts";
+import "./system-admin.css";
 import { apiClient } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { DriveStorageMetrics } from "./DriveStorageMetrics";
@@ -110,9 +112,12 @@ function dateLabel(value: string | null) {
 
 export function GoogleDriveIntegration({
   compact = false,
+  row = false,
   onManage,
 }: {
   compact?: boolean;
+  /** One-line status for the Overview page. */
+  row?: boolean;
   onManage?: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -225,6 +230,8 @@ export function GoogleDriveIntegration({
     onError: (error: Error) => setNotice(error.message),
   });
 
+  if (row && statusQuery.isLoading)
+    return <p role="status" className="rs-note" style={{ paddingTop: 12 }}>Checking Google Drive storage…</p>;
   if (statusQuery.isLoading)
     return (
       <div
@@ -281,6 +288,22 @@ export function GoogleDriveIntegration({
     />
   );
 
+  if (row) {
+    const healthy = data.status === "HEALTHY";
+    return (
+      <div className="rh-row">
+        <span className="rh-icon" data-tone={healthy ? undefined : data.status === "DEGRADED" ? "waiting" : "attention"} aria-hidden="true">
+          <i className="ti ti-brand-google-drive" />
+        </span>
+        <div className="rh-text">
+          <h3>Google Drive storage: {meta.label.toLowerCase()}</h3>
+          <p data-guide="sa-drive-status">{data.account?.email || "No account"} · checked {dateLabel(data.lastCheckedAt)}</p>
+        </div>
+        <button type="button" className="rh-secondary" onClick={onManage}>Manage</button>
+      </div>
+    );
+  }
+
   if (compact) {
     return (
       <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
@@ -330,7 +353,36 @@ export function GoogleDriveIntegration({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="rs">
+      <RoleBand
+        eyebrow="System administration"
+        title="Google Drive"
+        titleId="sa-drive-title"
+        meta={`Universal document storage managed by Advisio · ${meta.label.toLowerCase()}`}
+        counts={[
+          { label: "Files", value: data.managedStorage.fileCount.toLocaleString("en-PH") },
+          { label: "Status", value: meta.label, tone: data.status === "HEALTHY" ? undefined : "waiting" },
+        ]}
+        countsLabel="Drive storage summary"
+        primary={
+          data.connected
+            ? { label: "Test connection", icon: "ti-plug-connected", disabled: busy, isLoading: health.isPending, onClick: () => health.mutate() }
+            : { label: "Sign in with Google", phoneLabel: "Sign in", icon: "ti-login", disabled: !data.oauthConfigured || busy, isLoading: connect.isPending, onClick: () => connect.mutate() }
+        }
+        secondary={[
+          ...(data.rootFolder?.id
+            ? [{ label: "Open folder", icon: "ti-folder-open", onClick: () => window.open(`https://drive.google.com/drive/folders/${data.rootFolder!.id}`, "_blank", "noopener,noreferrer") }]
+            : []),
+          ...(data.connected
+            ? [{
+                label: data.status === "ACTION_REQUIRED" ? "Reconnect account" : "Reconnect or change",
+                icon: "ti-refresh",
+                disabled: busy,
+                onClick: () => (data.status === "ACTION_REQUIRED" ? connect.mutate() : setConfirmSwitch(true)),
+              }]
+            : []),
+        ]}
+      />
       {notice && (
         <div className="flex items-start justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-semibold text-blue-800 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-200">
           <span>{notice}</span>
@@ -351,152 +403,53 @@ export function GoogleDriveIntegration({
           </span>
         </div>
       )}
-      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
-        <div className="workspace-page-header workspace-page-header--inset flex flex-col gap-4 border-b border-slate-100 p-6 dark:border-white/5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
-              <Cloud className="h-7 w-7" />
-            </span>
+      <div className="rh-grid rh-grid--even">
+        <section className="rh-panel" aria-labelledby="sa-drive-connection">
+          <div className="rh-head"><h2 id="sa-drive-connection">Connection</h2></div>
+          <div className={`mt-3 rounded-[12px] border p-3.5 ${meta.panel}`}>
+            <div className="flex items-start gap-3">
+              <StatusIcon className="mt-0.5 h-5 w-5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold">{meta.label}</p>
+                <p className="mt-0.5 text-[13px] opacity-80">
+                  {data.error?.message ||
+                    (data.connected
+                      ? "Authentication and storage-folder access are available."
+                      : data.oauthConfigured
+                        ? "Sign in with an authorized institutional Google account to enable storage."
+                        : "Add Google OAuth credentials and an encryption key to the API environment.")}
+                </p>
+              </div>
+            </div>
+          </div>
+          <dl className="sa-facts">
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black text-slate-900 dark:text-white">
-                  Google Drive
-                </h2>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">
-                  <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
-                  {meta.label}
-                </span>
-              </div>
-              <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
-                Universal document storage managed by Advisio.
-              </p>
+              <dt>Connected account</dt>
+              <dd>{data.account?.email || "Not connected"}<small>{data.account?.displayName || "Google Workspace account"}</small></dd>
             </div>
-          </div>
-          {!data.connected ? (
-            <button
-              disabled={!data.oauthConfigured || busy}
-              onClick={() => connect.mutate()}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#C9A227] dark:text-[#0B3A53]"
-            >
-              {connect.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <LogIn className="h-4 w-4" />
-              )}
-              Sign in with Google
+            <div>
+              <dt>Root storage folder</dt>
+              <dd>{data.rootFolder?.name || "Not created"}<small>{data.rootFolder?.sharedDriveId ? "Shared Drive" : "My Drive / app folder"}</small></dd>
+            </div>
+            <div>
+              <dt>Last health check</dt>
+              <dd>{dateLabel(data.lastCheckedAt)}<small>{data.lastHealthyAt ? `Last healthy: ${dateLabel(data.lastHealthyAt)}` : "No successful check recorded"}</small></dd>
+            </div>
+          </dl>
+          <div className="sa-danger">
+            <div>
+              <h3>Disconnect storage</h3>
+              <p>Only System Administrators can change the institution-level storage connection.</p>
+            </div>
+            <button type="button" disabled={!data.connected || busy} onClick={() => setConfirmDisconnect(true)}>
+              <i className="ti ti-unlink" aria-hidden="true" /> Disconnect
             </button>
-          ) : (
-            <button
-              disabled={busy}
-              onClick={() =>
-                data.status === "ACTION_REQUIRED"
-                  ? connect.mutate()
-                  : setConfirmSwitch(true)
-              }
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-black text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/5"
-            >
-              <RefreshCw className="h-4 w-4" />
-              {data.status === "ACTION_REQUIRED"
-                ? "Reconnect account"
-                : "Reconnect or change account"}
-            </button>
-          )}
-        </div>
-
-        <div className="grid gap-5 p-6 lg:grid-cols-[1.3fr_0.7fr]">
-          <div className="space-y-4">
-            <div className={`rounded-xl border p-4 ${meta.panel}`}>
-              <div className="flex items-start gap-3">
-                <StatusIcon className="mt-0.5 h-5 w-5 shrink-0" />
-                <div>
-                  <p className="text-base font-black">{meta.label}</p>
-                  <p className="mt-1 text-base opacity-80">
-                    {data.error?.message ||
-                      (data.connected
-                        ? "Authentication and storage-folder access are available."
-                        : data.oauthConfigured
-                          ? "Sign in with an authorized institutional Google account to enable storage."
-                          : "Add Google OAuth credentials and an encryption key to the API environment.")}
-                  </p>
-                </div>
-              </div>
-            </div>
-            {storageMetrics}
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Info
-                icon={UserRound}
-                label="Connected account"
-                value={data.account?.email || "Not connected"}
-                secondary={
-                  data.account?.displayName || "Google Workspace account"
-                }
-              />
-              <Info
-                icon={FolderOpen}
-                label="Root storage folder"
-                value={data.rootFolder?.name || "Not created"}
-                secondary={
-                  data.rootFolder?.sharedDriveId
-                    ? "Shared Drive"
-                    : "My Drive / app folder"
-                }
-              />
-              <Info
-                icon={RefreshCw}
-                label="Last health check"
-                value={dateLabel(data.lastCheckedAt)}
-                secondary={
-                  data.lastHealthyAt
-                    ? `Last healthy: ${dateLabel(data.lastHealthyAt)}`
-                    : "No successful check recorded"
-                }
-              />
-            </div>
           </div>
-          <aside className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 dark:border-white/10 dark:bg-white/[0.02]">
-            <h3 className="text-lg font-black text-slate-900 dark:text-white">
-              Connection controls
-            </h3>
-            <p className="mt-1 text-base leading-5 text-slate-500 dark:text-slate-400">
-              Only System Administrators can change the institution-level
-              storage connection.
-            </p>
-            <div className="mt-5 space-y-2">
-              <button
-                disabled={!data.connected || busy}
-                onClick={() => health.mutate()}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#C9A227] px-4 py-2.5 text-sm font-black text-[#0B3A53] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {health.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                Test connection
-              </button>
-              {data.rootFolder?.id && (
-                <a
-                  href={`https://drive.google.com/drive/folders/${data.rootFolder.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Open storage folder
-                </a>
-              )}
-              <button
-                disabled={!data.connected || busy}
-                onClick={() => setConfirmDisconnect(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-rose-500/10"
-              >
-                <Unplug className="h-4 w-4" />
-                Disconnect
-              </button>
-            </div>
-          </aside>
-        </div>
-      </section>
+        </section>
+        <section className="rh-panel" style={{ height: "fit-content" }} aria-label="Storage">
+          {storageMetrics}
+        </section>
+      </div>
 
       {confirmDisconnect && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4 backdrop-blur-sm">
@@ -588,31 +541,3 @@ export function GoogleDriveIntegration({
   );
 }
 
-function Info({
-  icon: Icon,
-  label,
-  value,
-  secondary,
-}: {
-  icon: typeof Cloud;
-  label: string;
-  value: string;
-  secondary: string;
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-xl border border-slate-100 p-4 dark:border-white/5">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-slate-50 text-[#0B3A53] dark:bg-white/5 dark:text-[#C9A227]">
-        <Icon className="h-4 w-4" />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-          {label}
-        </span>
-        <span className="mt-1 block truncate text-xs font-black text-slate-900 dark:text-white">
-          {value}
-        </span>
-        <span className="mt-0.5 block text-xs text-slate-400">{secondary}</span>
-      </span>
-    </div>
-  );
-}

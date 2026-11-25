@@ -4,7 +4,7 @@
 
 Target: `codex/researcher-workspace-ux-redesign`, based on the already-pushed TAM integration `257b425`. This implementation is local only. No commit, push, deployment, account, consent, questionnaire, respondent record, backend workflow, or authorization change is part of this task.
 
-The current source includes the five-group evaluation application alongside the six institutional workspaces. Render was previously verified to track `codex/qr-evaluation-local` with Auto-Deploy Off; this does not establish the running Render revision. Vercel also generated a Preview through the existing pull request. Neither service is an implementation or test target here.
+The source includes the five-group evaluation application alongside the six institutional workspaces. At the time of this review, the Render evaluation service tracked `codex/qr-evaluation-local` with Auto-Deploy Off, and the pull request generated a frontend preview.
 
 Inspected: auth roles, workspace definitions, role matrix, all six layouts and their sidebar wrappers, all corresponding dashboards, portal navigation, active-project and dashboard-workspace providers, academic membership context, evaluation session identity, existing Quick Guide, and ProductTour.
 
@@ -153,7 +153,7 @@ The following matrix is checked against the runtime registry and real browser re
 - Browser automation used the already-installed Playwright/Chrome runtime because agent-browser is not installed. Only the isolated local server and sample API fixtures were used.
 - The local fixture contains limited sample assignments. Actual manuscript submission, feedback publication, live scoring, signatures, role changes, integrations, database backup/restore, and live service workflows are intentionally not executed. Explaining those screens is not a claim that every consequential action has been exercised.
 - Multi-role, college and evaluation-session browser scenarios use controlled local profile/session responses. Existing backend authorization is unchanged and is not re-certified by these fixture tests.
-- Live Vercel and Render deployments have not received this guide version. No push, commit, merge, deployment, database operation, questionnaire change, consent change or response change was performed.
+- This guide version was reviewed locally. Deployment, database, questionnaire, consent, and response records were outside the scope of the review.
 
 ## Additional executed checks
 

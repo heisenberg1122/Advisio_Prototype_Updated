@@ -1,6 +1,6 @@
 # Advisio release candidate readiness — 2026-10-24
 
-This document is the approval gate for synchronizing `main` to GitHub and preparing the staging deployment. It records local evidence only. It does not authorize a commit, push, database migration, Render deployment, Vercel deployment, or Google integration change.
+This document is the approval gate for synchronizing `main` to GitHub and preparing the staging deployment. It records local evidence only. Commits, pushes, database migrations, deployments, and Google integration changes require separate authorization.
 
 ## Release scope
 
@@ -136,13 +136,13 @@ Render/API staging requires:
 - `NODE_ENV=production`
 - `DATABASE_URL` for runtime access and `DIRECT_URL` for migrations
 - independent staging `JWT_SECRET`, `AUTH_SECRET`, and `INTEGRATION_ENCRYPTION_KEY`
-- `WEB_URL` and exact `CORS_ORIGIN` for the staging Vercel origin
+- `WEB_URL` and exact `CORS_ORIGIN` for the staging frontend origin
 - `STORAGE_PROVIDER`, with `ALLOW_LOCAL_STORAGE_FALLBACK=false`
 - dedicated staging Google OAuth/Drive/Calendar values when those integrations are enabled
 - `RESEND_API_KEY` and `EMAIL_FROM`, or the approved SMTP variables
 - all demo, theme-demo, and self-signup flags set to `false`
 
-Vercel staging requires only public browser configuration:
+The staging frontend uses public browser configuration:
 
 - `VITE_API_URL` pointing to the staging Render API origin without `/api`
 - `VITE_GOOGLE_SIGN_IN_CLIENT_ID`
@@ -153,7 +153,7 @@ Never place database URLs, private Google credentials, email keys, JWT secrets, 
 
 ## Safe GitHub synchronization
 
-Before pushing `main`, confirm that Git-connected Render/Vercel services will not automatically deploy the push to production. Pause automatic production deployment or require an environment approval if necessary.
+Before pushing `main` for a staging-only release, verify the production triggers in Render and GitHub Actions.
 
 After explicit approval:
 
@@ -174,22 +174,22 @@ If `origin/main` advances, stop before staging or committing. Review the incomin
 ## Controlled staging deployment sequence
 
 1. Record the approved commit SHA and confirm GitHub CI passes for that exact commit.
-2. Verify Render and Vercel targets, automatic-deploy behavior, owners, project names, domains, and environment scopes.
+2. Verify the Render and frontend hosting targets, automatic-deploy behavior, owners, project names, domains, and environment scopes.
 3. Create and verify a staging PostgreSQL snapshot or provider backup; record its identifier and restoration steps.
 4. Hold the staging API deployment, run read-only `prisma migrate status`, then apply committed migrations with `migrate deploy` through `DIRECT_URL`.
 5. Re-run migration status and inspect application/database logs before allowing the new API image to start.
 6. Deploy the Render staging API from the approved SHA and verify `/api/health`, database connectivity, CORS rejection, and authenticated role boundaries.
-7. Build and deploy the Vercel staging frontend from the same SHA. Verify `VITE_API_URL` and OAuth client scope before testing.
+7. Build and deploy the staging frontend from the same SHA. Verify `VITE_API_URL` and OAuth client scope before testing.
 8. Smoke-test email delivery, Google Sign-In, Drive upload/download in the dedicated staging folder, and Calendar creation/callbacks. Do not use production folders or recipients.
 9. Run cross-role UAT for all eight roles, including onboarding, My Advisees, workflows, documents, Inbox/Messages, all defense modes, panel evaluation, result release, Official Copies, responsive layouts, and light/dark themes.
-10. Review Render/Vercel/database logs for errors or sensitive output, record approval, and keep production promotion as a separate decision.
+10. Review the frontend deployment, Render, and database logs for errors or sensitive output, and record approval before production promotion.
 
 ## Release blockers and approval gate
 
 The code passes the local release checks. These external facts remain blockers to an actual staging deployment:
 
 - Staging migration status and backup restorability have not been verified.
-- Current Render/Vercel auto-deploy settings and exact staging targets have not been verified locally.
+- Hosting auto-deploy settings and exact staging targets still require verification.
 - Staging environment-variable presence and scope have not been verified.
 - Email, Google Calendar, Google Drive, and cross-browser staging smoke tests remain pending.
 

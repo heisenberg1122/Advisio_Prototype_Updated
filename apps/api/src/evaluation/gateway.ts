@@ -12,6 +12,7 @@ import {
 } from "./catalog.js";
 import { evaluationInvitationUrl } from "./invitation.js";
 import { generateToken } from "../middleware/auth.js";
+import { verifyEvaluationCertificate } from "./certificate-verification.js";
 
 let runtime: EvaluationRuntime | undefined;
 let bootId: string;
@@ -57,6 +58,15 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
         mode: "evaluation",
         database: "connected",
       });
+    }
+    const certificateCode = endpoint.match(/^\/api\/certificates\/verify\/([^/]+)$/)?.[1];
+    if (req.method === "GET" && certificateCode) {
+      res.setHeader("X-Robots-Tag", "noindex, nofollow");
+      const certificate = verifyEvaluationCertificate(certificateCode);
+      if (!certificate) {
+        return void res.status(404).json({ error: "No issued certificate matches this verification code." });
+      }
+      return void res.json(certificate);
     }
     if (endpoint === "/api/evaluation/capacity" && req.method === "GET")
       return void res.json(await service.capacity());

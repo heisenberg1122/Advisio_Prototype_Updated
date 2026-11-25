@@ -126,8 +126,8 @@ export function PdfEvaluationWorkspace({
   const [signOpen, setSignOpen] = useState(false),
     [signMode, setSignMode] = useState<"saved" | "draw" | "type">("draw");
   const [signatureImage, setSignatureImage] = useState<string | null>(null),
-    [saveSignature, setSaveSignature] = useState(false),
-    [password, setPassword] = useState("");
+    [saveSignature, setSaveSignature] = useState(false);
+
   const canvas = useRef<HTMLCanvasElement>(null),
     surface = useRef<HTMLDivElement>(null);
   const [available, setAvailable] = useState(760);
@@ -562,7 +562,6 @@ export function PdfEvaluationWorkspace({
         {
           revision: item.revision,
           placement: signatureBox,
-          password,
           ...(signMode !== "saved"
             ? { signatureImage: signatureImage || "", saveSignature }
             : {}),
@@ -571,7 +570,6 @@ export function PdfEvaluationWorkspace({
       setDetail((d) => (d ? { ...d, evaluation: result.evaluation } : d));
       setPreview(null);
       setSignOpen(false);
-      setPassword("");
       const blob = await apiClient.file(`${base}/signature`);
       setSignatureUrl(URL.createObjectURL(blob));
       setNotice(
@@ -1252,17 +1250,6 @@ export function PdfEvaluationWorkspace({
                 </label>
               </>
             )}
-            <label className="block text-sm">
-              Confirm your password
-              <input
-                aria-label="Confirm your password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-2 w-full rounded border bg-[var(--color-surface)] p-2"
-              />
-            </label>
             {error && (
               <p role="alert" className="text-base text-rose-600">
                 {error}
@@ -1274,14 +1261,13 @@ export function PdfEvaluationWorkspace({
                 className={styleButton}
                 onClick={() => {
                   setSignOpen(false);
-                  setPassword("");
                 }}
               >
                 Cancel
               </button>
               <button
                 disabled={
-                  busy || !password || (signMode !== "saved" && !signatureImage)
+                  busy || (signMode !== "saved" && !signatureImage)
                 }
                 className={primary}
                 onClick={() => action(sign)}

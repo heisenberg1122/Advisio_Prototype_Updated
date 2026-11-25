@@ -1,6 +1,5 @@
 import path from "node:path";
 import crypto from "node:crypto";
-import bcrypt from "bcryptjs";
 import { notifyMailRecipients } from "../services/mail-email.service.js";
 import { Router, type RequestHandler } from "express";
 import multer from "multer";
@@ -1025,16 +1024,12 @@ router.post("/attachments/:id/sign", requireAuth, async (req, res) => {
       return void res
         .status(403)
         .json({ error: "Your role cannot sign message attachments." });
-    const { password, confirmation, placements, signatureImage, saveSignature } =
+    const { confirmation, placements, signatureImage, saveSignature } =
       req.body || {};
     if (confirmation !== true)
       return void res
         .status(400)
         .json({ error: "Signing confirmation is required." });
-    if (!password || typeof password !== "string")
-      return void res
-        .status(400)
-        .json({ error: "Enter your password to confirm signing." });
     const normalizedPlacements = Array.isArray(placements)
       ? (placements as Placement[])
       : [];
@@ -1044,7 +1039,7 @@ router.post("/attachments/:id/sign", requireAuth, async (req, res) => {
       });
     normalizedPlacements.forEach(validatePlacement);
 
-    const [attachment, account, signer] = await Promise.all([
+    const [attachment, signer] = await Promise.all([
       prisma.mailAttachment.findFirst({
         where: {
           id: req.params.id as string,
@@ -1063,10 +1058,6 @@ router.post("/attachments/:id/sign", requireAuth, async (req, res) => {
             select: { id: true },
           },
         },
-      }),
-      prisma.user.findUnique({
-        where: { id: req.user!.id },
-        select: { passwordHash: true },
       }),
       prisma.user.findUnique({
         where: { id: req.user!.id },
@@ -1089,13 +1080,6 @@ router.post("/attachments/:id/sign", requireAuth, async (req, res) => {
       return void res.status(409).json({
         error: "You have already signed this exact attachment.",
       });
-    if (
-      !account?.passwordHash ||
-      !(await bcrypt.compare(password, account.passwordHash))
-    )
-      return void res
-        .status(401)
-        .json({ error: "Your password could not be verified." });
     const signature = await resolveSigningImage(req.user!.id, {
       signatureImage,
       saveSignature,

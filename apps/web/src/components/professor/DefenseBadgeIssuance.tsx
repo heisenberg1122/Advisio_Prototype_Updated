@@ -4,6 +4,7 @@ import {
   DefenseBadgeCard,
   type DefenseBadge,
 } from "@/components/defense/DefenseBadgeCard";
+import { DefenseCertificateIssuance } from "./DefenseCertificateIssuance";
 
 type Session = {
   id: string;
@@ -96,7 +97,12 @@ export function DefenseBadgeIssuance({
                 {session.research.title}
               </p>
               {badge ? (
-                <DefenseBadgeCard badge={badge} />
+                <DefenseBadgeCard
+                  badge={badge}
+                  action={canIssue && badge.kind === "FINAL_DEFENSE" && !badge._count?.certificates
+                    ? <DefenseCertificateIssuance sessionId={session.id} onIssued={onIssued} />
+                    : undefined}
+                />
               ) : canIssue ? (
                 <button
                   type="button"

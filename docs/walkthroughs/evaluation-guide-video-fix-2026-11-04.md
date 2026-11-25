@@ -5,7 +5,7 @@
 The Render evaluation guide was still serving a release without the published
 walkthroughs. On 4 November, the live health endpoint reported evaluation mode
 with a connected database, but Researcher and Dean media manifests and the video
-gallery returned HTTP 404. A successful Vercel preview deployment does not update
+gallery returned HTTP 404. A successful frontend preview deployment does not update
 this separate Render service. Its automatic deployment is disabled.
 
 ## Guide changes

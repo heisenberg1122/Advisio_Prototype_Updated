@@ -38,6 +38,8 @@ interface Message {
   text: string;
   reply?: AssistantReply;
   retryQuestion?: string;
+  translation?: { text: string; visible: boolean };
+  translationError?: string;
 }
 const welcome =
   "Hi! Need help finding something or figuring out what to do next in Advisio?";
@@ -53,6 +55,7 @@ export function FloatingResearcherAssistant() {
   const [aiProvider, setAIProvider] = useState<AssistantAIProvider>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [pending, setPending] = useState(false);
+  const [translatingId, setTranslatingId] = useState<number | null>(null);
   const [actionNotice, setActionNotice] = useState("");
   const panel = useRef<HTMLElement>(null),
     input = useRef<HTMLTextAreaElement>(null);
@@ -70,6 +73,8 @@ export function FloatingResearcherAssistant() {
   const enabled = Boolean(guide?.enabled && visible && user);
   const hiddenByGuide = guide?.busy || guide?.drawerOpen;
   const aiProviderName = aiProvider === "groq" ? "Groq" : "OpenAI";
+  const busy = pending || translatingId !== null;
+  const latestMessageId = messages.at(-1)?.id;
 
   useEffect(() => {
     if (!enabled) {
@@ -98,7 +103,7 @@ export function FloatingResearcherAssistant() {
   useEffect(() => {
     const element = transcript.current;
     if (element) element.scrollTop = element.scrollHeight;
-  }, [messages, pending, open]);
+  }, [latestMessageId, pending, open]);
   const minimize = () => {
     setOpen(false);
     requestAnimationFrame(() => launcher.current?.focus());
@@ -109,12 +114,20 @@ export function FloatingResearcherAssistant() {
     setMessages([]);
     setDraft("");
     setPending(false);
+    setTranslatingId(null);
     setActionNotice("");
     input.current?.focus();
   };
   const send = async (question = draft) => {
     const message = question.trim();
-    if (!message || message.length > 1600 || pending || controller.current || !user) return;
+    if (
+      !message ||
+      message.length > 1600 ||
+      busy ||
+      controller.current ||
+      !user
+    )
+      return;
     const previous = [...messages]
       .reverse()
       .find(
@@ -234,6 +247,76 @@ export function FloatingResearcherAssistant() {
       }
     }
   };
+  const translate = async (message: Message) => {
+    const language = message.reply?.language;
+    if (message.reply?.source !== "ai" || !language || controller.current)
+      return;
+    if (message.translation) {
+      const translation = {
+        ...message.translation,
+        visible: !message.translation.visible,
+      };
+      setMessages((items) =>
+        items.map((item) =>
+          item.id === message.id ? { ...item, translation } : item,
+        ),
+      );
+      return;
+    }
+    if (!allowAI || !aiProvider) return;
+
+    const current = new AbortController();
+    controller.current = current;
+    setTranslatingId(message.id);
+    setMessages((items) =>
+      items.map((item) =>
+        item.id === message.id
+          ? { ...item, translationError: undefined }
+          : item,
+      ),
+    );
+    const timeout = setTimeout(() => current.abort(), 30_000);
+    try {
+      const translated = await apiClient.post<{ text: string }>(
+        "/api/researcher-assistant",
+        {
+          workspace,
+          text: message.text,
+          translateTo: language === "en" ? "tl" : "en",
+          allowAI,
+          aiProvider,
+        },
+        { signal: current.signal },
+      );
+      if (controller.current !== current || current.signal.aborted) return;
+      if (typeof translated.text !== "string" || !translated.text.trim())
+        throw new Error("Translation is unavailable.");
+      setMessages((items) =>
+        items.map((item) =>
+          item.id === message.id
+            ? { ...item, translation: { text: translated.text, visible: true } }
+            : item,
+        ),
+      );
+    } catch (error) {
+      if (controller.current !== current) return;
+      const translationError =
+        error instanceof ApiError && error.statusCode === 429
+          ? error.message
+          : "Translation is unavailable right now. You can try again.";
+      setMessages((items) =>
+        items.map((item) =>
+          item.id === message.id ? { ...item, translationError } : item,
+        ),
+      );
+    } finally {
+      clearTimeout(timeout);
+      if (controller.current === current) {
+        controller.current = null;
+        setTranslatingId(null);
+      }
+    }
+  };
   const act = (id: string) => {
     const outcome = guide?.act(id);
     if (outcome === false)
@@ -314,7 +397,7 @@ export function FloatingResearcherAssistant() {
                     <button
                       key={id}
                       type="button"
-                      disabled={pending}
+                      disabled={busy}
                       onClick={() => void send(question)}
                     >
                       {question}
@@ -333,7 +416,19 @@ export function FloatingResearcherAssistant() {
                 <span className="sr-only">
                   {message.role === "user" ? "You" : "Advisio Assistant"}
                 </span>
-                <p>{message.text}</p>
+                <p
+                  lang={
+                    message.translation?.visible
+                      ? message.reply?.language === "en"
+                        ? "tl"
+                        : "en"
+                      : message.reply?.language
+                  }
+                >
+                  {message.translation?.visible
+                    ? message.translation.text
+                    : message.text}
+                </p>
                 {message.reply && (
                   <small className="researcher-assistant__source">
                     {message.reply.source === "ai"
@@ -341,6 +436,27 @@ export function FloatingResearcherAssistant() {
                       : message.reply.source === "fallback"
                         ? "Guide fallback"
                         : "Verified workspace help"}
+                  </small>
+                )}
+                {message.reply?.source === "ai" && message.reply.language && (
+                  <button
+                    type="button"
+                    className="researcher-assistant__translate"
+                    disabled={busy || (!allowAI && !message.translation)}
+                    onClick={() => void translate(message)}
+                  >
+                    {translatingId === message.id
+                      ? "Translating…"
+                      : message.translation?.visible
+                        ? "Show original"
+                        : message.reply.language === "en"
+                          ? "Translate to Tagalog"
+                          : "Translate to English"}
+                  </button>
+                )}
+                {message.translationError && (
+                  <small className="researcher-assistant__source" role="status">
+                    {message.translationError}
                   </small>
                 )}
                 {message.reply?.topicIds.slice(0, 2).map((id) => {
@@ -378,7 +494,7 @@ export function FloatingResearcherAssistant() {
                     type="button"
                     className="researcher-assistant__retry"
                     disabled={
-                      pending ||
+                      busy ||
                       (message.reply?.needsConsent &&
                         (!allowAI ||
                           (message.reply.consentProvider ?? "openai") !==
@@ -455,7 +571,7 @@ export function FloatingResearcherAssistant() {
             <button
               type="submit"
               aria-label="Send message"
-              disabled={pending || !draft.trim()}
+              disabled={busy || !draft.trim()}
             >
               <ArrowUp size={19} />
             </button>
@@ -467,6 +583,7 @@ export function FloatingResearcherAssistant() {
                   <input
                     type="checkbox"
                     checked={allowAI}
+                    disabled={translatingId !== null}
                     onChange={(event) => setAllowAI(event.target.checked)}
                   />
                   <span>Use AI for harder questions</span>
@@ -474,8 +591,8 @@ export function FloatingResearcherAssistant() {
                 </label>
                 <p>
                   When enabled, your question and up to 4 recent turns may be
-                  sent to {aiProviderName}. Avoid private research or personal
-                  details.
+                  sent to {aiProviderName}. Translating sends the selected AI
+                  reply. Avoid private research or personal details.
                 </p>
               </>
             )}

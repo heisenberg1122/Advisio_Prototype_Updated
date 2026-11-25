@@ -106,7 +106,7 @@ export function Modal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: reduceMotion ? 0 : uiMotion.tap }}
-          className={cn("fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs", overlayClassName)}
+          className={cn("ui-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs", overlayClassName)}
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) onClose();
           }}
@@ -126,7 +126,7 @@ export function Modal({
             }}
             tabIndex={-1}
             className={cn(
-              "w-full bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-[var(--shadow-modal)] flex flex-col overflow-hidden",
+              "ui-modal-panel w-full bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-[var(--shadow-modal)] flex flex-col overflow-hidden",
               maxWidthMap[maxWidth],
               className,
             )}
@@ -159,13 +159,13 @@ export function Modal({
             </div>
 
             {/* Content */}
-            <div className="p-5 sm:p-6 overflow-y-auto max-h-[75vh]">
+            <div className="ui-modal-body p-5 sm:p-6 overflow-y-auto max-h-[75vh]">
               {children}
             </div>
 
             {/* Footer */}
             {footer && (
-              <div className="flex items-center justify-end gap-2.5 p-4 sm:p-5 bg-[var(--color-surface-subtle)] border-t border-[var(--color-border)]">
+              <div className="ui-modal-footer flex items-center justify-end gap-2.5 p-4 sm:p-5 bg-[var(--color-surface-subtle)] border-t border-[var(--color-border)]">
                 {footer}
               </div>
             )}

@@ -36,9 +36,8 @@ test("invitation QR rejects unknown roles, duplicate values, extra identifiers a
 test("the optional official starter preserves assignments without moving the session origin", () => {
   const origin = "https://evaluation.example.org";
   const launcher = "https://advisio-ua.com/evaluate/start";
-  for (const url of [launcher, "https://advisio-prototype-updated.vercel.app/evaluate/start"])
-    expect(evaluationInvitationUrl(origin, { role: "student", course: "BSIT" }, url))
-      .toBe(`${url}?role=student&course=BSIT`);
-  for (const value of ["https://other.example/start", `${launcher}?redirect=https://other.example`, "javascript:alert(1)"])
+  expect(evaluationInvitationUrl(origin, { role: "student", course: "BSIT" }, launcher))
+    .toBe(`${launcher}?role=student&course=BSIT`);
+  for (const value of ["https://other.example/evaluate/start", `${launcher}?redirect=https://other.example`, "javascript:alert(1)"])
     expect(() => evaluationEntryUrl(origin, value)).toThrow("official ADVISIO");
 });

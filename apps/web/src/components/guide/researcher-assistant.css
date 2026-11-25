@@ -166,6 +166,14 @@
   font-size: 10px;
   color: var(--color-text-secondary);
 }
+.researcher-assistant__translate {
+  min-height: 28px;
+  padding: 0;
+  color: var(--color-primary);
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .researcher-assistant__suggestions {
   display: grid;
   gap: 7px;

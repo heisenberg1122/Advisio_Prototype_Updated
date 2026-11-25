@@ -1,3 +1,5 @@
+import { defenseCompletion, latestFinalDefense } from "@/lib/defense-completion";
+import { ViewDefenseCertificate } from "@/components/defense/ViewDefenseCertificate";
 import { OverviewDefenseResult, OverviewGettingStarted } from "@/components/dashboards/student/overview/ResearchCommandCenter";
 import { ResearcherComingUp, ResearcherHomeHero, ResearcherLatestUpdates, ResearcherNextStep, ResearcherWorkflows } from "@/components/dashboards/student/overview/ResearcherHome";
 import { buildComingUp, buildJourney, buildLatestUpdates, memberInitials } from "@/lib/researcher-home";
@@ -9,6 +11,7 @@ import { resolveStudentWorkflow } from "@/lib/student-workflow-context";
 import { TeamEmailInvitation } from "@/components/workflow/TeamEmailInvitation";
 import React, { useState, Suspense, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useLocation } from "react-router-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -19,6 +22,9 @@ import { Tag } from "@/components/ui/Tag";
 import { Button } from "@/components/ui/Button";
 import { CardsPageSkeleton, DashboardSkeleton, FilesPageSkeleton, ListPageSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
 import "@/components/dashboards/student/my-project-workspace.css";
+import "../student-screens.css";
+import { EmptyNote, StatusDot } from "@/components/ui/advisio";
+import { RoleBand, initials } from "@/components/dashboards/RoleScreenParts";
 import { StudentProjectOverview } from "@/components/dashboards/student/StudentProjectOverview";
 import { ProjectGroupPanel } from "@/components/dashboards/student/ProjectGroupPanel";
 import {
@@ -32,6 +38,7 @@ import { StudentGroupChats } from "@/components/dashboards/student/StudentGroupC
 import { ConsultationMeetingForm } from "@/components/consultations/ConsultationMeetingForm";
 import { ConsultationBooking } from "@/components/consultations/ConsultationBooking";
 import { joinConsultation } from "@/components/consultations/ConsultationActions";
+import { ConsultationRecordButton } from "@/components/consultations/ConsultationRecordButton";
 import { GoogleMeetTranscriptModal, ParsedChatMessage } from "@/components/consultations/GoogleMeetTranscriptModal";
 import {
   getPendingConsultationImports,
@@ -251,6 +258,14 @@ function StudentDashboardContent() {
   const pendingJoinRequests = joinRequests.filter(
     (request: any) => request.status === "PENDING",
   );
+  const { hash: joinRequestAnchor } = useLocation();
+  const hasLinkedJoinRequest = pendingJoinRequests.some(({ id }) => joinRequestAnchor === `#join-request-${id}`);
+  useEffect(() => {
+    if (!isGroupLeader || !hasLinkedJoinRequest) return;
+    const request = document.getElementById(joinRequestAnchor.slice(1));
+    request?.focus({ preventScroll: true });
+    request?.scrollIntoView({ block: "nearest" });
+  }, [isGroupLeader, hasLinkedJoinRequest, joinRequestAnchor]);
 
   // State Data strictly from live API
   const [group, setGroup] = useState<any>(null);
@@ -322,7 +337,7 @@ function StudentDashboardContent() {
   }, [activeProject, activeWorkflowEnrollment, workflowProject, manuscriptWorkflowData?.milestones]);
 
   const [aiMatches, setAiMatches] = useState<any[]>([]);
-  const combinedSubmissions = (dashboardDocumentData?.documents || []).flatMap(
+  const documentVersions = (dashboardDocumentData?.documents || []).flatMap(
     (document: any) =>
       (document.versions || []).map((version: any) => ({
         id: version.id,
@@ -386,7 +401,7 @@ function StudentDashboardContent() {
 
 
   // Modals state
-  const [modalCert, setModalCert] = useState(false);
+
   const [modalJoinConferencing, setModalJoinConferencing] = useState(false);
   const [groupNameInput, setGroupNameInput] = useState("");
   const [inviteCode, setInviteCode] = useState("");
@@ -415,6 +430,10 @@ function StudentDashboardContent() {
 
   const handleUploadDoc = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!activeProject?.id) {
+      triggerToast("Select a project before uploading a draft.");
+      return;
+    }
     if (!uploadFileName.trim()) {
       triggerToast("Please enter a document title.");
       return;
@@ -445,7 +464,7 @@ function StudentDashboardContent() {
       if (fileInputRef.current) fileInputRef.current.value = "";
       triggerToast(`Uploaded "${uploadFileName.trim()}" to Documents.`);
     } catch (err: any) {
-      triggerToast(`Submission failed: ${err.message || "Network error"}`);
+      triggerToast(`Upload failed: ${err.message || "Network error"}`);
     } finally {
       setIsUploading(false);
     }
@@ -760,7 +779,7 @@ function StudentDashboardContent() {
     />
   );
 
-    const renderSubmissionsHub = () => {
+  const renderSubmissionsHub = () => {
     return (
       <div className="flex flex-col gap-6">
         <div className="flex justify-end">
@@ -773,6 +792,29 @@ function StudentDashboardContent() {
           </button>
         </div>
 
+        <section className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          <h3 className="text-lg font-semibold">Formal task submissions</h3>
+          {progressError ? <p role="alert">Submission status could not be loaded.</p> : progressLoading ? (
+            <p role="status">Loading submissions…</p>
+          ) : !manuscriptWorkflowData?.milestones.some((milestone) => milestone.tasks?.some((task) => task.submissionId)) ? (
+            <p>No formal task submissions for this project yet.</p>
+          ) : (
+            <ul className="divide-y divide-[var(--color-border)]">
+              {manuscriptWorkflowData.milestones.flatMap((milestone) => (milestone.tasks || [])
+                .filter((task) => task.submissionId)
+                .map((task) => <li key={task.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                  <div><p className="font-semibold">{task.title}</p><p className="text-sm">{milestone.name} · {overviewStatus(task.status || "Status unavailable")}</p>
+                    {["SUBMITTED", "UNDER_REVIEW", "AWAITING_REVIEW"].includes(task.status || "") && <p className="text-sm">
+                      {task.reviewers?.length ? `Waiting for ${task.reviewers.join(", ")} to review` : "Next: faculty review"}
+                    </p>}
+                    {["REVISION_REQUIRED", "REJECTED"].includes(task.status || "") && <p className="text-sm">Next: research group reviews feedback</p>}
+                  </div>
+                  <Link className="font-semibold underline" href={studentTaskDetailsHref(task.id, activeProject?.id)}>Open submission</Link>
+                </li>))}
+            </ul>
+          )}
+        </section>
+
         {/* 2-Column Responsive Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Submissions & Version Control History (7 of 12) */}
@@ -781,16 +823,16 @@ function StudentDashboardContent() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                 <h3 data-guide="submission-history-heading" className="font-extrabold text-[#1b4264] text-lg flex items-center gap-2">
                   <i className="ti ti-history text-[#ffa400]" />
-                  Manuscript Versions & Upload History
+                  Document Versions
                 </h3>
                 <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
-                  {combinedSubmissions.length} Version{combinedSubmissions.length === 1 ? "" : "s"}
+                  {documentVersions.length} Version{documentVersions.length === 1 ? "" : "s"}
                 </span>
               </div>
 
-              {combinedSubmissions.length > 0 ? (
+              {documentVersions.length > 0 ? (
                 <div className="flex flex-col gap-3">
-                  {combinedSubmissions.map((sub: any) => (
+                  {documentVersions.map((sub: any) => (
                     <div
                       key={sub.id}
                       className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs shadow-sm hover:border-[#1b4264] transition"
@@ -831,9 +873,9 @@ function StudentDashboardContent() {
                     <i className="ti ti-upload" />
                   </div>
                   <div>
-                    <h4 className="font-extrabold text-[#1b4264] text-lg">No Manuscript Submissions Yet</h4>
+                    <h4 className="font-extrabold text-[#1b4264] text-lg">No document versions yet</h4>
                     <p className="text-slate-500 text-base max-w-sm mt-1">
-                      Upload your initial proposal outline or chapter drafts using the submission form on the right.
+                      Upload a working draft using the form on the right.
                     </p>
                   </div>
                 </div>
@@ -847,10 +889,10 @@ function StudentDashboardContent() {
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
               <h3 className="font-extrabold text-[#1b4264] text-lg flex items-center gap-2">
                 <i className="ti ti-cloud-upload text-[#ffa400]" />
-                Submit Draft Manuscript
+                Upload a working draft
               </h3>
               <p className="text-slate-400 text-base font-bold">
-                Submit your document draft for adviser endorsement and review.
+                Uploads are working files. Submit a version from Tasks & Requirements when it is ready for formal review.
               </p>
               <form onSubmit={handleUploadDoc} className="flex flex-col gap-3 text-xs">
                 <div className="flex flex-col gap-1">
@@ -946,7 +988,7 @@ function StudentDashboardContent() {
 
                 <button
                   type="submit"
-                  disabled={isUploading}
+                  disabled={isUploading || !activeProject}
                   className="submission-action w-full py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-lg shadow transition cursor-pointer mt-1 disabled:opacity-60 flex items-center justify-center gap-2"
                 >
                   {isUploading ? (
@@ -955,7 +997,7 @@ function StudentDashboardContent() {
                       <span>Uploading Manuscript...</span>
                     </>
                   ) : (
-                    <span>Submit Manuscript for Review</span>
+                    <span>Upload draft</span>
                   )}
                 </button>
               </form>
@@ -982,7 +1024,7 @@ function StudentDashboardContent() {
   const tabsList = [
     { id: "overview", label: "Overview", icon: "ti-layout-dashboard", matches: ["overview", ""] },
     { id: "workspace", label: "Document Workspace", icon: "ti-file-text", matches: ["workspace"] },
-    { id: "submissions", label: "Submissions", icon: "ti-folder-check", badge: combinedSubmissions.length, matches: ["submissions", "submission", "version-control"] },
+    { id: "submissions", label: "Document Versions", icon: "ti-folder-check", badge: documentVersions.length, matches: ["submissions", "submission", "version-control"] },
     { id: "consultations", label: "Consultations", icon: "ti-calendar-event", badge: consultations.length, matches: ["consultations", "consultation-repo", "consultation-requests", "conferencing"] },
     { id: "history", label: "Consultation History", icon: "ti-history", matches: ["history"] },
     { id: "milestones", label: "Workflow Milestones", icon: "ti-timeline", matches: ["milestones", "progress"] },
@@ -997,6 +1039,7 @@ function StudentDashboardContent() {
     error: progressError,
     isLeader: isGroupLeader,
     defenseDecision: officialDefenseResult?.releasedAt ? officialDefenseResult.decision : null,
+    adviserRequestPending: Boolean(pendingAdviserRequest),
   }) : null;
   const homeDeadlines = activeProject && !progressError
     ? pendingProjectRequirements(activeProject, manuscriptWorkflowData?.milestones, now)
@@ -1128,7 +1171,7 @@ function StudentDashboardContent() {
         
 
 
-        {activeTab === "group" && projectSection === "my-group" && <h1 className="sr-only">Group &amp; Members</h1>}
+        {activeTab === "group" && projectSection === "my-group" && (activeProject || !activeWorkspace) && <h1 className="sr-only">Group &amp; Members</h1>}
         {(() => {
           const tabTitles: Record<string, string> = {
             overview: "Researcher Dashboard",
@@ -1269,7 +1312,7 @@ function StudentDashboardContent() {
                     </div>
                     <div>
                       <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">Submitted Documents</span>
-                      <span className="text-[15px] font-extrabold text-[#1b4264]">{combinedSubmissions.length} Uploads</span>
+                      <span className="text-[15px] font-extrabold text-[#1b4264]">{documentVersions.length} Uploads</span>
                     </div>
                   </div>
 
@@ -1504,54 +1547,93 @@ function StudentDashboardContent() {
                       </>,
                     } : undefined}
                   />
-                ) : activeWorkspace ? <>
-                  <div className="mp-panel mp-group-identity" data-guide="group-identity">
-                    <h2 className="text-lg font-bold text-[#102f49]">{activeProject ? activeProject.groupName || "Research team" : activeWorkspace?.name}</h2>
-                    <p className="mt-1 text-base text-slate-600">{activeProject?.title || "Research project awaiting registration by your leader."}</p>
-                    <p className="mt-2 text-sm font-semibold text-[#173f63]">Your role: {(activeProject ? isGroupLeader : isWorkspaceLeader) ? "Group Leader" : "Member"}</p>
-                  </div>
-                  <div className="mp-group-layout">
-                  <div className="mp-group-team">
-                  {activeProject ? (
-                      <div className="mp-project-roster">
-                      {isGroupLeader && pendingJoinRequests.length > 0 && (
-                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center justify-between"><div><h2 className="font-extrabold text-[#102f49]">Pending join requests</h2><p className="mt-1 text-base text-slate-600">Approve only researchers who should receive this project’s workflow and files.</p></div><span className="rounded-full bg-amber-200 px-2.5 py-1 text-xs font-extrabold text-amber-900">{pendingJoinRequests.length}</span></div><div className="mt-3 space-y-2">{pendingJoinRequests.map((request: any) => <div key={request.id} className="flex flex-col gap-3 rounded-xl bg-white p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-base font-bold text-[#102f49]">{request.requester ? `${request.requester.firstName} ${request.requester.lastName}` : "Researcher"}</p><p className="text-base text-slate-500">{request.requester?.email} · Requested {new Date(request.createdAt).toLocaleDateString()}</p></div><div className="flex gap-2"><button onClick={() => decideJoinRequest(request.id, "REJECT")} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-700">Reject</button><button onClick={() => decideJoinRequest(request.id, "ACCEPT")} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-extrabold text-white">Accept</button></div></div>)}</div></div>
+                ) : activeWorkspace ? (
+                  <div className="rs">
+                    <RoleBand
+                      eyebrow="Group and members"
+                      title={activeWorkspace.name}
+                      titleId="student-group-title"
+                      guide="group-identity"
+                      meta="Research project awaiting registration by your leader."
+                      counts={[
+                        { label: "Members", value: (activeWorkspace.members || []).filter((member: any) => !member.leftAt).length },
+                        { label: "Your role", value: isWorkspaceLeader ? "Leader" : "Member" },
+                      ]}
+                      countsLabel="Group summary"
+                    />
+                    <div className="stu-notice" data-tone="waiting">
+                      <i className="ti ti-file-plus" aria-hidden="true" />
+                      <div className="stu-notice-text">
+                        <strong>{isWorkspaceLeader ? "Add your research project" : "Waiting for your leader"}</strong>
+                        <span>{isWorkspaceLeader ? "Register the title so your group can start its workflow." : "Your leader still needs to register the research project."}</span>
+                      </div>
+                      {canCreateResearch && !activeWorkspace.projects?.length && (
+                        <button type="button" className="rs-primary" onClick={() => { setCreateTitle(""); setShowCreateModal(true); }}>Add research project</button>
                       )}
-                      <div className="mp-panel mp-roster" data-guide="group-members">
-                        <div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Active researchers</h2><span className="mp-member-count">{activeStudentMembers.length} member{activeStudentMembers.length === 1 ? "" : "s"}</span></div>
-                        <div className="mp-members">{activeStudentMembers.map((member: any) => <div key={member.id} className="mp-member-row"><div><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{(member.userId === user?.id || member.user?.id === user?.id) ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.projectRole === "LEADER" ? "Group Leader" : "Member"}</p></div>{isGroupLeader && member.projectRole === "MEMBER" && <div className="flex gap-2"><button onClick={() => setGroupAction({ type: "transfer", member })} className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm font-bold text-blue-700">Transfer leadership</button><button onClick={() => setGroupAction({ type: "remove", member })} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-600">Remove</button></div>}</div>)}</div>
-                      </div>
-                      </div>
-                  ) : <div className="mp-panel mp-roster" data-guide="group-members"><h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Group members</h2><div className="mp-members">{(activeWorkspace.members || []).filter((member: any) => !member.leftAt).map((member: any) => <div key={member.id} className="mp-member-row"><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{member.userId === user?.id ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.role === "LEADER" ? "Group Leader" : "Member"}</p></div>)}</div></div>}
-
-                  {activeProject && <div className="mp-collaboration"><button onClick={() => handleTabChange("group-chats")} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Group messages</button><button onClick={() => router.push(projectSelection.projectHref("/student/tasks"))} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-[#173f63]">Tasks</button><button onClick={() => router.push(projectSelection.projectHref("/student/group-files"))} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-[#173f63]">Shared files</button></div>}
-                  {activeProject && !isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-bold text-amber-700">Leave group</button>}
-                  </div>
-                  {!activeProject && isWorkspaceLeader && activeWorkspace?.participationMode === "GROUP" && <div className="mp-email-invitation"><TeamEmailInvitation teamId={activeWorkspace.id} kind="workspace" /></div>}
-                  {activeProject && <div className="mp-group-tools">{isGroupLeader && (
-                                                  <div className="mp-panel mp-access">
-                            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Group access</h2>
-                            <label className="mt-3 block text-sm font-bold text-slate-600">Working arrangement<select value={projectParticipationMode} onChange={(event) => setProjectParticipationMode(event.target.value as "SOLO" | "GROUP")} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="SOLO">Solo</option><option value="GROUP">Group</option></select></label>
-                            {projectParticipationMode === "GROUP" && <><label className="mt-3 block text-sm font-bold text-slate-600">How researchers can join<select value={projectAccessMode} onChange={(event) => setProjectAccessMode(event.target.value as typeof projectAccessMode)} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="INVITE_ONLY">Invite only</option><option value="PUBLIC_APPROVAL">Code access — leader approval</option><option value="PUBLIC_OPEN">Code access — join immediately</option></select></label><label className="mt-3 flex items-center gap-2 text-sm font-bold text-slate-600"><input type="checkbox" checked={projectInviteEnabled} onChange={(event) => setProjectInviteEnabled(event.target.checked)} />Accept joins using the current code</label></>}
-                            <button onClick={handleSaveProjectAccess} disabled={projectAccessSaving} className="mt-4 rounded-lg bg-[#173f63] px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50">{projectAccessSaving ? "Saving…" : "Save access settings"}</button>
-                          </div>
-
-                      )}{isGroupLeader && (
-                        <div className="mp-access-stack">
-                          <TeamEmailInvitation teamId={activeProject.id} kind="project" />
-                          <div className="mp-panel mp-invitation-code">
-                            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Invitation code and link</h2>
-                            <p className="mt-1 text-base text-slate-600">Researchers review the group before joining or requesting approval.</p>
-                            {inviteCode ? <div className="mt-3 space-y-2"><div className="rounded-lg bg-white p-3 font-mono text-sm font-bold text-[#173f63]">Code: {inviteCode}</div><div className="flex flex-wrap gap-2"><button onClick={() => navigator.clipboard.writeText(inviteCode).then(() => triggerToast("Invite code copied."))} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-700"><i className="ti ti-copy mr-1" />Copy code</button><button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join-group?code=${inviteCode}`).then(() => triggerToast("Shareable link copied."))} className="rounded-lg bg-[#173f63] px-3 py-2 text-sm font-extrabold text-white"><i className="ti ti-link mr-1" />Copy link</button><button onClick={handleCreateInvite} className="rounded-lg px-3 py-2 text-sm font-bold text-slate-600">Rotate code</button></div></div> : <button onClick={handleCreateInvite} className="mt-3 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white"><i className="ti ti-user-plus mr-1" />Create invitation</button>}
-                          </div>
+                    </div>
+                    <div className="rh-grid">
+                      <section className="rh-panel" aria-labelledby="student-group-members" data-guide="group-members">
+                        <div className="rh-head">
+                          <h2 id="student-group-members">Group members</h2>
+                          <span className="rh-pill">{(activeWorkspace.members || []).filter((member: any) => !member.leftAt).length}</span>
                         </div>
-                      )}
-                      </div>}
-                  {!activeProject && isWorkspaceLeader && activeWorkspace?.participationMode === "GROUP" && <div className="mp-panel mp-workspace-invitation"><h2 className="font-semibold text-[var(--color-text-primary)]">Workspace invitation</h2><p className="mt-2 font-mono text-base text-[var(--color-primary)]">{activeWorkspace.inviteCode}</p><button type="button" onClick={() => navigator.clipboard.writeText(activeWorkspace.inviteCode).then(() => triggerToast("Invite code copied."))} className="mt-3 text-sm font-semibold text-[var(--color-primary)] hover:underline">Copy code</button></div>}
-                  {!activeProject && canDeleteWorkspace && <button onClick={() => { setWorkspaceDeleteError(""); setWorkspaceToDelete({ id: activeWorkspace.id, name: activeWorkspace.name }); }} className="rounded-xl border border-rose-300 bg-white px-4 py-2.5 text-sm font-extrabold text-rose-700 hover:bg-rose-50"><i className="ti ti-trash mr-1" />Delete workspace</button>}
-
+                        <div style={{ marginTop: 6 }}>
+                          {(activeWorkspace.members || []).filter((member: any) => !member.leftAt).map((member: any) => (
+                            <div key={member.id} className="stu-member">
+                              <span className="rs-avatar" aria-hidden="true">{initials(`${member.user.firstName} ${member.user.lastName}`)}</span>
+                              <span className="rs-text">
+                                <strong>{member.user.firstName} {member.user.lastName}{member.userId === user?.id ? " (You)" : ""}</strong>
+                                <small>{member.user.email}</small>
+                              </span>
+                              <StatusDot tone={member.role === "LEADER" ? "done" : "neutral"}>{member.role === "LEADER" ? "Leader" : "Member"}</StatusDot>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                      <div className="rh-col">
+                        {isWorkspaceLeader && activeWorkspace?.participationMode === "GROUP" ? (
+                          <>
+                            <section className="rh-panel" aria-labelledby="student-group-code">
+                              <div className="rh-head"><h2 id="student-group-code">Invite by code</h2></div>
+                              <p className="rh-lede">Researchers review the group before joining.</p>
+                              <div className="stu-code-chip">
+                                <span>{activeWorkspace.inviteCode}</span>
+                                <button type="button" className="rs-icon-btn" aria-label="Copy invite code" onClick={() => navigator.clipboard.writeText(activeWorkspace.inviteCode).then(() => triggerToast("Invite code copied."))}>
+                                  <i className="ti ti-copy" aria-hidden="true" />
+                                </button>
+                              </div>
+                            </section>
+                            <div className="mp-email-invitation"><TeamEmailInvitation teamId={activeWorkspace.id} kind="workspace" /></div>
+                          </>
+                        ) : !isWorkspaceLeader ? (
+                          <section className="rh-panel" aria-labelledby="student-group-next">
+                            <div className="rh-head"><h2 id="student-group-next">What happens next</h2></div>
+                            <ol className="stu-steps">
+                              <li><span><strong>Your leader registers the project</strong></span></li>
+                              <li><span><strong>Your group starts its workflow</strong></span></li>
+                              <li><span><strong>Tasks appear for everyone</strong></span></li>
+                            </ol>
+                          </section>
+                        ) : null}
+                        {canDeleteWorkspace && (
+                          <button type="button" className="stu-danger-link" onClick={() => { setWorkspaceDeleteError(""); setWorkspaceToDelete({ id: activeWorkspace.id, name: activeWorkspace.name }); }}>
+                            <i className="ti ti-trash" aria-hidden="true" /> Delete workspace
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </> : <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center"><p className="text-base text-slate-500" data-guide={isWorkspaceLoading ? undefined : "group-empty"}>{isWorkspaceLoading ? "Loading your group…" : !workspaceData ? "Unable to load your group. Refresh to try again." : "You have not joined a research group yet."}</p>{workspaceData && <button onClick={() => handleTabChange("group")} className="mt-4 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Open My Project</button>}</div>}
+                ) : (
+                  <div className="rs-empty-card" data-guide={isWorkspaceLoading ? undefined : "group-empty"}>
+                    <EmptyNote
+                      layout="row"
+                      icon="ti-users-group"
+                      title={isWorkspaceLoading ? "Loading your group…" : !workspaceData ? "Unable to load your group" : "You have not joined a research group yet"}
+                      text={!isWorkspaceLoading && !workspaceData ? "Refresh to try again." : undefined}
+                      action={workspaceData ? <button type="button" className="rs-primary" onClick={() => handleTabChange("group")}>Open My Project</button> : undefined}
+                    />
+                  </div>
+                )}
               </section>
             ),
             group: (
@@ -1566,6 +1648,7 @@ function StudentDashboardContent() {
                     project={activeProject}
                     isLeader={isGroupLeader}
                     defenseDecision={officialDefenseResult?.releasedAt ? officialDefenseResult.decision : null}
+                    adviserRequestPending={Boolean(pendingAdviserRequest)}
                     logoSrc={homeLogoSrc}
                     workflowName={activeProject.workflowInstance?.workflow?.name}
                     coordinator={workflowProject && activeWorkflowEnrollment?.workflow?.creator ? [activeWorkflowEnrollment.workflow.creator.firstName, activeWorkflowEnrollment.workflow.creator.lastName].filter(Boolean).join(" ") || activeWorkflowEnrollment.workflow.creator.email : undefined}
@@ -1667,7 +1750,7 @@ function StudentDashboardContent() {
                     ) : (
                       <div className="mt-5 grid gap-4 md:grid-cols-2">
                         <button onClick={() => { setCreateTitle(""); setCreateGroupName(""); setShowCreateModal(true); }} className="rounded-2xl border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-6 text-left text-[var(--color-text-primary)] shadow-sm transition hover:-translate-y-0.5 hover:bg-[var(--color-surface-subtle)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)]"><i className="ti ti-folder-plus text-xl" /></span><span className="mt-4 block text-base font-extrabold">Create a workspace</span><span className="mt-1 block text-sm leading-5 text-[var(--color-text-secondary)]">Start Solo or create a group. Add a research title now or later.</span></button>
-                        <button data-guide="group-join-entry" onClick={() => router.push(projectSelection.projectHref("/student/join-group"))} className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-6 text-left transition hover:-translate-y-0.5 hover:border-[#173f63]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-100"><i className="ti ti-users-plus text-xl text-[#173f63]" /></span><span className="mt-4 block text-base font-extrabold text-[#102f49]">Join a group</span><span className="mt-1 block text-sm leading-5 text-slate-500">Enter a group invitation code to join a research workspace.</span></button>
+                        <button data-guide="group-join-entry" onClick={() => router.push(projectSelection.projectHref("/student/join-group"))} className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-6 text-left transition hover:-translate-y-0.5 hover:border-[#173f63]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-100"><i className="ti ti-users-plus text-xl text-[#173f63]" /></span><span className="mt-4 block text-base font-extrabold text-[#102f49]">Join a research group</span><span className="mt-1 block text-sm leading-5 text-slate-500">Enter a group invitation code to join a research workspace.</span></button>
                       </div>
                     )}
                     {activeWorkspace && <button type="button" onClick={() => handleTabChange("my-group")} className="mt-5 text-sm font-semibold text-[var(--color-primary)] hover:underline">View My Group →</button>}
@@ -1799,7 +1882,7 @@ function StudentDashboardContent() {
 
                 <div className="flex flex-col gap-4">
                   {consultations.length > 0 ? (
-                    consultations.map((c: any) => (
+                    consultations.map((c) => (
                       <div
                         key={c.id}
                         className="bg-slate-50 p-5 border border-slate-200 rounded-xl shadow-sm flex flex-col gap-3 hover:border-[#1b4264] transition"
@@ -1809,7 +1892,7 @@ function StudentDashboardContent() {
                             <div className="flex items-center gap-2">
                               <span className="font-extrabold text-[#1b4264] text-[14px]">{c.topic}</span>
                               <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
-                                {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
+                                <span className="capitalize">{c.status === "pending" || c.status === "requested" ? "Pending approval" : c.status}</span>
                               </Tag>
                             </div>
                             <span className="text-xs text-slate-500 font-medium block mt-0.5">
@@ -1817,13 +1900,16 @@ function StudentDashboardContent() {
                             </span>
                           </div>
 
-                          <button
-                            onClick={() => handleOpenTranscriptModal(c)}
-                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-sm shadow-sm cursor-pointer self-start sm:self-auto transition"
-                          >
-                            <i className="ti ti-file-text text-amber-500" />
-                            <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "View Notes & Chat" : "Import Google Meet Chat"}</span>
-                          </button>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <ConsultationRecordButton id={c.id} status={c.status} scheduledStart={c.scheduledStart} proof={c.proof} />
+                            <button
+                              onClick={() => handleOpenTranscriptModal(c)}
+                              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-sm shadow-sm cursor-pointer self-start sm:self-auto transition"
+                            >
+                              <i className="ti ti-file-text text-amber-500" />
+                              <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "View Notes & Chat" : "Import Google Meet Chat"}</span>
+                            </button>
+                          </div>
                         </div>
 
                         {c.notes && (
@@ -1890,24 +1976,26 @@ function StudentDashboardContent() {
                 </div>
               </div>
             ),
-            certificates: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-lg">Certificates of Completion</h3>
-                <p className="text-base text-slate-400 font-bold">Access and download QR-verified Certificates of Completion.</p>
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-[12.5px] flex items-center justify-between mt-2 shadow-sm">
-                  <div>
-                    <span className="font-bold text-[#1b4264] block">Certificate of Completion (Pending)</span>
-                    <span className="text-xs text-slate-400">Available once final oral grading has been submitted.</span>
-                  </div>
-                  <button 
-                    onClick={() => setModalCert(true)} 
-                    className="px-3.5 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-lg border border-[var(--color-primary)] shadow-xs cursor-pointer transition-colors"
-                  >
-                    View Status
-                  </button>
-                </div>
-              </div>
-            ),
+            certificates: (() => {
+              const session = latestFinalDefense(defenseManagementData?.sessions || [], activeProject?.id || "");
+              const completion = defenseCompletion(session);
+              const certificateIssued = Boolean(user?.id && session?.badge?.recipients?.some(({ userId }) => userId === user.id) &&
+                session.badge._count?.certificates);
+              return <section className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+                <h3 className="text-lg font-semibold">Final Defense Certificate</h3>
+                {!activeProject ? <p>Select a research project to check its certificate.</p> : !defenseManagementData ? (
+                  <p role="status">Final Defense status is unavailable here. Open Defense to check the latest status.</p>
+                ) : (
+                  <>
+                    <p>{completion.label}</p>
+                    {completion.owner && <p className="text-sm">Next: {completion.owner}</p>}
+                    {session?.releasedAt && session.releasedFeedback && <p className="whitespace-pre-line">{session.releasedFeedback}</p>}
+                    {session && certificateIssued && user && <ViewDefenseCertificate sessionId={session.id} researcherId={user.id} />}
+                  </>
+                )}
+                <Link className="inline-block font-semibold underline" href={projectSelection.projectHref(session ? `/student/defense/${session.id}` : "/student/defense")}>Open Defense</Link>
+              </section>;
+            })(),
             "group-chats": (
               <StudentGroupChats triggerToast={triggerToast} />
             ),
@@ -1925,32 +2013,6 @@ function StudentDashboardContent() {
       </div>
 
       {/* ─── MODALS ─── */}
-      {modalCert && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border-t-4 border-[#1b4264] max-w-md w-full p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4">
-            <h3 className="font-extrabold text-[#1b4264] text-lg flex items-center gap-2">
-              <i className="ti ti-certificate text-[#ffa400] text-xl" />
-              Certificate Completion Verification
-            </h3>
-            <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-center flex flex-col gap-3 shadow-inner">
-              <div className="font-extrabold text-[#1b4264] text-[14px]">Verification: In Progress</div>
-              <div className="w-24 h-24 bg-white border border-slate-200 rounded-lg flex items-center justify-center mx-auto shadow-sm relative">
-                <i className="ti ti-qrcode text-5xl text-slate-350" />
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#ffa400] rounded-full border border-white" />
-              </div>
-              <p className="text-base text-slate-500 leading-relaxed font-bold">
-                Lock status: Locked. Oral evaluation sheet verification signature must be processed by the administrative panel.
-              </p>
-            </div>
-            <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
-              <button onClick={()=>setModalCert(false)} className="px-4 py-2 border border-slate-350 hover:bg-slate-50 rounded-lg text-sm font-bold text-slate-700 cursor-pointer">
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {workspaceToDelete && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4" onKeyDown={(event) => {
           if (event.key === "Escape" && !workspaceDeletePending) setWorkspaceToDelete(null);

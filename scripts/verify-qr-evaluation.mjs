@@ -541,27 +541,16 @@ async function verifyRole(workspace, collegeCode) {
         await request(endpoint, {
           cookie,
           method: "POST",
-          body: { password: session.signingPassword, placements },
+          body: { placements },
         })
       ).status,
       400,
-    );
-    assert.equal(
-      (
-        await request(endpoint, {
-          cookie,
-          method: "POST",
-          body: { password: "incorrect", confirmation: true, placements },
-        })
-      ).status,
-      401,
     );
     const signed = ok(
       await request(endpoint, {
         cookie,
         method: "POST",
         body: {
-          password: session.signingPassword,
           confirmation: true,
           placements,
         },
@@ -587,7 +576,6 @@ async function verifyRole(workspace, collegeCode) {
           cookie,
           method: "POST",
           body: {
-            password: session.signingPassword,
             confirmation: true,
             placements,
           },
@@ -825,7 +813,6 @@ try {
     [aRegistry.row.accounts.dean.projectId],
   );
   const signingBody = {
-    password: "Demo-Dean-Review-2026!",
     confirmation: true,
     placements: [
       { pageNumber: 1, x: 0.57, y: 0.74, width: 0.34, height: 0.08 },

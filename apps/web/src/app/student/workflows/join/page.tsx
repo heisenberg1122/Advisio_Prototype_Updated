@@ -25,10 +25,11 @@ export default function JoinWorkflowPage() {
         `/api/workflows/join/${encodeURIComponent(code)}`,
         {},
       );
-      await client.invalidateQueries({ queryKey: ["workflow-access-me"] });
-      navigate(result.alreadyJoined ? "/student/tasks" : "/student/dashboard", {
-        replace: true,
-      });
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ["workflow-access-me"] }),
+        client.invalidateQueries({ queryKey: ["workflow-invitation", code] }),
+      ]);
+      if (result.alreadyJoined) navigate("/student/tasks", { replace: true });
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -54,7 +55,7 @@ export default function JoinWorkflowPage() {
         ) : (
           <>
             <h1 data-guide="class-invitation" className="text-2xl font-bold">
-              Request to join {invitation.name}
+              Join a class · {invitation.name}
             </h1>
             <p>
               Professor: {invitation.professor.firstName}{" "}
@@ -77,10 +78,10 @@ export default function JoinWorkflowPage() {
                 View Tasks & Requirements
               </button>
             ) : invitation.requestStatus === "PENDING" ? (
-              <p role="status">
-                Your request to join {invitation.name} has been sent. Please
-                wait for the professor to approve it.
-              </p>
+              <div className="space-y-2">
+                <p role="status">Request sent. Waiting for {invitation.professor.firstName} {invitation.professor.lastName} to approve it.</p>
+                <button type="button" onClick={() => navigate("/student/tasks")}>Back to Tasks & Requirements</button>
+              </div>
             ) : invitation.requestStatus === "DECLINED" ? (
               <p>
                 Your request was declined. Contact the professor for an

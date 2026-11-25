@@ -6,10 +6,8 @@ import {
 } from "@prisma/client";
 import { seedReferenceData } from "@research-management/database";
 import { randomBytes, createHash } from "node:crypto";
-import bcrypt from "bcryptjs";
 import {
   ROLE_SCENARIOS,
-  DEMO_SIGNING_PASSWORD,
   type ScenarioChoice,
 } from "./scenarios.js";
 import { evaluationAsset } from "./branding.js";
@@ -202,10 +200,6 @@ export async function seedWorkspace(
     (await evaluationAsset("demo-dean-signature.png")).split(",")[1],
     "base64",
   );
-  await db.user.update({
-    where: { id: users.dean },
-    data: { passwordHash: await bcrypt.hash(DEMO_SIGNING_PASSWORD, 10) },
-  });
   await db.userSignature.create({
     data: {
       userId: users.dean,

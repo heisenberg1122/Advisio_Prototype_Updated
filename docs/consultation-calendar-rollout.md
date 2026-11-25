@@ -34,6 +34,27 @@ Advisio authorizes consultation links, notes, and join actions using the invitat
 
 References. [Google OAuth consent setup](https://developers.google.com/workspace/guides/configure-oauth-consent), [Calendar event creation](https://developers.google.com/workspace/calendar/api/guides/create-events), [Calendar OAuth scopes](https://developers.google.com/workspace/calendar/api/auth), [Google web-server OAuth](https://developers.google.com/identity/protocols/oauth2/web-server), [Google OAuth 2.0 Playground](https://developers.google.com/oauthplayground/), [Google Meet guest admission](https://support.google.com/meet/answer/9302870), [Google Meet limits](https://support.google.com/meet/answer/7317473), [Render environment variables](https://render.com/docs/configure-environment-variables).
 
+## Meet co-hosts and actual consultation times
+
+Enable Google Meet API on the organizer's Calendar OAuth project. Reauthorize
+the **same Google organizer** with its existing Calendar scope and
+`https://www.googleapis.com/auth/meetings.space.created`. Include
+`https://www.googleapis.com/auth/meetings.space.readonly` if the organizer should
+also be able to read actual times for their existing Calendar-created meetings.
+Keep the replacement refresh token in the existing Calendar secret.
+
+Set `GOOGLE_MEET_COHOST_ENABLED=true` after verifying the grant in staging.
+For new automatic links with an eligible faculty invitee, Advisio creates a
+restricted Meet room, assigns the faculty co-host, and attaches the room link to
+the Calendar invitation. The co-host signs into Meet with the Google account
+matching their Advisio email. Verify with a student and a co-host while the shared
+organizer is absent. Existing rooms keep their links and original host settings.
+
+After the call, open its consultation record and verify that the actual times
+match Meet's conference record. Google only returns conference records accessible
+to the organizer. External links, expired records, and ambiguous matches can
+leave the actual times unavailable. Advisio does not substitute the booked slot.
+
 ## Deployment review on November 9, 2026
 
 - The production API's runtime and Prisma migration targets both identify **Render PostgreSQL**, host `dpg-dbb3mkbl550s73c8k2b0-a`, database `advisio_staging`. Both staging targets identify the same database. The Render resource `advisio-staging-db` serves production. Its Free plan has no Render backup or point-in-time recovery. Render lists its expiration as November 18, 2026 at 11:46 PM Manila time. A read-only custom-format backup was saved with an encrypted restore receipt outside the repository and successfully restored to isolated PostgreSQL 16.15.
@@ -44,15 +65,15 @@ References. [Google OAuth consent setup](https://developers.google.com/workspace
   - `20261027000300_research_cohorts` from `ecb8fbd`
   - `20261027000400_workflow_version_index` from `80170ec`
   - `20261027000500_provisional_research_title` from `e46433f`
-- Production has a nonunique workflow version index where the current Prisma schema expects uniqueness. The read-only check found no duplicate research-type/version groups. The forward migration `20261108105000_restore_workflow_version_uniqueness` adds the unique index and then removes the redundant nonunique index in one transaction. A synthetic rehearsal verified that a duplicate aborts the transaction with both rows and the old index intact. The production backup rehearsal confirmed the repaired index is valid and all original workflow rows survived. The repair is pending on the live database.
-- The production organizer authorized a dedicated client in Google Cloud project `liquid-engine-511802-s1`. A token refresh and a read-only request to the organizer’s primary Calendar succeeded. The four Calendar variables were saved on the production Render service with **Save only**. Their runtime use starts with the next deployment. Live Meet conference creation and invitation delivery are separate acceptance checks.
-- The consultation migration is transactional and uses a five-second lock timeout and a five-minute statement timeout. The synthetic rehearsal forced a lock timeout with no partial DDL. In the verified production backup restore, both candidate migrations applied, all 94 resulting migration checksums matched, and fingerprints confirmed that the original user, workflow, consultation, participant, and note records were preserved.
+- The forward migration `20261108105000_restore_workflow_version_uniqueness` adds the unique index and then removes the redundant nonunique index in one transaction. A synthetic rehearsal verified that a duplicate aborts the transaction with both rows and the old index intact. The production backup rehearsal confirmed the repaired index and preserved workflow rows. The approved index-only migration was applied and verified on live production before the consultation release. All 94 live migration checksums matched and the workflow row fingerprints were identical before and after.
+- The production organizer authorized a dedicated client in Google Cloud project `liquid-engine-511802-s1`. A token refresh and a read-only request to the organizer’s primary Calendar succeeded. The four Calendar variables were saved on the production Render service with **Save only**. Their runtime use starts with the next deployment. Google generated a Meet link for one approved private event with no attendees. The event was deleted successfully. Invitation delivery and the shared link across Advisio roles still require acceptance testing.
+- The consultation migration is transactional and uses a five-second lock timeout and a five-minute statement timeout. The synthetic rehearsal forced a lock timeout with no partial DDL. After the appearance migration reached production, a refreshed encrypted backup was restored to PostgreSQL 16.15. All 93 source checksums matched. Both candidate migrations applied, all 95 resulting migration checksums matched, and fingerprints confirmed that the original user, workflow, consultation, participant, and note records were preserved.
 - Before sending reschedule or roster updates, the service checks that the organizer event still has the Meet URL stored in Advisio. It also restores private event visibility and disables guest forwarding on sync. A room changed directly on Google Calendar requires operator intervention before the edit can complete.
 
 ## Staging isolation and live acceptance
 
 1. Keep the existing Render staging API suspended. Create or identify a new database dedicated to staging in the staging environment. Use only synthetic Advisio data. Verify that staging runtime and Prisma migration URLs both identify the new database and differ from the production host/database pair. Keep production connection and secret settings unchanged.
-2. Identify the non-Vercel staging frontend origin and keep its publish root separate from production. Prepare its build with the staging API URL and verify the API's CORS response. Stage the dedicated Calendar configuration using the four keys above. Once approved, deploy the exact reviewed API and frontend candidate through a staging-only source revision. Confirm the staging health revision and database identity before signing in.
+2. Identify the staging frontend origin and keep its publish root separate from production. Prepare its build with the staging API URL and verify the API's CORS response. Stage the dedicated Calendar configuration using the four keys above. Once approved, deploy the exact reviewed API and frontend candidate through a staging-only source revision. Confirm the staging health revision and database identity before signing in.
 3. Use separate Google addresses and matching active synthetic Advisio accounts for the roles below. The one address already supplied is an invitee and still needs a role assignment. The dedicated organizer remains separate so the test measures invitation delivery to each Advisio participant.
 
    | Account | Required setup |
@@ -79,11 +100,11 @@ References. [Render database recovery](https://render.com/docs/postgresql-backup
 
 ## Verification boundaries
 
-Local verification passed lint, Prisma validation, monorepo type-check and build, 715 API tests, 647 web tests, and 110 PostgreSQL integration tests. The final database run passed after a Windows runner crash on the previous attempt. Five optional Redis tests were skipped. The staging-targeted web bundle built locally and contained the staging API origin alone. The Render API Dockerfile also built locally. The production dependency audit reported three high-severity and six moderate findings from the existing lockfile. The high-severity package entries were `body-parser`, `multer`, and `zod`. Review these before release.
+Local verification includes Prisma validation, monorepo type checking and builds, lint, the API and web suites, and the database integration suite on disposable PostgreSQL. The staging-targeted web bundle built locally and contained the staging API origin alone. The Render API Dockerfile also built locally. The production dependency audit reported three high-severity and six moderate findings from the existing lockfile. The high-severity package entries were `body-parser`, `multer`, and `zod`. Review these before release.
 
 The public site returned HTTP 200. Render returned HTTP 204 for the production origin's CORS preflight and reported a healthy database on revision `a72355b8dd2941a9227fde7aa20201237f7db308`. These read-only checks covered the existing deployment.
 
-Google API responses in automated tests are mocked. A successful Calendar API update means Google accepted the event change. Recipient inbox delivery, Calendar visibility, Meet admission, and already-copied links depend on Google settings and need an authorized live test. Organizer edits and RSVP changes made directly in Google Calendar stay in Google Calendar. Ending an Advisio session closes its Join action while the Google Meet call can continue.
+Google API responses in automated tests are mocked. The approved organizer-only test verified conference generation directly against Google Calendar. Recipient inbox delivery, Calendar visibility, Meet admission, and already-copied links depend on Google settings and need an authorized live test. Organizer edits and RSVP changes made directly in Google Calendar stay in Google Calendar. Ending an Advisio session closes its Join action while the Google Meet call can continue.
 
 When Google remains pending after the bounded creation checks, the organizer can select **Retry Google Calendar** to check the same event. An administrator should use the consultation cancellation action before deleting a project with linked events. Direct database or project deletion can bypass Calendar cleanup.
 

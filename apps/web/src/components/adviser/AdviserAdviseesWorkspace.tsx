@@ -198,7 +198,7 @@ export function AdviserAdviseesWorkspace({
 
   return (
     <div className="adviser-overview mx-auto flex w-full max-w-[1360px] flex-col gap-6">
-      <section className="adviser-overview__hero" aria-labelledby="adviser-advisees-title">
+      <section className="adviser-overview__hero phone-slim-hero" aria-labelledby="adviser-advisees-title">
         {seal && <img className="adviser-overview__seal" src={seal} alt="" aria-hidden="true" draggable={false} />}
         <header className="adviser-overview__hero-heading">
           <div>
@@ -244,7 +244,7 @@ export function AdviserAdviseesWorkspace({
           </section>
         </header>
         <div className="adviser-overview__hero-actions">
-          <button type="button" className="adviser-overview__hero-primary" onClick={() => onNavigate("reviews")}>
+          <button type="button" className="adviser-overview__hero-primary" data-phone-label="Review" onClick={() => onNavigate("reviews")}>
             <i className="ti ti-file-search" aria-hidden="true" /> Review documents
           </button>
           <button type="button" className="adviser-overview__hero-secondary" onClick={() => onNavigate("group-chats")}>

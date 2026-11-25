@@ -12,7 +12,7 @@ vi.mock("@/providers/auth-provider", () => ({ useAuth: vi.fn() }));
 import { useDefense } from "./use-student";
 
 describe("researcher defense readiness", () => {
-  let readiness: { workflowApproved: boolean; deanApprovalSigned: boolean };
+  let readiness: { workflowApproved: boolean; deanApprovalSigned: boolean; requirementsReady?: boolean };
   beforeEach(() => {
     readiness = { workflowApproved: true, deanApprovalSigned: false };
     state.get.mockImplementation(async (url: string) => {
@@ -42,9 +42,17 @@ describe("researcher defense readiness", () => {
     expect((await load()).eligibility).toBe("eligible");
   });
 
-  it("keeps the next cycle in progress until its gate is approved", async () => {
+  it("keeps the next cycle blocked until its gate is approved", async () => {
     readiness.workflowApproved = false;
     const result = await load();
+    expect(result.requirements.find((item: any) => item.id === "workflow").status).toBe("pending");
+    expect(result.eligibility).toBe("not_eligible");
+  });
+
+  it("distinguishes finished requirements from pending eligibility approval", async () => {
+    readiness = { ...readiness, workflowApproved: false, requirementsReady: true };
+    const result = await load();
+    expect(result.requirements.find((item: any) => item.id === "requirements").status).toBe("done");
     expect(result.requirements.find((item: any) => item.id === "workflow").status).toBe("in_progress");
     expect(result.eligibility).toBe("not_eligible");
   });

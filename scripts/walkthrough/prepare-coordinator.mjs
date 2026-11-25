@@ -31,7 +31,7 @@ for (const key of ["schedule", "release"]) {
   const thread = threads.threads.find((t) => t.research.id === group.projectId || t.deanInboxMessages?.some((m) => m.message.includes(group.projectId)));
   if (!thread) throw new Error(`Prepared ${key} signature request not in Dean inbox.`);
   const version = thread.versions.find((v) => v.versionNumber === thread.currentVersion);
-  const signed = await request("dean", `/api/documents/versions/${version.id}/sign`, { password: demo.password, confirmation: true, signatureImage: signature, saveSignature: false, placements: [{ pageNumber: 1, x: .60, y: .70, width: .27, height: .10, includeName: true, includeDate: true }] });
+  const signed = await request("dean", `/api/documents/versions/${version.id}/sign`, { confirmation: true, signatureImage: signature, saveSignature: false, placements: [{ pageNumber: 1, x: .60, y: .70, width: .27, height: .10, includeName: true, includeDate: true }] });
   group.deanDocumentId = thread.id; group.signedVersionId = signed.version.id;
 }
 const release = demo.defenseGroups.release;

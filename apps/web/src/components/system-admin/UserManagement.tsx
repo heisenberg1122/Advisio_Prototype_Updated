@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
@@ -6,9 +7,13 @@ import { AccountActionDetails } from "./AccountActionDetails";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Button } from "@/components/ui/Button";
+import { PhoneFilters } from "@/components/ui/PhoneFilters";
 import { UserDetailsModal } from "./UserDetailsModal";
 import { AccountInvitations, InviteAccountDialog } from "./AccountInvitations";
+import { EmptyNote, SegmentedSwitch, StatusDot, type StatusTone } from "@/components/ui/advisio";
+import { FilterChips, RoleBand, SearchField, initials } from "@/components/dashboards/RoleScreenParts";
 import "./user-management.css";
+import "./system-admin.css";
 
 type RoleName =
   | "RESEARCHER"
@@ -27,7 +32,7 @@ type User = {
   lastName: string;
   status: "ACTIVE" | "PENDING" | "SUSPENDED" | "INACTIVE";
   college?: { id: string; code: string; name: string } | null;
-  program?: { code: string; name: string } | null;
+  program?: { id: string; code: string; name: string } | null;
   roles: { role: Role }[];
   collegeMemberships?: { collegeId: string; roleNames: RoleName[]; college: { id: string; name: string; code: string } }[];
   createdAt: string;
@@ -45,19 +50,106 @@ const roleLabels: Record<RoleName, string> = {
 
 const isAssignableRole = (role: RoleName) => role !== "SYSTEM_ADMIN";
 
-const statusTone: Record<User["status"], string> = {
-  ACTIVE:
-    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-950/40 dark:text-emerald-300",
-  PENDING:
-    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/40 dark:bg-amber-950/40 dark:text-amber-300",
-  SUSPENDED:
-    "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/40 dark:bg-rose-950/40 dark:text-rose-300",
-  INACTIVE:
-    "border-slate-200 bg-slate-100 text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-300",
-};
+const statusDotTone: Record<User["status"], StatusTone> = { ACTIVE: "done", PENDING: "waiting", SUSPENDED: "attention", INACTIVE: "neutral" };
+const statusLabels: Record<User["status"], string> = { ACTIVE: "Active", PENDING: "Pending", SUSPENDED: "Suspended", INACTIVE: "Archived" };
+
+function UserActionsMenu({
+  name,
+  canSuspend,
+  canArchive,
+  blocked,
+  isSelf,
+  onDetails,
+  onRoles,
+  onCollege,
+  onSuspend,
+  onArchive,
+}: {
+  name: string;
+  canSuspend: boolean;
+  canArchive: boolean;
+  blocked: boolean;
+  isSelf: boolean;
+  onDetails: () => void;
+  onRoles: () => void;
+  onCollege: () => void;
+  onSuspend: () => void;
+  onArchive: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState<React.CSSProperties>({});
+  const trigger = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const toggle = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (open) return setOpen(false);
+    const box = event.currentTarget.getBoundingClientRect();
+    const above = box.top - 14;
+    const below = window.innerHeight - box.bottom - 14;
+    const openAbove = below < 234 && above > below;
+    setPlace({
+      right: Math.max(8, window.innerWidth - box.right),
+      ...(openAbove ? { bottom: window.innerHeight - box.top + 6 } : { top: box.bottom + 6 }),
+      maxHeight: Math.max(0, openAbove ? above : below),
+    });
+    setOpen(true);
+  };
+  useEffect(() => {
+    if (!open) return;
+    menu.current?.querySelector("button")?.focus({ preventScroll: true });
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!trigger.current?.contains(target) && !menu.current?.contains(target)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      trigger.current?.focus({ preventScroll: true });
+    };
+    const onScroll = (event: Event) => {
+      if (event.target !== menu.current) setOpen(false);
+    };
+    const onResize = () => setOpen(false);
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const choose = (action: () => void) => () => {
+    setOpen(false);
+    trigger.current?.focus({ preventScroll: true });
+    action();
+  };
+  return (
+    <>
+      <button ref={trigger} type="button" className="rs-icon-btn" aria-label={`More actions for ${name}`} aria-expanded={open} onClick={toggle}>
+        <i className="ti ti-dots" aria-hidden="true" />
+      </button>
+      {open && createPortal(
+        <div className="sa-menu" ref={menu} style={place}>
+          <button type="button" onClick={choose(onDetails)}><i className="ti ti-id" aria-hidden="true" />View details</button>
+          <button type="button" onClick={choose(onRoles)}><i className="ti ti-shield-check" aria-hidden="true" />Manage roles</button>
+          <button type="button" onClick={choose(onCollege)}><i className="ti ti-building" aria-hidden="true" />Assign college and program</button>
+          {canSuspend && (
+            <button type="button" data-tone="danger" disabled={blocked} title={isSelf ? "You cannot suspend your own account" : "Block sign-in while preserving records"} onClick={choose(onSuspend)}><i className="ti ti-ban" aria-hidden="true" />Suspend</button>
+          )}
+          {canArchive && (
+            <button type="button" data-tone="danger" disabled={blocked} onClick={choose(onArchive)}><i className="ti ti-archive" aria-hidden="true" />Archive</button>
+          )}
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
 
 type Dialog = {
-  type: "approve" | "roles" | "college" | "suspend" | "archive";
+  type: "approve" | "roles" | "college" | "suspend" | "archive" | "reject";
   user: User;
 } | null;
 
@@ -82,6 +174,7 @@ export function UserManagement({
   const [detailsUserId, setDetailsUserId] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<RoleName[]>([]);
   const [selectedCollegeId, setSelectedCollegeId] = useState("");
+  const [selectedProgramId, setSelectedProgramId] = useState("");
   const [verificationConfirmed, setVerificationConfirmed] = useState(false);
   const [verificationNote, setVerificationNote] = useState("");
   const [collegeReason, setCollegeReason] = useState("");
@@ -106,10 +199,15 @@ export function UserManagement({
   const collegesQuery = useQuery({
     queryKey: ["institutional-units"],
     queryFn: () =>
-      apiClient.get<{ colleges: { id: string; code: string; name: string; isActive?: boolean }[] }>(
+      apiClient.get<{ colleges: { id: string; code: string; name: string; isActive?: boolean; programs: { id: string; name: string }[] }[] }>(
         "/api/colleges",
       ),
   });
+  const assignmentCollege = collegesQuery.data?.colleges.find((college) => college.id === selectedCollegeId);
+  const assignmentPrograms = assignmentCollege?.programs || [];
+  const assignmentReady = !collegesQuery.isLoading && !collegesQuery.isError &&
+    (!selectedCollegeId || Boolean(assignmentCollege)) &&
+    (!selectedProgramId || assignmentPrograms.some((program) => program.id === selectedProgramId));
 
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -143,12 +241,18 @@ export function UserManagement({
     });
   }, [usersQuery.data, search, roleFilter, statusFilter, archivedView]);
 
+  const currentUsers = (usersQuery.data?.users || []).filter((user) => user.status !== "INACTIVE");
+  const countStatus = (status: User["status"]) => currentUsers.filter((user) => user.status === status).length;
+  const pendingCount = countStatus("PENDING");
+  const sortedUsers = [...filteredUsers].sort((a, b) => Number(b.status === "PENDING") - Number(a.status === "PENDING"));
+
   const openDialog = (type: NonNullable<Dialog>["type"], user: User) => {
     setDialog({ type, user });
-    const collegeId = user.college?.id || user.collegeMemberships?.[0]?.collegeId || "";
+    const collegeId = user.college?.id || (type === "roles" ? user.collegeMemberships?.[0]?.collegeId : "") || "";
     const collegeRoles = user.collegeMemberships?.find((membership) => membership.collegeId === collegeId)?.roleNames || [];
     setSelectedRoles([...collegeRoles, ...user.roles.map(({ role }) => role.name).filter((role) => ["RESEARCHER", "SYSTEM_ADMIN"].includes(role))]);
     setSelectedCollegeId(collegeId);
+    setSelectedProgramId(user.college?.id && user.program ? user.program.id : "");
     setVerificationConfirmed(false);
     setVerificationNote("");
     setCollegeReason("");
@@ -219,18 +323,24 @@ export function UserManagement({
   };
 
   const handleCollege = async () => {
-    if (!dialog) return;
+    if (!dialog || working || collegeReason.trim().length < 10) return;
     setWorking(true);
+    setFeedback(null);
     try {
-      await apiClient.patch(`/api/users/${dialog.user.id}/college`, {
+      const { user: updated } = await apiClient.patch<{ user: Pick<User, "college" | "program"> }>(`/api/users/${dialog.user.id}/college`, {
         collegeId: selectedCollegeId || null,
+        programId: selectedProgramId || null,
         reason: collegeReason,
       });
       await refresh();
+      if ((updated.college?.id || "") !== selectedCollegeId || (updated.program?.id || "") !== selectedProgramId) {
+        setFeedback({ tone: "error", message: "The server did not confirm the selected assignment. Refresh the page and try again." });
+        return;
+      }
       setDialog(null);
       setFeedback({
         tone: "success",
-        message: `College assignment was updated for ${dialog.user.universityId}.`,
+        message: `Academic assignment saved for ${dialog.user.universityId}. ${updated.college?.name || "No college assigned"} · ${updated.program?.name || "No program assigned"}.`,
       });
     } catch (error) {
       setFeedback({
@@ -238,7 +348,7 @@ export function UserManagement({
         message:
           error instanceof ApiError
             ? error.message
-            : "College assignment update failed.",
+            : "Academic assignment update failed.",
       });
     } finally {
       setWorking(false);
@@ -273,23 +383,25 @@ export function UserManagement({
 
   const handleArchive = async () => {
     if (!dialog || suspensionReason.trim().length < 10 || working) return;
+    const rejecting = dialog.type === "reject";
     setWorking(true);
     setFeedback(null);
     try {
       await apiClient.post(`/api/users/${dialog.user.id}/archive`, {
         reason: suspensionReason.trim(),
+        ...(rejecting ? { pendingOnly: true } : {}),
       });
       await refresh();
       setDialog(null);
       setFeedback({
         tone: "success",
-        message: `${dialog.user.universityId} was archived. Access is blocked; all records and files are preserved. Find the account in Archived users.`,
+        message: `${dialog.user.universityId} was ${rejecting ? "rejected and archived" : "archived"}. Access is blocked. Find the account in Archived users.`,
       });
     } catch (error) {
       setFeedback({
         tone: "error",
         message:
-          error instanceof ApiError ? error.message : "Archiving failed.",
+          error instanceof ApiError ? error.message : rejecting ? "Rejection failed." : "Archiving failed.",
       });
     } finally {
       setWorking(false);
@@ -306,256 +418,134 @@ export function UserManagement({
   };
 
   return (
-    <div className="admin-users space-y-5">
-      <section className="admin-users__panel rounded-2xl border border-slate-200/80 bg-white dark:border-white/10 dark:bg-[#101b2b] shadow-xs">
-        <div className="workspace-page-header workspace-page-header--inset admin-users__header border-b border-slate-100 dark:border-white/5 p-5">
-          <div className="admin-users__header-content flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="admin-users__title-row">
-                <h2 className="text-lg font-black text-slate-900 dark:text-white">
-                  User Management
-                </h2>
-                {!invitationView && <span className="admin-users__count">{filteredUsers.length} accounts</span>}
-                <Button data-guide="sa-invite-user" onClick={() => { setInviteTarget(undefined); setInviteOpen(true); }}>Invite user</Button>
-              </div>
-              <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
-                Verify accounts, assign multiple institutional roles, suspend
-                access, and archive accounts while preserving their records and
-                files.
-              </p>
-            </div>
-            {!invitationView && <div className="admin-users__filters grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <input
-                aria-label="Search users"
-                data-guide="sa-user-search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search name, email, or ID"
-                className="min-w-64 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/5 px-3 py-2 text-base text-slate-900 dark:text-white outline-none focus:border-[#0B3A53]"
-              />
-              <select
-                aria-label="Filter by role"
-                value={roleFilter}
-                onChange={(event) => setRoleFilter(event.target.value)}
-                className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white px-3 py-2 text-base"
-              >
+    <div className="admin-users rs">
+      <RoleBand
+        eyebrow="System administration"
+        title="Users"
+        titleId="sa-users-title"
+        meta={`${pendingCount} ${pendingCount === 1 ? "account needs" : "accounts need"} verification · assign roles, colleges and access here`}
+        phoneStatus={pendingCount ? `${pendingCount} ${pendingCount === 1 ? "account needs" : "accounts need"} verification` : undefined}
+        counts={[
+          { label: "Accounts", value: currentUsers.length },
+          { label: "Active", value: countStatus("ACTIVE") },
+          { label: "To approve", value: pendingCount, tone: pendingCount ? "waiting" : undefined },
+          { label: "Suspended", value: countStatus("SUSPENDED") },
+        ]}
+        countsLabel="Account summary"
+        primary={{ label: "Invite user", icon: "ti-user-plus", guide: "sa-invite-user", onClick: () => { setInviteTarget(undefined); setInviteOpen(true); } }}
+      />
+      <div className="rs-tools">
+        <SegmentedSwitch
+          label="User account views"
+          value={invitationView ? "invites" : archivedView ? "archived" : "current"}
+          onChange={(view) => {
+            setInvitationView(view === "invites");
+            setArchivedView(view === "archived");
+            if (view !== "archived" && statusFilter === "INACTIVE") setStatusFilter("ALL");
+          }}
+          options={[
+            { value: "current", label: "Current users" },
+            { value: "archived", label: "Archived users" },
+            { value: "invites", label: "Invitations" },
+          ]}
+        />
+        {!invitationView && (
+          <div className="rs-tools-end phone-filter-bar">
+            <SearchField value={search} onChange={setSearch} placeholder="Search name, email, or ID" guide="sa-user-search" tour={false} />
+            <PhoneFilters title="Filter accounts" activeCount={Number(roleFilter !== "ALL")} onClear={() => setRoleFilter("ALL")}>
+              <select aria-label="Filter by role" className="rs-select" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
                 <option value="ALL">All categories</option>
                 {rolesQuery.data?.roles.map((role) => (
-                  <option key={role.id} value={role.name}>
-                    {roleLabels[role.name]}
-                  </option>
+                  <option key={role.id} value={role.name}>{roleLabels[role.name]}</option>
                 ))}
               </select>
-              <select
-                aria-label="Filter by account status"
-                disabled={archivedView}
-                value={archivedView ? "INACTIVE" : statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white px-3 py-2 text-base"
-              >
-                <option value="ALL">All statuses</option>
-                <option value="PENDING">Pending verification</option>
-                <option value="ACTIVE">Active</option>
-                <option value="SUSPENDED">Suspended</option>
-                {archivedView && <option value="INACTIVE">Archived</option>}
-              </select>
-            </div>}
+            </PhoneFilters>
           </div>
-        </div>
-
-        <div
-          className="admin-users__views flex flex-wrap gap-2 border-b border-slate-100 p-5 dark:border-white/5"
-          role="group"
-          aria-label="User account views"
-        >
-          <Button
-            variant={archivedView || invitationView ? "secondary" : "primary"}
-            aria-pressed={!archivedView && !invitationView}
-            onClick={() => {
-              setArchivedView(false);
-              setInvitationView(false);
-              if (statusFilter === "INACTIVE") setStatusFilter("ALL");
-            }}
-          >
-            Current users
-          </Button>
-          <Button
-            variant={archivedView ? "primary" : "secondary"}
-            aria-pressed={archivedView && !invitationView}
-            onClick={() => { setArchivedView(true); setInvitationView(false); }}
-          >
-            Archived users
-          </Button>
-          <Button variant={invitationView ? "primary" : "secondary"} aria-pressed={invitationView} onClick={() => { setInvitationView(true); setArchivedView(false); }}>Invitations</Button>
-        </div>
-        {archivedView && (
-          <p className="px-5 pt-4 text-sm text-slate-500">
-            Archived accounts cannot sign in. Their records and files are
-            preserved. Verify identity before restoring access.
-          </p>
         )}
-
-        <ActionFeedback feedback={feedback} className="m-5" />
-
-        {invitationView ? <AccountInvitations /> : usersQuery.isLoading ? (
-          <div className="p-5">
-            <TableSkeleton rows={5} columns={7} />
-          </div>
-        ) : usersQuery.isError ? (
-          <div className="m-5 rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/40 p-5 text-center text-xs text-rose-700 dark:text-rose-300">
-            <p>
-              {usersQuery.error instanceof Error
-                ? usersQuery.error.message
-                : "Users could not be loaded."}
-            </p>
-            <button
-              onClick={() => void usersQuery.refetch()}
-              className="mt-2 font-bold underline"
-            >
-              Try again
-            </button>
-          </div>
-        ) : (
-          <div className="admin-users__table-scroll overflow-x-auto" role="region" aria-label="User accounts" tabIndex={0}>
-            <table className="admin-users__table w-full min-w-[1050px] text-left text-sm">
-              <caption className="sr-only">User accounts, roles, academic assignments, status, and available account actions.</caption>
-              <thead className="bg-slate-50 dark:bg-white/[0.02] text-xs uppercase tracking-wider text-slate-400 font-black">
-                <tr>
-                  {[
-                    "ID",
-                    "User",
-                    "Category / Roles",
-                    "College / Program",
-                    "Status",
-                    "Last login",
-                    "Actions",
-                  ].map((heading) => (
-                    <th key={heading} scope="col" className="px-5 py-3 font-extrabold">
-                      {heading}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                {filteredUsers.map((user) => (
-                  <tr
-                    key={user.id}
-                    className="align-top hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors"
-                  >
-                    <td className="px-5 py-4 font-mono font-bold text-[#0B3A53] dark:text-[#C9A227]">
-                      {user.universityId}
-                    </td>
-                    <td className="px-5 py-4">
-                      <p className="font-extrabold text-slate-900 dark:text-white">
-                        {user.firstName}{" "}
-                        {user.middleName ? `${user.middleName} ` : ""}
-                        {user.lastName}
-                      </p>
-                      <p className="readable-metadata mt-0.5 text-base">
-                        {user.email}
-                      </p>
-                    </td>
-                    <td className="max-w-xs px-5 py-4">
-                      <div className="flex flex-wrap gap-1.5">
-                        {user.roles.map((item) => (
-                          <span
-                            key={item.role.id}
-                            className="rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-2.5 py-1 text-xs font-extrabold"
-                          >
-                            {roleLabels[item.role.name]}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <p className="font-bold text-slate-700 dark:text-slate-300">
-                        {user.college?.code || "—"}
-                      </p>
-                      <p className="text-base text-slate-400">
-                        {user.program?.code || "No program"}
-                      </p>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span
-                        className={`rounded-full border px-2.5 py-1 text-xs font-extrabold ${statusTone[user.status]}`}
-                      >
-                        {user.status === "INACTIVE" ? "ARCHIVED" : user.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-xs text-slate-500 dark:text-slate-400">
-                      {user.lastLoginAt
-                        ? new Date(user.lastLoginAt).toLocaleString()
-                        : "Never"}
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="admin-users__actions flex flex-wrap gap-2">
-                        <button
-                          onClick={() => setDetailsUserId(user.id)}
-                          className="rounded-lg bg-[#0B3A53] px-3 py-1.5 font-bold text-white hover:bg-[#154d68]"
-                        >
-                          View details
-                        </button>
-                        {user.status !== "ACTIVE" && (
-                          <button
-                            onClick={() => openDialog("approve", user)}
-                            className="rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-3 py-1.5 font-extrabold text-white transition"
-                          >
-                            {user.status === "SUSPENDED" ||
-                            user.status === "INACTIVE"
-                              ? "Verify & restore"
-                              : "Verify & approve"}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => openDialog("roles", user)}
-                          className="rounded-lg border border-slate-200 dark:border-white/10 px-3 py-1.5 font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5"
-                        >
-                          Manage roles
-                        </button>
-                        <button
-                          onClick={() => openDialog("college", user)}
-                          className="rounded-lg border border-slate-200 dark:border-white/10 px-3 py-1.5 font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5"
-                        >
-                          Assign college
-                        </button>
-                        {user.status !== "SUSPENDED" &&
-                          user.status !== "INACTIVE" && (
-                            <button
-                              onClick={() => openDialog("suspend", user)}
-                              disabled={user.id === signedInUser?.id || working}
-                              title={
-                                user.id === signedInUser?.id
-                                  ? "You cannot suspend your own account"
-                                  : "Block sign-in while preserving records"
-                              }
-                              className="rounded-lg border border-amber-300 dark:border-amber-900/40 px-3 py-1.5 font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 disabled:opacity-50"
-                            >
-                              Suspend
-                            </button>
-                          )}
-                        {user.status !== "INACTIVE" && (
-                          <button
-                            disabled={user.id === signedInUser?.id || working}
-                            onClick={() => openDialog("archive", user)}
-                            className="rounded-lg border border-slate-200 px-3 py-1.5 font-bold text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5 disabled:opacity-50"
-                          >
-                            Archive
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {filteredUsers.length === 0 && (
-              <div className="p-10 text-center text-xs text-slate-500 dark:text-slate-400">
-                No users match the selected filters.
+      </div>
+      {!invitationView && !archivedView && (
+        <FilterChips
+          label="Filter by account status"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: "ALL", label: "All", count: currentUsers.length },
+            { value: "PENDING", label: "Pending verification", count: pendingCount },
+            { value: "ACTIVE", label: "Active", count: countStatus("ACTIVE") },
+            { value: "SUSPENDED", label: "Suspended", count: countStatus("SUSPENDED") },
+          ]}
+        />
+      )}
+      {archivedView && <p className="rs-note">Archived accounts cannot sign in. Their records and files are preserved. Verify identity before restoring access.</p>}
+      {dialog?.type !== "college" && <ActionFeedback feedback={feedback} />}
+      {invitationView ? (
+        <div className="rs-table"><AccountInvitations /></div>
+      ) : usersQuery.isLoading ? (
+        <div className="rs-table" style={{ padding: 16 }}><TableSkeleton rows={5} columns={6} /></div>
+      ) : usersQuery.isError ? (
+        <div className="rs-empty-card" role="alert">
+          <EmptyNote
+            layout="row"
+            tone="problem"
+            icon="ti-alert-circle"
+            title={usersQuery.error instanceof Error ? usersQuery.error.message : "Users could not be loaded."}
+            action={<button type="button" className="au-link" onClick={() => void usersQuery.refetch()}>Try again</button>}
+          />
+        </div>
+      ) : sortedUsers.length ? (
+        <div className="rs-table sa-users-table" data-phone-rows="0" data-phone-summary="3" role="region" aria-label="User accounts">
+          <div className="rs-row rs-row--head"><span>User</span><span>Roles</span><span>College</span><span>Status</span><span>Last login</span><span /></div>
+          {sortedUsers.map((user) => {
+            const name = `${user.firstName} ${user.middleName ? `${user.middleName} ` : ""}${user.lastName}`;
+            const isSelf = user.id === signedInUser?.id;
+            return (
+              <div key={user.id} className={`rs-row rs-row--hover${user.status === "PENDING" ? " rs-row--tint" : ""}`}>
+                <div className="rs-who">
+                  <span className="rs-avatar" aria-hidden="true">{initials(`${user.firstName} ${user.lastName}`)}</span>
+                  <span className="rs-text"><strong>{name}</strong><small>{user.universityId} · {user.email}</small></span>
+                </div>
+                <span className="sa-roles rs-wide">
+                  {user.roles.map((item) => <span key={item.role.id} className="sa-role">{roleLabels[item.role.name]}</span>)}
+                </span>
+                <span className="rs-text rs-hide-small">
+                  <strong data-weight="normal">{user.college?.code || "—"}</strong>
+                  <small>{user.program?.code || "No program"}</small>
+                </span>
+                <StatusDot tone={statusDotTone[user.status]}>{statusLabels[user.status]}</StatusDot>
+                <span className="rs-note rs-hide-small">{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : "Never"}</span>
+                <div className="rs-actions">
+                  {user.status !== "ACTIVE" && (
+                    <button type="button" className="rs-primary" onClick={() => openDialog("approve", user)}>
+                      {user.status === "PENDING" ? "Verify & approve" : "Verify & restore"}
+                    </button>
+                  )}
+                  {user.status === "PENDING" && (
+                    <button type="button" className="rs-primary sa-reject" disabled={isSelf || working} onClick={() => openDialog("reject", user)}>
+                      Reject
+                    </button>
+                  )}
+                  <UserActionsMenu
+                    name={name}
+                    canSuspend={user.status !== "SUSPENDED" && user.status !== "INACTIVE"}
+                    canArchive={user.status === "ACTIVE" || user.status === "SUSPENDED"}
+                    blocked={isSelf || working}
+                    isSelf={isSelf}
+                    onDetails={() => setDetailsUserId(user.id)}
+                    onRoles={() => openDialog("roles", user)}
+                    onCollege={() => openDialog("college", user)}
+                    onSuspend={() => openDialog("suspend", user)}
+                    onArchive={() => openDialog("archive", user)}
+                  />
+                </div>
               </div>
-            )}
-          </div>
-        )}
-      </section>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rs-empty-card">
+          <EmptyNote layout="row" icon="ti-search" title="No users match the selected filters" text="Try another filter or clear your search." />
+        </div>
+      )}
 
       {inviteOpen ? <InviteAccountDialog initialUser={inviteTarget} users={usersQuery.data?.users || []} colleges={collegesQuery.data?.colleges || []} onClose={() => setInviteOpen(false)} onSent={(message) => { setInviteOpen(false); setInvitationView(true); setArchivedView(false); setFeedback({ tone: "success", message }); }} onManageExisting={(id) => { const existing = usersQuery.data?.users.find((user) => user.id === id); if (existing) { setInviteOpen(false); openDialog("roles", existing); } }} /> : null}
 
@@ -582,10 +572,12 @@ export function UserManagement({
                     : dialog.type === "roles"
                       ? "Manage verified roles"
                       : dialog.type === "college"
-                        ? "Assign college or school"
+                        ? "Assign college and program"
                         : dialog.type === "suspend"
                           ? "Suspend user account"
-                          : "Archive user account"}
+                          : dialog.type === "reject"
+                            ? "Reject pending account"
+                            : "Archive user account"}
                 </h2>
                 <p className="mt-1 text-base text-slate-400">
                   {dialog.user.universityId} · {dialog.user.email}
@@ -641,9 +633,8 @@ export function UserManagement({
             {dialog.type === "college" && (
               <div className="mt-5 space-y-4">
                 <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
-                  College assignment controls which users, projects, and
-                  defenses this account can access. Active cross-college
-                  research assignments must be resolved before transfer.
+                  Set the account’s home college and academic program. A Professor
+                  Coordinator needs a program to create workflows in that college.
                 </div>
                 <div>
                   <label
@@ -655,12 +646,18 @@ export function UserManagement({
                   <select
                     id="assigned-college"
                     value={selectedCollegeId}
-                    onChange={(event) =>
-                      setSelectedCollegeId(event.target.value)
-                    }
+                    onChange={(event) => {
+                      const collegeId = event.target.value;
+                      setSelectedCollegeId(collegeId);
+                      setSelectedProgramId(collegeId === dialog.user.college?.id ? dialog.user.program?.id || "" : "");
+                    }}
+                    disabled={working || collegesQuery.isLoading || collegesQuery.isError}
                     className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] px-3 py-2.5 text-base text-slate-900 dark:text-white"
                   >
                     <option value="">No college or school assigned</option>
+                    {dialog.user.college && !collegesQuery.data?.colleges.some((college) => college.id === dialog.user.college?.id) && (
+                      <option value={dialog.user.college.id} disabled>{dialog.user.college.name} (current)</option>
+                    )}
                     {collegesQuery.data?.colleges.map((college) => (
                       <option key={college.id} value={college.id}>
                         {college.name}
@@ -668,6 +665,29 @@ export function UserManagement({
                     ))}
                   </select>
                 </div>
+                <div>
+                  <label htmlFor="assigned-program" className="mb-1.5 block text-sm font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Academic program
+                  </label>
+                  <select
+                    id="assigned-program"
+                    value={selectedProgramId}
+                    onChange={(event) => setSelectedProgramId(event.target.value)}
+                    disabled={working || !assignmentCollege}
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] px-3 py-2.5 text-base text-slate-900 dark:text-white disabled:opacity-60"
+                  >
+                    <option value="">{selectedCollegeId ? "No program assigned" : "Select a college first"}</option>
+                    {selectedProgramId && selectedProgramId === dialog.user.program?.id && !assignmentPrograms.some((program) => program.id === selectedProgramId) && (
+                      <option value={selectedProgramId} disabled>{dialog.user.program.name} (current)</option>
+                    )}
+                    {assignmentPrograms.map((program) => (
+                      <option key={program.id} value={program.id}>{program.name}</option>
+                    ))}
+                  </select>
+                </div>
+                {collegesQuery.isError && (
+                  <ActionFeedback feedback={{ tone: "error", message: "Could not load colleges and programs. Close this dialog and refresh the page to try again." }} />
+                )}
                 <div>
                   <label
                     htmlFor="college-reason"
@@ -680,7 +700,7 @@ export function UserManagement({
                     value={collegeReason}
                     onChange={(event) => setCollegeReason(event.target.value)}
                     rows={3}
-                    placeholder="Explain why this account belongs to the selected college or school."
+                    placeholder="Explain the reason for this academic assignment."
                     className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] px-3 py-2 text-base"
                   />
                 </div>
@@ -724,7 +744,7 @@ export function UserManagement({
               </div>
             )}
 
-            {(dialog.type === "suspend" || dialog.type === "archive") && (
+            {(dialog.type === "suspend" || dialog.type === "archive" || dialog.type === "reject") && (
               <AccountActionDetails
                 type={dialog.type}
                 working={working}
@@ -778,7 +798,7 @@ export function UserManagement({
               {dialog.type === "college" && (
                 <Button
                   onClick={() => void handleCollege()}
-                  disabled={collegeReason.trim().length < 10}
+                  disabled={collegeReason.trim().length < 10 || !assignmentReady}
                   isLoading={working}
                   loadingText="Saving assignment..."
                 >
@@ -796,14 +816,15 @@ export function UserManagement({
                   Suspend account
                 </Button>
               )}
-              {dialog.type === "archive" && (
+              {(dialog.type === "archive" || dialog.type === "reject") && (
                 <Button
+                  variant={dialog.type === "reject" ? "danger" : "primary"}
                   onClick={() => void handleArchive()}
                   disabled={suspensionReason.trim().length < 10}
                   isLoading={working}
-                  loadingText="Archiving account..."
+                  loadingText={dialog.type === "reject" ? "Rejecting account..." : "Archiving account..."}
                 >
-                  Archive account
+                  {dialog.type === "reject" ? "Reject and archive" : "Archive account"}
                 </Button>
               )}
             </div>

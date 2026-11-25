@@ -3,9 +3,11 @@ import bcrypt from "bcryptjs";
 import { renderNotificationEmail, sendEmail } from "@research-management/email";
 import {
   acceptAccountInvitationSchema,
+  facultyVerificationNoteRequired,
   inviteAccountSchema,
   invitationTokenSchema,
   reviewAccountInvitationSchema,
+  type InvitationProfile,
   type InviteAccountInput,
 } from "@research-management/validations/account-invitations";
 import { prisma, type Prisma, type AccountInvitation } from "../lib/prisma.js";
@@ -101,6 +103,13 @@ async function assertAdministrator(tx: Prisma.TransactionClient, id: string) {
   if (!(await issuer(tx, id)).administrator)
     fail("System administrator access is required.", 403);
 }
+function recipientIdentity(
+  email: string,
+  universityId?: string | null,
+): Prisma.UserWhereInput {
+  return universityId ? { OR: [{ email }, { universityId }] } : { email };
+}
+
 async function assertInvitationAuthority(
   tx: Prisma.TransactionClient,
   invitation: AccountInvitation,
@@ -120,12 +129,7 @@ async function assertInvitationAuthority(
       await assertAdministrator(tx, invitation.approvedById);
     else {
       const recipient = await tx.user.findFirst({
-        where: {
-          OR: [
-            { email: invitation.email },
-            { universityId: invitation.universityId },
-          ],
-        },
+        where: recipientIdentity(invitation.email, invitation.universityId),
         include: { collegeMemberships: true },
       });
       const additionalCollege =
@@ -154,7 +158,7 @@ async function deliver(invitation: AccountInvitation, token: string) {
   const roles = invitation.roleNames.map((role) => roleLabels[role]).join(", ");
   const rendered = renderNotificationEmail(
     "institutional_invitation",
-    { firstName: invitation.firstName, collegeName: college.name, roles },
+    { firstName: invitation.firstName ?? "", collegeName: college.name, roles },
     {
       webUrl: link.origin,
       actionUrl: link.href,
@@ -226,15 +230,13 @@ export async function createAccountInvitation(
     });
     if (!college) fail("Select an active college or school.", 400);
     const existing = await tx.user.findFirst({
-      where: {
-        OR: [{ email: input.email }, { universityId: input.universityId }],
-      },
+      where: recipientIdentity(input.email, input.universityId),
       include: { collegeMemberships: true },
     });
     if (
       existing &&
       (existing.email.toLowerCase() !== input.email ||
-        existing.universityId !== input.universityId)
+        (input.universityId && existing.universityId !== input.universityId))
     )
       fail(
         "The email and institutional ID do not identify the same account. Ask the System Administrator to verify these details.",
@@ -252,6 +254,8 @@ export async function createAccountInvitation(
     const needsApproval =
       !authority.administrator &&
       (crossCollege || input.roleNames.some((role) => role !== "ADVISER"));
+    if (needsApproval && !input.verificationNote)
+      fail(facultyVerificationNoteRequired, 422);
     if (!needsApproval) emailWebUrl();
     if (
       (await tx.role.count({ where: { name: { in: input.roleNames } } })) !==
@@ -296,7 +300,8 @@ export async function createAccountInvitation(
           email: input.email,
           roleNames: input.roleNames,
           collegeId: input.collegeId,
-          verificationNote: input.verificationNote,
+          verificationConfirmed: input.verificationConfirmed,
+          verificationNote: input.verificationNote ?? null,
           status: created.status,
         },
       },
@@ -312,7 +317,11 @@ export async function createAccountInvitation(
   return deliver(invitation, token);
 }
 
-async function usableInvitation(tx: Prisma.TransactionClient, token: string) {
+async function usableInvitation(
+  tx: Prisma.TransactionClient,
+  token: string,
+  accepting = false,
+) {
   if (!invitationTokenSchema.safeParse({ token }).success) invalidLink();
   const invitation = await tx.accountInvitation.findUnique({
     where: { tokenHash: accountInvitationHash(token) },
@@ -326,6 +335,10 @@ async function usableInvitation(tx: Prisma.TransactionClient, token: string) {
     !invitation.college.isActive
   )
     invalidLink();
+  if (accepting) {
+    // Serialize acceptance across college invitations for the same email.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${invitation.email.toLowerCase()}))`;
+  }
   await assertInvitationAuthority(tx, invitation);
   return invitation;
 }
@@ -333,18 +346,12 @@ export async function previewAccountInvitation(token: string) {
   return prisma.$transaction(async (tx) => {
     const invitation = await usableInvitation(tx, token);
     const existing = await tx.user.findFirst({
-      where: {
-        OR: [
-          { email: invitation.email },
-          { universityId: invitation.universityId },
-        ],
-      },
+      where: recipientIdentity(invitation.email, invitation.universityId),
       select: { id: true },
     });
     return {
       email: invitation.email,
-      firstName: invitation.firstName,
-      lastName: invitation.lastName,
+      requiresProfile: !invitation.universityId,
       roleNames: invitation.roleNames,
       collegeId: invitation.collegeId,
       collegeName: invitation.college.name,
@@ -357,29 +364,29 @@ export async function acceptAccountInvitation(
   token: string,
   password?: string,
   existingUserId?: string,
+  profile?: InvitationProfile,
 ) {
   if (existingUserId) invitationTokenSchema.parse({ token });
-  else acceptAccountInvitationSchema.parse({ token, password });
+  else
+    profile = acceptAccountInvitationSchema.parse({
+      token,
+      password,
+      profile,
+    }).profile;
   const passwordHash = existingUserId ? null : await bcrypt.hash(password!, 12);
   try {
     await prisma.$transaction(async (tx) => {
-      const invitation = await usableInvitation(tx, token);
-      // Serialize a person's acceptance across colleges without changing their existing account.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${invitation.email.toLowerCase()}))`;
+      const invitation = await usableInvitation(tx, token, true);
       const existing = await tx.user.findFirst({
-        where: {
-          OR: [
-            { email: invitation.email },
-            { universityId: invitation.universityId },
-          ],
-        },
+        where: recipientIdentity(invitation.email, invitation.universityId),
       });
       if (
         existing &&
         (!existingUserId ||
           existing.id !== existingUserId ||
           existing.email.toLowerCase() !== invitation.email.toLowerCase() ||
-          existing.universityId !== invitation.universityId ||
+          (invitation.universityId &&
+            existing.universityId !== invitation.universityId) ||
           existing.status !== "ACTIVE")
       )
         fail(
@@ -387,6 +394,29 @@ export async function acceptAccountInvitation(
         );
       if (!existing && existingUserId)
         fail("This invitation belongs to a different account.", 403);
+      const newProfile =
+        invitation.universityId && invitation.firstName && invitation.lastName
+          ? {
+              universityId: invitation.universityId,
+              firstName: invitation.firstName,
+              lastName: invitation.lastName,
+            }
+          : profile;
+      if (!existing && !newProfile)
+        fail(
+          "Enter your name and institutional ID to create your account.",
+          400,
+        );
+      if (!existing && newProfile && !invitation.universityId) {
+        const conflict = await tx.user.findUnique({
+          where: { universityId: newProfile.universityId },
+          select: { id: true },
+        });
+        if (conflict)
+          fail(
+            "This institutional ID is already in use. Contact your System Administrator.",
+          );
+      }
       const roles = await tx.role.findMany({
         where: { name: { in: invitation.roleNames } },
         select: { id: true },
@@ -409,9 +439,7 @@ export async function acceptAccountInvitation(
         (await tx.user.create({
           data: {
             email: invitation.email,
-            universityId: invitation.universityId,
-            firstName: invitation.firstName,
-            lastName: invitation.lastName,
+            ...newProfile!,
             collegeId: invitation.collegeId,
             passwordHash,
             status: "ACTIVE",
@@ -476,6 +504,14 @@ export async function acceptAccountInvitation(
       });
     });
   } catch (error: any) {
+    if (
+      error.code === "P2002" &&
+      Array.isArray(error.meta?.target) &&
+      error.meta.target.includes("university_id")
+    )
+      fail(
+        "This institutional ID is already in use. Contact your System Administrator.",
+      );
     if (error.code === "P2002")
       fail(
         "An account now exists for these details. Sign in to that account to accept the invitation.",

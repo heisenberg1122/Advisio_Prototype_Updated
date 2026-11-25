@@ -154,7 +154,7 @@ Provide a separate, persistent **Pause animations** control outside the band lin
 1. **Static composition:** finalize copy, hero preview, section layouts, navigation, CTA routes, footer, mobile layout, and typography in a local preview.
 2. **Motion and interaction:** add hero reveal, scroll journey, About sequence, FAQ, CTA borders, marquee, and motion pause/reduced-motion behavior.
 3. **Verification:** inspect desktop/mobile layout, keyboard/menu/FAQ behavior, deep links, zoom, reduced motion, route navigation and cleanup, headline paint timing, and seamless marquee behavior. Run the web type-check and production build; run relevant existing tests and required repository checks, adding behavioral tests only where useful.
-4. **Release when implementation is requested:** report local verification separately from remote results. After each push, inspect GitHub Actions and Vercel for the exact pushed commit. Investigate regressions; report pending checks as pending and do not equate a successful push with successful CI or deployment.
+4. **Release when implementation is requested:** report local verification separately from remote results. After each push, inspect GitHub Actions and the applicable Render and Namecheap deployment results for the exact pushed commit. Investigate regressions; report pending checks as pending and do not equate a successful push with successful CI or deployment.
 
 Acceptance: all seven requested treatments have a coherent role, all CTA destinations work, labels remain readable on small screens, animation never gates access to essential content or actions, no reduced-motion loops remain, and public policy/authenticated pages retain their existing behavior.
 

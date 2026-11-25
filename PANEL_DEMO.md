@@ -1,6 +1,6 @@
 # Panel demonstration dataset
 
-`db:panel-demo` creates a deliberately narrow staging-only dataset. It never runs with the deployed API's environment and it does not change Google Drive, Vercel, Render settings, reference themes, or the existing bootstrap administrator.
+`db:panel-demo` creates a deliberately narrow staging-only dataset. It never runs with the deployed API's environment and it does not change Google Drive, hosting settings, reference themes, or the existing bootstrap administrator.
 
 ## What it creates
 

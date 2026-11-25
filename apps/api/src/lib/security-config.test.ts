@@ -25,7 +25,7 @@ describe("production authentication and browser origin configuration", () => {
     expect(
       isAllowedOrigin("https://school.example.attacker.test", config),
     ).toBe(false);
-    expect(isAllowedOrigin("https://unrelated.vercel.app", config)).toBe(false);
+    expect(isAllowedOrigin("https://unrelated.example", config)).toBe(false);
     expect(isAllowedOrigin("https://localhost.attacker.test", config)).toBe(
       false,
     );

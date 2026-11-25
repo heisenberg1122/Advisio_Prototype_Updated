@@ -5,7 +5,7 @@ const optionalId = z.preprocess(
   (v) => (v === "all" || v === "" ? undefined : v),
   id.optional(),
 );
-const date = z
+export const monitoringDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .refine((v) => {
@@ -25,8 +25,8 @@ export const monitoringQuerySchema = z
     academicYearId: optionalId,
     stageId: optionalId,
     researchTypeId: optionalId,
-    from: date,
-    to: date,
+    from: monitoringDateSchema,
+    to: monitoringDateSchema,
     search: z.string().trim().max(160).default(""),
     defenseType: z.string().trim().min(1).max(80).optional(),
     view: z

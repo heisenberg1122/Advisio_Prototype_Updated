@@ -14,7 +14,7 @@ export const notificationTemplates: Record<string, NotificationTemplate> = {
     paragraphs: [
       "You have been invited to join {collegeName} with the following roles: {roles}.",
       "Accept this invitation within 48 hours. This link can only be used once.",
-      "If you already have an account, sign in to accept using your current account. Your password, home college, and access to other colleges will remain unchanged. If you’re new to Advisio, set your own password to accept.",
+      "If you already have an account, sign in to accept using your current account. Your password, home college, and access to other colleges will remain unchanged. If you’re new to Advisio, you’ll set your own password and may be asked to complete your profile.",
       "If you weren’t expecting this invitation, contact your institution before continuing.",
     ],
     button: "Accept invitation",

@@ -1,5 +1,6 @@
 "use client";
 
+import { PhoneFilters } from "@/components/ui/PhoneFilters";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -349,7 +350,7 @@ export function ResearchFileManager({
           className="min-w-0 border-b border-[var(--color-border)] xl:border-b-0 xl:border-r"
         >
           <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_9rem] xl:grid-cols-[minmax(0,1fr)_6.5rem_8.5rem]">
+            <div className="phone-filter-bar grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_9rem] xl:grid-cols-[minmax(0,1fr)_6.5rem_8.5rem]">
               <label className="relative col-span-2 block sm:col-span-1">
                 <span className="sr-only">Search documents by name</span>
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
@@ -361,6 +362,7 @@ export function ResearchFileManager({
                   className="h-9 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] pl-9 pr-2 text-sm text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
                 />
               </label>
+              <PhoneFilters title="Filter and sort" activeCount={Number(filter !== "ALL")}>
               <label className="relative min-w-0">
                 <select
                   aria-label="Document type filter"
@@ -392,6 +394,7 @@ export function ResearchFileManager({
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-secondary)]" />
               </label>
+              </PhoneFilters>
             </div>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)]/60 px-4 py-2.5 text-xs font-semibold text-[var(--color-text-primary)] sm:grid-cols-[minmax(0,1fr)_8rem_5rem]">

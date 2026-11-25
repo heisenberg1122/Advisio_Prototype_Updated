@@ -1,6 +1,5 @@
 import { SignatureImageError } from "../services/signature-image.service.js";
 import { Router } from "express";
-import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { loadVersionFile } from "../services/document-signing.service.js";
@@ -62,24 +61,9 @@ router.post(
   requireAuth,
   async (req, res) => {
     try {
-      const { password, confirmation, placements, signatureImage, saveSignature } = req.body || {};
+      const { confirmation, placements, signatureImage, saveSignature } = req.body || {};
       if (confirmation !== true)
         throw new OfficialCopyError("Signing confirmation is required.");
-      if (!password || typeof password !== "string")
-        throw new OfficialCopyError("Enter your password to confirm signing.");
-      const account = await prisma.user.findUnique({
-        where: { id: req.user!.id },
-        select: { passwordHash: true },
-      });
-      if (
-        !account?.passwordHash ||
-        !(await bcrypt.compare(password, account.passwordHash))
-      )
-        throw new OfficialCopyError(
-          "Your password could not be verified.",
-          401,
-          "SIGNER_AUTHENTICATION_FAILED",
-        );
       const result = await officialCopyService.sign({
         officialCopyId: req.params.officialCopyId as string,
         user: req.user!,

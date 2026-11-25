@@ -88,7 +88,7 @@ export async function runAdviserAction(c) {
     }
     await click(page.getByText("Adviser endorsement request", { exact: true }).first()); await click(page.getByRole("button", { name: "Actions for Adviser_Endorsement.pdf", exact: true })); await click(page.getByRole("menuitem", { name: "Review & sign", exact: true })); await ready(exact("type")); await click(exact("type")); await page.getByLabel("Type your signature", { exact: true }).fill("Andrea Reyes"); await click(exact("Fit page"));
     const position = page.getByRole("button", { name: "Signature position. Drag or use arrow keys to move.", exact: true }); await point(position); await position.press("ArrowLeft");
-    await cue("Confirm your password"); await page.getByLabel("Confirm your password", { exact: true }).fill(d.password); await page.getByRole("checkbox").filter({ visible: true }).last().check(); await click(button("Confirm & Sign")); await ready(text("Your signed PDF has been saved successfully.")); await point(exact("Download signed copy"));
+    await cue("Confirm and authorize signing"); await page.getByRole("checkbox").filter({ visible: true }).last().check(); await click(button("Confirm & Sign")); await ready(text("Your signed PDF has been saved successfully.")); await point(exact("Download signed copy"));
   } else if (beat.action === "consultation-request") {
     await point(page.getByText("Proposal scope and revision planning", { exact: true })); await cue("use the appropriate action");
     const current = (await api("adviser", "/api/consultations")).consultations.find((c) => c.id === d.pendingConsultationId);

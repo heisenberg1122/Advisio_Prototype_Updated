@@ -48,7 +48,10 @@ const response = (
         {
           type: "message",
           content: [
-            { type: "output_text", text: JSON.stringify({ text, topicIds }) },
+            {
+              type: "output_text",
+              text: JSON.stringify({ text, topicIds, language: "en" }),
+            },
           ],
         },
       ],
@@ -446,6 +449,7 @@ describe("Groq assistant", () => {
             content: JSON.stringify({
               text: "Check the task’s submission record.",
               topicIds: [topicId],
+              language: "en",
             }),
           },
         },
@@ -480,6 +484,7 @@ describe("Groq assistant", () => {
     ).toMatchObject({
       source: "ai",
       topicIds: ["history"],
+      language: "en",
       usage: { inputTokens: 120, outputTokens: 45, estimatedCostUsd: 0.00021 },
     });
     expect(provider).toHaveBeenCalledOnce();
@@ -537,6 +542,74 @@ describe("Groq assistant", () => {
       ).toMatchObject({ source: "fallback", retryable: true });
     },
   );
+
+  it("translates only the selected reply and shares the chat rate limit", async () => {
+    const translated = "Tingnan ang submission record ng requirement.";
+    const provider = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(completion("history"))
+      .mockResolvedValueOnce(
+        Response.json({
+          choices: [
+            {
+              finish_reason: "stop",
+              message: { content: JSON.stringify({ text: translated }) },
+            },
+          ],
+          usage: { prompt_tokens: 100, completion_tokens: 20 },
+        }),
+      );
+    const service = new ResearcherAssistantService(
+      { ...groqConfig(), requestsPerMinute: 2 },
+      provider,
+    );
+    const reply = await service.answer(identity, {
+      ...request(question),
+      aiProvider: "groq",
+    });
+    const translation = {
+      text: reply.text,
+      translateTo: "tl" as const,
+      aiProvider: "groq" as const,
+      allowAI: true as const,
+    };
+
+    expect(await service.translate(identity, translation)).toEqual({
+      text: translated,
+    });
+    const body = JSON.parse(provider.mock.calls[1][1]?.body as string);
+    expect(body.messages[0].content).toContain("into Tagalog");
+    expect(JSON.parse(body.messages[1].content)).toEqual({ text: reply.text });
+    await expect(
+      service.translate(identity, translation),
+    ).rejects.toBeInstanceOf(AssistantRateError);
+    expect(provider).toHaveBeenCalledTimes(2);
+    expect(service.snapshot()).toMatchObject({
+      aiRequests: 2,
+      inputTokens: 220,
+      outputTokens: 65,
+    });
+  });
+
+  it("blocks translation with consent for a different provider or without production quotas", async () => {
+    const provider = vi.fn<typeof fetch>();
+    const service = new ResearcherAssistantService(
+      { ...groqConfig(), production: true },
+      provider,
+    );
+    const translation = {
+      text: "Buksan ang Guide.",
+      translateTo: "en",
+      allowAI: true,
+    } as const;
+    await expect(
+      service.translate(identity, { ...translation, aiProvider: "openai" }),
+    ).rejects.toThrow("translation_unavailable");
+    await expect(
+      service.translate(identity, { ...translation, aiProvider: "groq" }),
+    ).rejects.toThrow("translation_quota");
+    expect(provider).not.toHaveBeenCalled();
+  });
 });
 
 describe("Conservative token reservations", () => {

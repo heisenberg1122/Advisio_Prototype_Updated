@@ -14,7 +14,7 @@ test("Adviser master retains 18 clips, six chapters, and academic boundaries", a
   const text = beats.map((beat) => beat.narration).join(" ");
   assert.match(text, /same study/);
   assert.match(text, /Other required faculty reviews/);
-  assert.match(text, /Confirm your password/);
+  assert.match(text, /Confirm and authorize signing/);
   assert.match(text, /separate completed demonstration session/);
   assert.match(text, /does not release the official defense result/);
   assert.doesNotMatch(text, /\b(TAM|questionnaire|respondent|survey)\b/i);

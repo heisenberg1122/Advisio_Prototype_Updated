@@ -1,4 +1,5 @@
 import { Prisma } from "../lib/prisma.js";
+import { adviserEligibilitySelect, adviserIdentity, adviserIdentitySelect, hasEligibleAdviserAccount } from "../lib/adviser-eligibility.js";
 import {
   advanceMilestoneIfSatisfied,
   createNotificationsOnce,
@@ -17,6 +18,7 @@ export async function synchronizeAdviserMilestone(
     select: {
       id: true,
       title: true,
+      collegeId: true,
       programId: true,
       members: {
         where: { leftAt: null },
@@ -27,13 +29,8 @@ export async function synchronizeAdviserMilestone(
           joinedAt: true,
           user: {
             select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              programId: true,
-              status: true,
-              roles: { select: { role: { select: { name: true } } } },
+              ...adviserIdentitySelect,
+              ...adviserEligibilitySelect,
             },
           },
         },
@@ -66,9 +63,7 @@ export async function synchronizeAdviserMilestone(
   const adviserMember = project.members.find(
     (member) =>
       member.projectRole === "ADVISER" &&
-      member.user.status === "ACTIVE" &&
-      member.user.programId === project.programId &&
-      member.user.roles.some(({ role }) => role.name === "ADVISER"),
+      hasEligibleAdviserAccount(member.user, project),
   );
   if (!adviserMember)
     return { synchronized: false, stageId: stage.id, progression: null };
@@ -116,7 +111,7 @@ export async function synchronizeAdviserMilestone(
   return {
     synchronized: true,
     stageId: stage.id,
-    adviser: adviserMember.user,
+    adviser: adviserIdentity(adviserMember.user),
     acceptedAt,
     progression,
   };

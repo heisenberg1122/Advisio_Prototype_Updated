@@ -1,18 +1,20 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { CalendarClock, Video } from "lucide-react";
+import { CalendarClock, History, Search, Video } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Input, Select } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { apiClient } from "@/lib/api-client";
 import { calendarDaysUntil } from "@/lib/researcher-home";
 import { CountStrip, DateTile, EmptyNote, InlineFeedback, ListRow, PageBand, SectionCard, StatusDot, type StatusTone } from "@/components/ui/advisio";
 import { useAuth } from "@/providers/auth-provider";
-
-type Workspace = "coordinator" | "panelist" | "dean";
 import { ConsultationMeetingForm, type ConsultationProject } from "./ConsultationMeetingForm";
 import { ConsultationActions, joinConsultation, type ManagedConsultation } from "./ConsultationActions";
+import { ConsultationRecordButton } from "./ConsultationRecordButton";
+
+type Workspace = "coordinator" | "panelist" | "dean";
 
 const statusLabels = {
   REQUESTED: "Awaiting approval",
@@ -24,6 +26,13 @@ const statusLabels = {
   CANCELLED: "Cancelled",
 };
 
+const historyOutcomes = {
+  COMPLETED: { label: "Completed", tone: "done" },
+  CANCELLED: { label: "Cancelled", tone: "attention" },
+  UNRECORDED: { label: "Outcome unrecorded", tone: "waiting" },
+} as const;
+const emptyHistoryFilters = { search: "", from: "", to: "", status: "" };
+
 type Consultation = ManagedConsultation & {
   id: string;
   title: string;
@@ -31,9 +40,13 @@ type Consultation = ManagedConsultation & {
   scheduledStart: string;
   scheduledEnd: string;
   meetingUrl?: string | null;
+  meetCoHostName?: string | null;
+  canComplete?: boolean;
   conferenceState?: string;
   attendanceStatus?: string;
-  research: Omit<ConsultationProject, "id">;
+  research: Omit<ConsultationProject, "id"> & {
+    members?: { user: { firstName: string; lastName: string } }[];
+  };
 };
 
 const descriptions: Record<Workspace, string> = {
@@ -65,6 +78,7 @@ const dateTime = new Intl.DateTimeFormat("en-PH", {
   timeStyle: "short",
   timeZone: "Asia/Manila",
 });
+const historyDay = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeZone: "Asia/Manila" });
 
 const timeOnly = new Intl.DateTimeFormat("en-PH", {
   hour: "numeric",
@@ -113,20 +127,50 @@ function ConsultationWorkspace({ workspace, scope, viewerId }: { workspace: Work
   const [params, setParams] = useSearchParams();
   const linkedId = params.get("consultationId") || undefined;
   const [page, setPage] = useState(1);
+  const [history, setHistory] = useState(false);
+  const [draftFilters, setDraftFilters] = useState(emptyHistoryFilters);
+  const [filters, setFilters] = useState(emptyHistoryFilters);
   const [scheduling, setScheduling] = useState<"scheduled" | "instant" | null>(null);
   const [notice, setNotice] = useState("");
   const [joinError, setJoinError] = useState("");
+  const queryParams = history ? {
+    page,
+    view: "history",
+    search: filters.search || undefined,
+    from: filters.from || undefined,
+    to: filters.to || undefined,
+    status: filters.status || undefined,
+  } : { page, consultationId: linkedId };
   const consultations = useQuery({
-    queryKey: ["faculty-consultations", scope, workspace, page, linkedId],
-    queryFn: () => apiClient.get<{ consultations: Consultation[]; hasNextPage: boolean }> (
-      "/api/consultations/workspace/" + workspace, { params: { page, consultationId: linkedId } },
+    queryKey: ["faculty-consultations", scope, workspace, queryParams],
+    queryFn: () => apiClient.get<{ consultations: Consultation[]; hasNextPage: boolean }>(
+      `/api/consultations/workspace/${workspace}`, { params: queryParams },
     ),
     refetchInterval: 15_000,
   });
 
+  function showHistory(value: boolean) {
+    setHistory(value);
+    setPage(1);
+    setJoinError("");
+  }
+
+  function applyFilters(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFilters({ ...draftFilters, search: draftFilters.search.trim() });
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setDraftFilters(emptyHistoryFilters);
+    setFilters(emptyHistoryFilters);
+    setPage(1);
+  }
+
   const items = consultations.data?.consultations ?? [];
+  const needsAction = items.filter(({ proof }) => proof && "needsAction" in proof && proof.needsAction);
   // Counts only describe the whole list when it fits on one page.
-  const showCounts = consultations.isSuccess && page === 1 && !consultations.data.hasNextPage;
+  const showCounts = !history && !linkedId && consultations.isSuccess && page === 1 && !consultations.data.hasNextPage;
   const count = (...statuses: Consultation["status"][]) => items.filter((item) => statuses.includes(item.status)).length;
 
   return (
@@ -157,10 +201,82 @@ function ConsultationWorkspace({ workspace, scope, viewerId }: { workspace: Work
         </div> : undefined}
       />
 
+      {(workspace === "dean" || workspace === "coordinator") && (
+        <div role="group" aria-label="Consultation view" className="flex flex-wrap gap-2 self-start rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
+          <Button size="sm" variant={history ? "ghost" : "primary"} aria-pressed={!history} onClick={() => showHistory(false)} icon={<CalendarClock aria-hidden="true" className="size-4" />}>
+            All consultations
+          </Button>
+          <Button size="sm" variant={history ? "primary" : "ghost"} aria-pressed={history} onClick={() => showHistory(true)} icon={<History aria-hidden="true" className="size-4" />}>
+            History
+          </Button>
+        </div>
+      )}
+
       {notice && <InlineFeedback tone="ok">{notice}</InlineFeedback>}
       {joinError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{joinError}</p>}
-      {linkedId && <Button variant="secondary" onClick={() => { setPage(1); setParams({}); }}>Show all consultations</Button>}
-      <SectionCard title="Project consultations" titleId="consultations-list" count={consultations.isSuccess ? items.length : undefined}>
+      {!history && linkedId && <Button variant="secondary" onClick={() => { setPage(1); setParams({}); }}>Show all consultations</Button>}
+      {needsAction.length > 0 && <SectionCard title="Needs your action" titleId="consultation-record-actions">
+        <ul className="au-card-body space-y-2">
+          {needsAction.map((item) => <li key={item.id}>
+            <a className="underline" href={`#consultation-${item.id}`}>
+              {item.proof?.status === "correction_requested" ? "Revise record" : "Confirm record"} · {item.title}
+            </a>
+          </li>)}
+        </ul>
+      </SectionCard>}
+      <SectionCard title={history ? "Consultation history" : "Project consultations"} titleId="consultations-list" count={!history && consultations.isSuccess ? items.length : undefined}>
+        {history && (
+          <form className="au-card-body space-y-3 border-b border-[var(--color-border)]" onSubmit={applyFilters}>
+            <p className="text-sm text-[var(--color-text-secondary)]">
+              Review completed, cancelled, and past sessions with no recorded outcome. Dates refer to the scheduled start.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,1fr))]">
+              <div className="grid min-w-0 gap-1.5 text-sm font-semibold">
+                <label htmlFor="consultation-history-search">Group or project</label>
+                <Input
+                  id="consultation-history-search"
+                  type="search"
+                  value={draftFilters.search}
+                  onChange={(event) => setDraftFilters({ ...draftFilters, search: event.target.value })}
+                  maxLength={160}
+                  placeholder="Search groups or projects"
+                  leftIcon={<Search aria-hidden="true" className="size-4" />}
+                />
+              </div>
+              <div className="grid min-w-0 gap-1.5 text-sm font-semibold">
+                <label htmlFor="consultation-history-from">From date</label>
+                <Input
+                  id="consultation-history-from"
+                  type="date"
+                  value={draftFilters.from}
+                  max={draftFilters.to || undefined}
+                  onChange={(event) => setDraftFilters({ ...draftFilters, from: event.target.value })}
+                />
+              </div>
+              <div className="grid min-w-0 gap-1.5 text-sm font-semibold">
+                <label htmlFor="consultation-history-to">To date</label>
+                <Input
+                  id="consultation-history-to"
+                  type="date"
+                  value={draftFilters.to}
+                  min={draftFilters.from || undefined}
+                  onChange={(event) => setDraftFilters({ ...draftFilters, to: event.target.value })}
+                />
+              </div>
+              <div className="grid min-w-0 gap-1.5 text-sm font-semibold">
+                <label htmlFor="consultation-history-outcome">Outcome</label>
+                <Select id="consultation-history-outcome" value={draftFilters.status} onChange={(event) => setDraftFilters({ ...draftFilters, status: event.target.value })}>
+                  <option value="">All outcomes</option>
+                  {Object.entries(historyOutcomes).map(([value, { label }]) => <option key={value} value={value}>{label}</option>)}
+                </Select>
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>Clear filters</Button>
+              <Button type="submit" size="sm">Apply filters</Button>
+            </div>
+          </form>
+        )}
         {consultations.isPending && <p role="status" className="au-card-body text-sm text-[var(--color-text-secondary)]">Loading consultations…</p>}
         {consultations.isError && (
           <div className="au-card-body space-y-3">
@@ -169,15 +285,22 @@ function ConsultationWorkspace({ workspace, scope, viewerId }: { workspace: Work
           </div>
         )}
         {consultations.isSuccess && items.length === 0 && (
-          <EmptyNote layout="row" icon="ti-calendar-time" title="No consultations yet" text={emptyText[workspace]} />
+          <EmptyNote
+            layout="row"
+            icon="ti-calendar-time"
+            title={history ? "No matching consultations" : "No consultations yet"}
+            text={history ? "Try another date, group, or outcome." : emptyText[workspace]}
+          />
         )}
         {items.length > 0 && (
           <ul className="au-list">
             {items.map((item) => {
-              const meeting = Boolean(item.meetingUrl);
+              const meeting = !history && Boolean(item.meetingUrl);
               const start = new Date(item.scheduledStart);
+              const outcome = item.status === "COMPLETED" || item.status === "CANCELLED" ? historyOutcomes[item.status] : historyOutcomes.UNRECORDED;
+              const advisers = item.research.members?.map(({ user }) => `${user.firstName} ${user.lastName}`.trim()).join(", ");
               return (
-                <li key={item.id}>
+                <li key={item.id} id={`consultation-${item.id}`} tabIndex={-1}>
                   <ListRow
                     leading={
                       <DateTile
@@ -191,20 +314,26 @@ function ConsultationWorkspace({ workspace, scope, viewerId }: { workspace: Work
                     titleHint={item.title}
                     meta={
                       <>
-                        {projectLabel(item.research)} · {dayLabel(start)},{" "}
+                        {projectLabel(item.research)} · {history ? historyDay.format(start) : dayLabel(start)},{" "}
                         <time dateTime={item.scheduledStart}>{timeOnly.format(start)}</time>
                         {" – "}
                         <time dateTime={item.scheduledEnd}>{timeOnly.format(new Date(item.scheduledEnd))}</time>
+                        {history && <span className="mt-1 block">Current adviser · {advisers || "Unassigned"}</span>}
+                        {meeting && item.meetCoHostName && <span className="mt-1 block">Meet co-host · {item.meetCoHostName}</span>}
                       </>
                     }
                     end={
                       <div className="flex flex-wrap items-center justify-end gap-2">
-                        <StatusDot tone={statusTones[item.status]}>{item.conferenceState === "FAILED" && item.status === "PROVISIONING" ? "Calendar setup failed" : statusLabels[item.status]}</StatusDot>
+                        <StatusDot tone={history ? outcome.tone : statusTones[item.status]}>
+                          {history ? outcome.label : item.conferenceState === "FAILED" && item.status === "PROVISIONING" ? "Calendar setup failed" : statusLabels[item.status]}
+                        </StatusDot>
                         {meeting && <Button size="sm" variant="secondary" onClick={() => { setJoinError(""); void joinConsultation(item.id, setJoinError); }}>
                           <Video className="size-4" aria-hidden="true" /> Join Meet
                         </Button>}
                         {item.attendanceStatus === "INVITED" && meeting && <span className="text-xs">Invited</span>}
-                        <ConsultationActions item={item} viewerId={viewerId} approvalVisible={Date.parse(item.scheduledEnd) > Date.now()} />
+                        {history
+                          ? <ConsultationRecordButton id={item.id} status={item.status} scheduledStart={item.scheduledStart} proof={item.proof} />
+                          : <ConsultationActions item={item} viewerId={viewerId} approvalVisible={Date.parse(item.scheduledEnd) > Date.now()} />}
                       </div>
                     }
                   />
