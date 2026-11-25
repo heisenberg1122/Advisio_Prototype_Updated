@@ -9,6 +9,7 @@ import {
   assertOwnedRoots,
   demoPassword,
   facultyMembership,
+  accountName,
 } from "./program-demo-catalog.mjs";
 
 test("four programs have 56 distinct role-specific logins and two disjoint four-student groups", () => {
@@ -180,4 +181,34 @@ test("cleanup refuses changed identities, real group members, unrelated ownershi
     mutate(data);
     assert.throws(() => assertOwnedRoots(data));
   }
+});
+
+test("named dean and student demos preserve exact cleanup identity checks", () => {
+  for (const account of accounts().filter((a) => a.role === "DEAN")) {
+    const roots = {
+      users: [
+        {
+          id: "dean",
+          ...account,
+          ...accountName(account),
+          roles: [{ role: { name: "DEAN" } }],
+        },
+      ],
+      types: [],
+      workflows: [],
+      projects: [],
+      workspaces: [],
+    };
+    assert.doesNotThrow(() => assertOwnedRoots(roots));
+    roots.users[0].lastName = "Unrelated";
+    assert.throws(() => assertOwnedRoots(roots));
+  }
+  const roots = owned();
+  const name = { firstName: "Sample", middleName: null, lastName: "Student" };
+  Object.assign(roots.users[0], name);
+  assert.throws(() => assertOwnedRoots(roots));
+  roots.users[0].approvedDemoName = name;
+  assert.doesNotThrow(() => assertOwnedRoots(roots));
+  roots.users[0].firstName = "Changed";
+  assert.throws(() => assertOwnedRoots(roots));
 });

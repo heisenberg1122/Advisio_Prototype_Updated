@@ -155,6 +155,12 @@ try {
     },
   });
   const oldLedgerCount = await db.evaluationLedgerEvent.count();
+  const oldNamedCount = await db.auditLog.count({
+    where: {
+      eventType: "PROGRAM_DEMO_ACCOUNT_RENAMED",
+      newValues: { path: ["dataset"], equals: DATASET },
+    },
+  });
   const oldCreatedCount = await db.auditLog.count({
     where: { entityId: DATASET_ID, eventType: "PROGRAM_DEMO_CREATED" },
   });
@@ -170,6 +176,31 @@ try {
     "Testing seed, storage reads, passwords, group progression, and evaluation integrity...",
   );
   console.log(await run("seed"));
+  const fixtureNames = Object.fromEntries(
+    ["BSN", "BSA", "BSCPE", "BEED"].map((code) => [
+      code,
+      Array.from({ length: 8 }, (_, i) => ({
+        firstName: "Sample",
+        middleName: null,
+        lastName: `${code} Learner ${i + 1}`,
+      })),
+    ]),
+  );
+  await run("name-accounts", {
+    PROGRAM_DEMO_STUDENT_NAMES: Buffer.from(
+      JSON.stringify(fixtureNames),
+    ).toString("base64"),
+  });
+  assert.equal(
+    await db.auditLog.count({
+      where: {
+        eventType: "PROGRAM_DEMO_ACCOUNT_RENAMED",
+        newValues: { path: ["dataset"], equals: DATASET },
+      },
+    }),
+    oldNamedCount + 32,
+  );
+  await run("verify");
   const documentCount = await db.document.count();
   await run("prepare");
   assert.equal(

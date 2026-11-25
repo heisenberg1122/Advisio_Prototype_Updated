@@ -2,6 +2,33 @@ export const DATASET = "ADVISIO-PROGRAM-DEMO-V1";
 export const DATASET_ID = "ad150d00-0000-4000-8000-000000000004";
 export const DOMAIN = "demo.advisio.invalid";
 
+// Public college heads from https://web.ua.edu.ph/administration/.
+export const DEAN_NAMES = {
+  BSN: { firstName: "Anele", middleName: "C.", lastName: "Mallari" },
+  BSA: { firstName: "Rosalinda", middleName: "E.", lastName: "Perez" },
+  BSCPE: { firstName: "Jenilyn", middleName: "A.", lastName: "Aquino" },
+  BEED: { firstName: "Ruth", middleName: "B.", lastName: "Ducut" },
+};
+
+export function accountName(account) {
+  return account.role === "DEAN"
+    ? DEAN_NAMES[account.program]
+    : {
+        firstName: "Demo",
+        middleName: null,
+        lastName: `${account.program} ${account.key}`,
+      };
+}
+
+function matchesName(user, name) {
+  return (
+    name &&
+    ["firstName", "middleName", "lastName"].every(
+      (key) => (user[key] || null) === (name[key] || null),
+    )
+  );
+}
+
 export const PROGRAMS = [
   {
     code: "BSN",
@@ -211,7 +238,12 @@ export function assertOwnedRoots(roots) {
     if (
       !account ||
       user.universityId !== account.universityId ||
-      user.firstName !== "Demo" ||
+      !(
+        user.firstName === "Demo" ||
+        (account.role === "DEAN" &&
+          matchesName(user, DEAN_NAMES[account.program])) ||
+        matchesName(user, user.approvedDemoName)
+      ) ||
       user.googleSubject
     )
       throw new Error(

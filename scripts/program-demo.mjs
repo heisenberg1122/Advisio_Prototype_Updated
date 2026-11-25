@@ -13,6 +13,7 @@ import {
   assertOwnedRoots,
   demoPassword,
   facultyMembership,
+  accountName,
 } from "./program-demo-catalog.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -139,6 +140,20 @@ async function roots(client = db) {
     },
     include: { members: true, projects: { select: { id: true } } },
   });
+  const named = await client.auditLog.findMany({
+    where: {
+      entityType: "User",
+      entityId: { in: users.map((u) => u.id) },
+      eventType: "PROGRAM_DEMO_ACCOUNT_RENAMED",
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  for (const user of users) {
+    const change = named.find(
+      (e) => e.entityId === user.id && e.newValues?.dataset === DATASET,
+    );
+    if (change) user.approvedDemoName = change.newValues.name;
+  }
   return { users, types, workflows, projects, workspaces };
 }
 
@@ -161,8 +176,7 @@ async function seedCore(context) {
           data: {
             email: account.email,
             universityId: account.universityId,
-            firstName: "Demo",
-            lastName: `${account.program} ${account.key}`,
+            ...accountName(account),
             passwordHash: hashes.get(account.program),
             status: "ACTIVE",
             collegeId: program.collegeId,
@@ -448,6 +462,105 @@ async function seedCore(context) {
     { timeout: 120000, maxWait: 10000 },
   );
   await writeAccounts(context);
+}
+
+async function nameAccounts() {
+  const encoded = process.env.PROGRAM_DEMO_STUDENT_NAMES;
+  const students = encoded
+    ? JSON.parse(Buffer.from(encoded, "base64").toString("utf8"))
+    : null;
+  if (students) {
+    if (
+      Object.keys(students).length !== PROGRAMS.length ||
+      PROGRAMS.some(
+        (p) =>
+          !Array.isArray(students[p.code]) || students[p.code].length !== 8,
+      )
+    )
+      throw new Error(
+        "Supply exactly eight student names for each of the four demo programs.",
+      );
+    for (const name of Object.values(students).flat()) {
+      if (
+        Object.keys(name).some(
+          (key) => !["firstName", "middleName", "lastName"].includes(key),
+        ) ||
+        ["firstName", "lastName"].some(
+          (key) =>
+            typeof name[key] !== "string" ||
+            !name[key].trim() ||
+            name[key].length > 100,
+        ) ||
+        (name.middleName != null &&
+          (typeof name.middleName !== "string" || name.middleName.length > 100))
+      )
+        throw new Error(
+          "Only valid first, middle, and last name fields are accepted.",
+        );
+    }
+  }
+  const result = await db.$transaction(
+    async (tx) => {
+      await lock(tx);
+      const data = await roots(tx);
+      assertOwnedRoots(data);
+      const creation = await tx.auditLog.findFirst({
+        where: {
+          entityId: DATASET_ID,
+          entityType: "ProgramDemoDataset",
+          eventType: "PROGRAM_DEMO_CREATED",
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      const changed = [];
+      for (const account of accounts().filter(
+        (a) => a.role === "DEAN" || (students && a.role === "RESEARCHER"),
+      )) {
+        const user = data.users.find((u) => u.email === account.email);
+        if (!user || !Object.hasOwn(creation?.newValues?.users || {}, user.id))
+          throw new Error(
+            "The account must belong to the immutable demo creation manifest.",
+          );
+        const name =
+          account.role === "DEAN"
+            ? accountName(account)
+            : students[account.program][Number(account.key.slice(7)) - 1];
+        if (
+          !["firstName", "middleName", "lastName"].every(
+            (key) => (user[key] || null) === (name[key] || null),
+          )
+        ) {
+          await tx.user.update({ where: { id: user.id }, data: name });
+          await tx.auditLog.create({
+            data: {
+              userId: null,
+              action: "UPDATE",
+              entityType: "User",
+              entityId: user.id,
+              eventType: "PROGRAM_DEMO_ACCOUNT_RENAMED",
+              oldValues: {
+                firstName: user.firstName,
+                middleName: user.middleName,
+                lastName: user.lastName,
+              },
+              newValues: {
+                dataset: DATASET,
+                name,
+                source:
+                  account.role === "DEAN"
+                    ? "https://web.ua.edu.ph/administration/"
+                    : "User-selected college roster",
+              },
+            },
+          });
+        }
+        changed.push({ email: account.email, ...name });
+      }
+      return changed;
+    },
+    { isolationLevel: "Serializable", timeout: 30000 },
+  );
+  output({ namedAccounts: result });
 }
 
 async function writeAccounts(context) {
@@ -1367,12 +1480,14 @@ async function main() {
       "inspect",
       "cleanup-preview",
       "cleanup",
+      "name-accounts",
     ].includes(command)
   )
     throw new Error(
-      "Usage: npm run demo:programs -- <plan|preflight|seed|prepare|verify|inspect|cleanup-preview|cleanup>",
+      "Usage: npm run demo:programs -- <plan|preflight|seed|prepare|verify|inspect|cleanup-preview|cleanup|name-accounts>",
     );
   const context = await configure();
+  if (command === "name-accounts") return nameAccounts();
   if (command === "preflight") {
     output({
       target: context.target,

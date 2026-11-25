@@ -25,6 +25,16 @@ by Advisio; these are ordinary accounts, not isolated respondent workspaces.
 
 ## Setup
 
+Dean demo display names use UA's public administration directory: Anele C.
+Mallari, Rosalinda E. Perez, Jenilyn A. Aquino (Engineering OIC), and Ruth B.
+Ducut. These remain demo accounts with their original credentials and access.
+Run `npm run demo:programs -- name-accounts` to update existing dean names.
+Optional `PROGRAM_DEMO_STUDENT_NAMES` contains a base64-encoded private JSON
+object keyed by the four program codes, each containing eight objects with
+`firstName`, `middleName`, and `lastName`. Student names are never stored in the
+public catalog. Updates require the immutable creation manifest and retain
+name-change audit records used for exact cleanup identity checks.
+
 Run `npm run demo:programs -- plan` without database access to inspect the scope.
 For execution outside Render, copy `.env.program-demo.example` to the Git-ignored
 `.env.program-demo.local`, supply the exact database host/name and connection,
