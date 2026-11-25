@@ -7,6 +7,8 @@
     "packages/*"
   ],
   "scripts": {
+    "demo:programs": "node --import tsx scripts/program-demo.mjs",
+    "test:program-demo": "node --test scripts/program-demo.test.mjs",
     "evaluation:serve": "node scripts/start-evaluation.mjs",
     "test:evaluation:hosting": "node --test scripts/hosted-evaluation-config.test.mjs",
     "evaluation:init-local": "node scripts/evaluation.mjs init-local",
