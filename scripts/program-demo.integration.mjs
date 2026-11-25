@@ -71,6 +71,28 @@ try {
   const { Client } = require("pg");
   const pg = new Client({ connectionString: url.href });
   await pg.connect();
+  // Exercise the production-only manuscript CHECK constraints as well as triggers.
+  const lifecycleSql = await fs.readFile(
+    path.join(
+      root,
+      "packages/database/prisma/migrations/20261013020000_manuscript_submission_lifecycle/migration.sql",
+    ),
+    "utf8",
+  );
+  for (const match of lifecycleSql.matchAll(
+    /ALTER TABLE "([^"]+)"\s+(ADD CONSTRAINT [\s\S]*?);/g,
+  )) {
+    if (!match[2].includes("CHECK (")) continue;
+    const constraint = match[2].match(/ADD CONSTRAINT "([^"]+)"/)[1];
+    if (
+      !(
+        await pg.query("SELECT 1 FROM pg_constraint WHERE conname=$1", [
+          constraint,
+        ])
+      ).rowCount
+    )
+      await pg.query(match[0]);
+  }
   // CHECK constraints are not represented by Prisma db push. Install this one
   // from its migration so students can never be seeded as faculty memberships.
   if (
@@ -148,6 +170,13 @@ try {
     "Testing seed, storage reads, passwords, group progression, and evaluation integrity...",
   );
   console.log(await run("seed"));
+  const documentCount = await db.document.count();
+  await run("prepare");
+  assert.equal(
+    await db.document.count(),
+    documentCount,
+    "Resuming preparation must not duplicate uploads.",
+  );
   const snapshot = await db.user.findUniqueOrThrow({
     where: { id: sentinel.id },
   });

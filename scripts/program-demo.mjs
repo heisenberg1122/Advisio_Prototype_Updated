@@ -589,7 +589,7 @@ async function submitFixture(project, stage, definition, status) {
     include: { documentVersion: true },
   });
   if (prior) return prior.documentVersion;
-  const buffer = await samplePdf(`${definition.label}: ${stage.name}`, [
+  let buffer = await samplePdf(`${definition.label}: ${stage.name}`, [
     project.title,
     definition.method,
     "This is a newly authored fictional fixture. It contains no real participant information, findings, institutional clearance, or approval.",
@@ -599,16 +599,40 @@ async function submitFixture(project, stage, definition, status) {
       ? "Revision requested: explain the sampling or testing procedure, clarify limitations, and align the conclusions with the evidence."
       : "Fictional faculty review: this example is approved for demonstration of the next workflow step.",
   ]);
-  const created = await documentService.createDocumentWithVersion({
-    researchId: project.id,
-    milestoneId: stage.id,
-    title: `Demo ${stage.name}`,
-    documentType: `TASK_${task.id}`,
-    fileBuffer: buffer,
-    fileName: `DEMO4-${definition.code}-B-M${stage.sequence}.pdf`,
-    mimeType: "application/pdf",
-    uploadedBy: project.createdBy,
+  // Resume an upload whose following submission transaction was interrupted.
+  const draft = await db.document.findFirst({
+    where: {
+      researchId: project.id,
+      milestoneId: stage.id,
+      documentType: `TASK_${task.id}`,
+      createdBy: project.createdBy,
+    },
+    include: { versions: true },
   });
+  if (draft) {
+    if (draft.versions.length !== 1 || draft.versions[0].isImmutable)
+      throw new Error(
+        "Unexpected existing demo manuscript; inspect before resuming.",
+      );
+    ({ buffer } = await documentService.readStoredVersionFile({
+      storageProvider: draft.storageProvider,
+      storagePath: draft.versions[0].storagePath,
+      googleDriveFileId: draft.versions[0].googleDriveFileId,
+      expectedSize: draft.versions[0].fileSize,
+    }));
+  }
+  const created = draft
+    ? { document: draft, version: draft.versions[0] }
+    : await documentService.createDocumentWithVersion({
+        researchId: project.id,
+        milestoneId: stage.id,
+        title: `Demo ${stage.name}`,
+        documentType: `TASK_${task.id}`,
+        fileBuffer: buffer,
+        fileName: `DEMO4-${definition.code}-B-M${stage.sequence}.pdf`,
+        mimeType: "application/pdf",
+        uploadedBy: project.createdBy,
+      });
   const lifecycle = status === "APPROVED" ? "APPROVED" : "REVISION_REQUIRED";
   const professor = project.members.find(
     (m) => m.projectRole === "COORDINATOR",
@@ -619,6 +643,7 @@ async function submitFixture(project, stage, definition, status) {
       data: {
         isImmutable: true,
         contentChecksum: digest(buffer),
+        submissionKey: `demo:${stage.id}:1`,
         manuscriptStatus: lifecycle,
         submittedBy: project.createdBy,
         submittedAt: day(-2),
