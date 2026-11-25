@@ -83,6 +83,14 @@ export function demoPassword(program, env = process.env) {
   return value;
 }
 
+export function facultyMembership(account, collegeId) {
+  return account.role === "RESEARCHER"
+    ? undefined
+    : {
+        create: { collegeId, roleNames: [account.role] },
+      };
+}
+
 export function milestones(program) {
   const adviser = {
     name: "Adviser selection and acceptance",

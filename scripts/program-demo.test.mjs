@@ -8,6 +8,7 @@ import {
   validateTarget,
   assertOwnedRoots,
   demoPassword,
+  facultyMembership,
 } from "./program-demo-catalog.mjs";
 
 test("four programs have 56 distinct role-specific logins and two disjoint four-student groups", () => {
@@ -110,6 +111,22 @@ test("demo passwords are private, explicitly supplied and do not change login ru
     demoPassword(PROGRAMS[0], { PROGRAM_DEMO_BSN_PASSWORD: "Sample123?" }),
     "Sample123?",
   );
+});
+
+test("student accounts use academic fields and only faculty receive college memberships", () => {
+  const rows = accounts();
+  assert.equal(
+    rows.filter((a) => facultyMembership(a, "college-id")).length,
+    24,
+  );
+  for (const account of rows) {
+    const membership = facultyMembership(account, "college-id");
+    if (account.role === "RESEARCHER") assert.equal(membership, undefined);
+    else
+      assert.deepEqual(membership, {
+        create: { collegeId: "college-id", roleNames: [account.role] },
+      });
+  }
 });
 
 function owned() {

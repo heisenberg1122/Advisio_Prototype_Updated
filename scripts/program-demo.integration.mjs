@@ -71,6 +71,31 @@ try {
   const { Client } = require("pg");
   const pg = new Client({ connectionString: url.href });
   await pg.connect();
+  // CHECK constraints are not represented by Prisma db push. Install this one
+  // from its migration so students can never be seeded as faculty memberships.
+  if (
+    !(
+      await pg.query(
+        "SELECT 1 FROM pg_constraint WHERE conname = 'college_memberships_faculty_roles'",
+      )
+    ).rowCount
+  ) {
+    const membershipSql = await fs.readFile(
+      path.join(
+        root,
+        "packages/database/prisma/migrations/20261101010000_college_memberships/migration.sql",
+      ),
+      "utf8",
+    );
+    const check = membershipSql.match(
+      /CONSTRAINT "college_memberships_faculty_roles" CHECK \([\s\S]*?\n  \)/,
+    )?.[0];
+    assert.ok(
+      check,
+      "Faculty membership constraint must be present in the real migration.",
+    );
+    await pg.query('ALTER TABLE "college_memberships" ADD ' + check);
+  }
   for (const [migration, marker] of guards) {
     let sql = await fs.readFile(
       path.join(

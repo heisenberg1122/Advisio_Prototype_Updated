@@ -12,6 +12,7 @@ import {
   validateTarget,
   assertOwnedRoots,
   demoPassword,
+  facultyMembership,
 } from "./program-demo-catalog.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -173,12 +174,7 @@ async function seedCore(context) {
                 roleId: context.roles.find((r) => r.name === account.role).id,
               },
             },
-            collegeMemberships: {
-              create: {
-                collegeId: program.collegeId,
-                roleNames: [account.role],
-              },
-            },
+            collegeMemberships: facultyMembership(account, program.collegeId),
           },
         });
         users.set(`${account.program}:${account.key}`, user);
