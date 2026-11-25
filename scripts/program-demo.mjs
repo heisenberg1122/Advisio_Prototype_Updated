@@ -895,7 +895,9 @@ async function prepare(context) {
     ) {
       const guide = await samplePdf(`${definition.label}: workflow guide`, [
         definition.method,
-        "Group A: students 1-4 begin with the first milestone. Group B: students 5-8 have a fictional completed proposal defense and a final manuscript awaiting revision.",
+        definition.code === "BEED"
+          ? "Group A: students 1-4 begin with the first milestone. Group B: students 5-8 have approved demo proposal, ethics and instrument documents and a final manuscript awaiting revision. Education has one onsite defense after manuscript completion."
+          : "Group A: students 1-4 begin with the first milestone. Group B: students 5-8 have a fictional completed proposal defense and a final manuscript awaiting revision.",
         ...milestones(definition).map((s, i) => `${i + 1}. ${s.name}`),
         "Defense handoff: approve required submissions, grant eligibility, request and sign the Dean letter for this cycle, schedule the defense, accept panel invitations, publish the manuscript packet, evaluate, and release the official result.",
         "Use only newly authored fictional documents. Ethics applications, instrument validation, defense results and sample data in this dataset do not represent real institutional decisions.",

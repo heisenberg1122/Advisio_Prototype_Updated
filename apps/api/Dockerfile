@@ -20,6 +20,7 @@ COPY apps/api ./apps/api
 COPY apps/web/public/school-logo.png apps/web/public/advisio-logo.png ./apps/web/public/
 COPY apps/web/public/college-logos ./apps/web/public/college-logos
 COPY packages ./packages
+COPY scripts/program-demo.mjs scripts/program-demo-catalog.mjs ./scripts/
 
 # Generate Prisma client and build
 RUN npx prisma generate --schema=packages/database/prisma/schema.prisma

@@ -46,6 +46,7 @@ yarn-error.log*
 *.tsbuildinfo
 
 # Uploads & Temp
+/uploads/
 apps/api/uploads/*
 !apps/api/uploads/.gitkeep
 /backup_*.sql

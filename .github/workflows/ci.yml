@@ -59,7 +59,9 @@ jobs:
         run: npm run type-check
 
       - name: Run Unit Tests
-        run: npm run test
+        run: |
+          npm run test
+          npm run test:program-demo
 
       - name: Build All Monorepo Packages
         run: npm run build
