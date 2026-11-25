@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { DATASET, DATASET_ID } from "./program-demo-catalog.mjs";
+import { NURSING_STAGES, NURSING_UPDATE } from "./program-demo-nursing.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const envFile = path.join(root, ".demo-local/four-programs-test/env.json");
@@ -176,6 +177,87 @@ try {
     "Testing seed, storage reads, passwords, group progression, and evaluation integrity...",
   );
   console.log(await run("seed"));
+  const nursing = await db.workflow.findFirstOrThrow({
+    where: { name: `${DATASET} BSN` },
+    include: {
+      stages: { orderBy: { sequence: "asc" }, include: { tasks: true } },
+    },
+  });
+  assert.equal(nursing.version, 2);
+  const activeNursing = nursing.stages.filter((s) => s.category !== "Archived");
+  assert.deepEqual(
+    activeNursing.map((s) => s.name),
+    NURSING_STAGES.map((s) => s.name),
+  );
+  assert.equal(
+    nursing.stages.filter((s) => s.category === "Archived").length,
+    3,
+  );
+  const { validateMilestoneConditions, assertMilestoneCondition } =
+    await import("../apps/api/src/services/milestone-condition.service.ts");
+  await validateMilestoneConditions(db, nursing.id);
+  const nursingGroupB = await db.researchProject.findFirstOrThrow({
+    where: { groupName: `${DATASET}:BSN:B` },
+  });
+  await assert.rejects(
+    assertMilestoneCondition(db, nursingGroupB.id, activeNursing[5].id),
+    /Complete and obtain approval/,
+  );
+  for (const s of activeNursing.filter((s) => s.requiresDocument))
+    assert.match(s.tasks[0].allowedFileTypes, /PPTX/);
+  assert.equal(
+    activeNursing
+      .at(-1)
+      .tasks.find((t) => t.title === "Hard-copy submission receipt").isRequired,
+    false,
+  );
+  const migration = await db.auditLog.findFirstOrThrow({
+    where: { entityId: nursing.id, eventType: NURSING_UPDATE },
+  });
+  assert.equal(migration.oldValues.version, 1);
+  assert.equal(migration.oldValues.stages.length, 10);
+  const immutableBefore = await db.documentVersion.findMany({
+    orderBy: { id: "asc" },
+  });
+  const ledgerBefore = await db.evaluationLedgerEvent.findMany({
+    orderBy: { id: "asc" },
+  });
+  const othersBefore = await db.workflow.findMany({
+    where: { id: { not: nursing.id } },
+    include: {
+      stages: { include: { tasks: true }, orderBy: { sequence: "asc" } },
+    },
+    orderBy: { id: "asc" },
+  });
+  await run("nursing-workflow");
+  assert.deepEqual(
+    await db.documentVersion.findMany({ orderBy: { id: "asc" } }),
+    immutableBefore,
+  );
+  assert.deepEqual(
+    await db.evaluationLedgerEvent.findMany({ orderBy: { id: "asc" } }),
+    ledgerBefore,
+  );
+  assert.deepEqual(
+    await db.workflow.findMany({
+      where: { id: { not: nursing.id } },
+      include: {
+        stages: { include: { tasks: true }, orderBy: { sequence: "asc" } },
+      },
+      orderBy: { id: "asc" },
+    }),
+    othersBefore,
+  );
+  assert.equal(
+    await db.workflowResource.count({ where: { workflowId: nursing.id } }),
+    2,
+  );
+  assert.equal(
+    await db.structuredEvaluationTemplate.count({
+      where: { createdBy: nursing.createdBy },
+    }),
+    5,
+  );
   const fixtureNames = Object.fromEntries(
     ["BSN", "BSA", "BSCPE", "BEED"].map((code) => [
       code,

@@ -35,7 +35,7 @@ export const PROGRAMS = [
     college: "CNP",
     label: "Nursing Research",
     method:
-      "Descriptive nursing research using fictional respondents and simulated data.",
+      "Quantitative, qualitative, or both, based on the supplied Nursing interview. Exactly four students per group; all demo documents and data are fictional.",
     titles: [
       "Clinical Preparation and Learning Confidence among Nursing Students",
       "Learning Support and Stress Management during Clinical Preparation",

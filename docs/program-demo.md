@@ -69,6 +69,33 @@ or storage-cleanup journal. Passwords are not printed or committed.
 
 ## Walkthrough
 
+### Nursing interview update (version 2)
+
+`npm run demo:programs -- nursing-workflow` updates the existing Nursing demo;
+`seed` and `prepare` also apply it. The sequence is adviser/title setup, mock
+proposal, proposal, data gathering, final-defense eligibility/manuscript approval,
+defense corrections, project execution/research colloquium, research implementation,
+and final manuscript/archive submission. Colloquium grouping remains provisional
+because of the interview handwriting. BSN supports quantitative, qualitative, or
+both, with four students per demo group. Word, PDF, and PowerPoint are allowed.
+An optional separate scanned hard-copy receipt tracks physical delivery.
+
+The upgrade records the previous workflow/stage/task definitions in an immutable
+audit event, increments the existing workflow and its instances to version 2,
+retains matching stage/task IDs and all submitted documents, and archives three
+legacy proposal-defense/ethics milestones. Locked evaluation snapshots and the
+completed fictional proposal defense remain historical. No new approvals are
+created. Group B keeps approved proposal/data work and final-manuscript revision,
+but must complete its new mock proposal before continuing the revised sequence.
+Project execution and implementation also start incomplete. Other programs retain
+their original workflows. Repeating the update does not duplicate stages/files.
+
+Guides & Templates contains the current Nursing interview checklist and the
+clearly labelled legacy guide. Four additional reusable **demo** rubric templates
+cover proposal, final defense, project execution, and implementation; their
+example weights are not official college rubrics. The official research manual,
+reference materials and scoring rubrics must be supplied by the college.
+
 Students 1-4 form Group A and begin at the first milestone. Students 5-8 form
 Group B, have a registered title and accepted adviser, and start at final
 manuscript revision. Both groups are enrolled and have real workspace membership.

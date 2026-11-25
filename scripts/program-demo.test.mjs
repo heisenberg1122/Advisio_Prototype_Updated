@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  NURSING_STAGES,
+  nursingGuideParagraphs,
+} from "./program-demo-nursing.mjs";
+import {
   DATASET,
   PROGRAMS,
   accounts,
@@ -211,4 +215,36 @@ test("named dean and student demos preserve exact cleanup identity checks", () =
   assert.doesNotThrow(() => assertOwnedRoots(roots));
   roots.users[0].firstName = "Changed";
   assert.throws(() => assertOwnedRoots(roots));
+});
+
+test("Nursing interview separates mock proposal, data gathering, defense, execution and implementation", () => {
+  assert.deepEqual(
+    NURSING_STAGES.map((s) => s.name),
+    [
+      "Adviser selection and acceptance",
+      "Research title proposal",
+      "Mock proposal",
+      "Proposal",
+      "Data gathering",
+      "Final defense eligibility and manuscript approval",
+      "Defense result and required corrections",
+      "Project execution / research colloquium",
+      "Research implementation",
+      "Final manuscript approval and archive submission",
+    ],
+  );
+  assert.equal(
+    NURSING_STAGES.filter((s) => s.type === "DEFENSE_ELIGIBILITY").length,
+    1,
+  );
+  assert.deepEqual(
+    NURSING_STAGES.filter((s) => !s.legacy).map((s) => s.name),
+    [
+      "Mock proposal",
+      "Project execution / research colloquium",
+      "Research implementation",
+    ],
+  );
+  assert.match(nursingGuideParagraphs().join(" "), /exactly four members/);
+  assert.match(nursingGuideParagraphs().join(" "), /not an official UA manual/);
 });

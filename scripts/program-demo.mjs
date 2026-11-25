@@ -4,6 +4,11 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { randomBytes, createHash } from "node:crypto";
 import {
+  NURSING_STAGES,
+  nursingGuideParagraphs,
+  updateNursingWorkflow,
+} from "./program-demo-nursing.mjs";
+import {
   DATASET,
   DATASET_ID,
   PROGRAMS,
@@ -675,21 +680,24 @@ export async function samplePdf(title, paragraphs) {
   newPage();
   for (const [index, text] of [title, ...paragraphs].entries()) {
     let line = "";
+    const lines = [];
     const currentFont = index === 0 ? bold : font,
       size = index === 0 ? 14 : 11;
-    const draw = () => {
-      if (y < 65) newPage();
-      page.drawText(line, { x: 45, y, size, font: currentFont });
-      y -= 18;
-    };
     for (const word of text.replace(/[^\x20-\x7e\n]/g, "-").split(/\s+/)) {
       const candidate = line ? `${line} ${word}` : word;
       if (currentFont.widthOfTextAtSize(candidate, size) > 515 && line) {
-        draw();
+        lines.push(line);
         line = word;
       } else line = candidate;
     }
-    if (line) draw();
+    if (line) lines.push(line);
+    // Keep checklist paragraphs together instead of leaving orphan lines.
+    if (lines.length * 18 < 635 && y - lines.length * 18 < 65) newPage();
+    for (const wrapped of lines) {
+      if (y < 65) newPage();
+      page.drawText(wrapped, { x: 45, y, size, font: currentFont });
+      y -= 18;
+    }
     y -= 14;
   }
   return Buffer.from(await pdf.save());
@@ -1006,6 +1014,8 @@ async function prepare(context) {
     );
     const program = context.catalog.find((p) => p.code === definition.code);
     if (!workflow) throw new Error("Create the dataset before preparing it.");
+    // Do not invent submissions/approvals for newly introduced Nursing requirements.
+    if (definition.code === "BSN" && workflow.version >= 2) continue;
     const form = defenseForm(definition, program.college.name, true);
     if (
       !(await db.structuredEvaluationTemplate.findFirst({
@@ -1099,6 +1109,101 @@ async function prepare(context) {
   await writeAccounts(context);
 }
 
+async function nursingWorkflow(context) {
+  await loadServices();
+  await cleanupPlan(); // Check immutable ownership and refuse unrelated links before mutation.
+  const result = await updateNursingWorkflow({
+    db,
+    dataset: DATASET,
+    datasetId: DATASET_ID,
+    lock,
+    assertOwnedRoots,
+    roots,
+    progress,
+    form: defenseForm,
+    program: context.catalog.find((p) => p.code === "BSN"),
+  });
+  const workflow = await db.workflow.findUniqueOrThrow({
+    where: { id: result.workflowId },
+  });
+  const title =
+    "Nursing interview workflow V2 - guide and submission checklist";
+  if (
+    !(await db.workflowResource.findFirst({
+      where: { workflowId: workflow.id, title },
+    }))
+  ) {
+    const { storeWorkflowResourceFile } =
+      await import("../apps/api/src/services/workflow-resource-storage.service.ts");
+    const buffer = await samplePdf(
+      "Nursing research: interview workflow V2",
+      nursingGuideParagraphs(),
+    );
+    const stored = await storeWorkflowResourceFile(
+      workflow,
+      {
+        originalname: "DEMO4-BSN-interview-v2-guide.pdf",
+        mimetype: "application/pdf",
+        buffer,
+      },
+      title,
+    );
+    try {
+      await db.workflowResource.create({
+        data: {
+          workflowId: workflow.id,
+          title,
+          description: `${DATASET}: current Nursing interview workflow. Illustrative guide; official manual/rubrics must be supplied by the college.`,
+          fileName: stored.fileName,
+          mimeType: "application/pdf",
+          fileSize: BigInt(stored.sizeBytes),
+          storagePath: stored.storagePath,
+          googleDriveFileId: stored.googleDriveFileId,
+          uploadedBy: workflow.createdBy,
+        },
+      });
+    } catch (error) {
+      await documentService.cleanupStoredFile(
+        process.env.STORAGE_PROVIDER || "GOOGLE_DRIVE",
+        stored,
+      );
+      throw error;
+    }
+  }
+  await db.workflowResource.updateMany({
+    where: {
+      workflowId: workflow.id,
+      title: "Demo workflow guide and submission checklist",
+    },
+    data: {
+      title: "Legacy Nursing workflow V1 - historical guide",
+      description: `${DATASET}: preserved historical guide. Follow the Nursing interview workflow V2 guide for current requirements.`,
+    },
+  });
+  const stages = await db.workflowStage.findMany({
+    where: { workflowId: workflow.id, category: { not: "Archived" } },
+    orderBy: { sequence: "asc" },
+    include: { tasks: true },
+  });
+  if (
+    stages.length !== NURSING_STAGES.length ||
+    stages.some(
+      (s, i) =>
+        s.name !== NURSING_STAGES[i].name ||
+        s.requiredMilestoneId !== (stages[i - 1]?.id || null),
+    )
+  )
+    throw new Error("Updated Nursing sequence/prerequisites did not verify.");
+  output({
+    nursingUpdated: true,
+    ...result,
+    workflowVersion: workflow.version,
+    groups: 2,
+    groupSize: 4,
+    history: "Preserved; no approvals created for new requirements",
+  });
+}
+
 async function verify(context) {
   await loadServices();
   const data = await roots();
@@ -1155,10 +1260,25 @@ async function verify(context) {
       if (milestones.some((m) => m.completed))
         throw new Error("Group A must start at the beginning.");
     } else {
+      const nursingV2 =
+        project.groupName.includes(":BSN:") &&
+        data.workflows.find((w) => w.id === project.workflowInstance.workflowId)
+          ?.version >= 2;
       if (
-        milestones.slice(0, 7).some((m) => !m.completed) ||
-        milestones[7].status !== "REVISION_REQUIRED" ||
-        milestones[7].completed
+        nursingV2
+          ? !milestones[0].completed ||
+            !milestones[1].completed ||
+            milestones[2].completed ||
+            milestones[2].status !== "NOT_STARTED" ||
+            milestones[3].tasks[0]?.status !== "APPROVED" ||
+            milestones[4].tasks[0]?.status !== "APPROVED" ||
+            milestones[5].tasks[0]?.status !== "REVISION_REQUIRED" ||
+            milestones
+              .slice(3)
+              .some((m) => m.completed || m.status !== "BLOCKED")
+          : milestones.slice(0, 7).some((m) => !m.completed) ||
+            milestones[7].status !== "REVISION_REQUIRED" ||
+            milestones[7].completed
       )
         throw new Error(
           "Group B is not at the intended final-manuscript revision milestone.",
@@ -1481,13 +1601,15 @@ async function main() {
       "cleanup-preview",
       "cleanup",
       "name-accounts",
+      "nursing-workflow",
     ].includes(command)
   )
     throw new Error(
-      "Usage: npm run demo:programs -- <plan|preflight|seed|prepare|verify|inspect|cleanup-preview|cleanup|name-accounts>",
+      "Usage: npm run demo:programs -- <plan|preflight|seed|prepare|verify|inspect|cleanup-preview|cleanup|name-accounts|nursing-workflow>",
     );
   const context = await configure();
   if (command === "name-accounts") return nameAccounts();
+  if (command === "nursing-workflow") return nursingWorkflow(context);
   if (command === "preflight") {
     output({
       target: context.target,
@@ -1520,7 +1642,10 @@ async function main() {
   }
   if (command === "cleanup") return cleanup();
   if (command === "seed") await seedCore(context);
-  if (command === "seed" || command === "prepare") await prepare(context);
+  if (command === "seed" || command === "prepare") {
+    await prepare(context);
+    await nursingWorkflow(context);
+  }
   await verify(context);
 }
 
