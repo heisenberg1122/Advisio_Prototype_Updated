@@ -96,18 +96,18 @@
 
 /* Adviser document banner: matches the Adviser Home banner. */
 .pd-hero {
-  --hero-start: color-mix(in srgb, var(--color-primary) 32%, #0b1524);
-  --hero-end: color-mix(in srgb, var(--color-primary) 38%, #233448);
+  --hero-start: var(--au-home-start);
+  --hero-end: var(--au-home-end);
   position: relative;
   z-index: 2;
   padding: clamp(18px, 3vw, 28px);
   border: 1px solid rgb(255 255 255 / 14%);
   border-radius: 20px;
-  background: linear-gradient(115deg, var(--hero-start), var(--hero-end));
+  background: linear-gradient(115deg, var(--hero-start) 0%, var(--au-home) 55%, var(--hero-end) 100%);
   color: #ffffff;
   box-shadow: 0 10px 26px rgb(20 35 50 / 15%);
 }
-.dark .pd-hero { --hero-start: color-mix(in srgb, var(--color-primary) 22%, #0b1524); --hero-end: color-mix(in srgb, var(--color-primary) 27%, #162235); box-shadow: none; }
+.dark .pd-hero { box-shadow: none; }
 /* The seal is clipped separately so the banner's menus can open past its edge. */
 .pd-hero-seal { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
 .pd-hero-seal img { position: absolute; top: -14px; right: 12px; width: min(54%, 235px); aspect-ratio: 1; object-fit: contain; opacity: 0.12; filter: grayscale(1); user-select: none; }
@@ -254,7 +254,7 @@
 .pk-row-text strong { display: block; font-size: 15px; font-weight: 600; line-height: 21px; color: var(--color-text-primary); overflow-wrap: anywhere; }
 .pk-row-text small { font-size: 13px; color: var(--color-text-secondary); }
 
-.pk-howto { position: relative; display: none; overflow: hidden; padding: 22px; border-radius: 18px; color: #ffffff; background: linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 32%, #0b1524), color-mix(in srgb, var(--color-primary) 38%, #233448)); box-shadow: 0 10px 24px rgb(20 35 50 / 20%); }
+.pk-howto { position: relative; display: none; overflow: hidden; padding: 22px; border-radius: 18px; color: #ffffff; background: linear-gradient(115deg, var(--au-home-start) 0%, var(--au-home) 55%, var(--au-home-end) 100%); box-shadow: 0 10px 24px rgb(20 35 50 / 20%); }
 .dark .pk-howto { box-shadow: none; }
 .pk-howto-ghost { position: absolute; right: -22px; bottom: -34px; font-size: 170px; line-height: 1; opacity: 0.07; }
 .pk-howto h2 { position: relative; font-size: 17px; font-weight: 600; line-height: 24px; letter-spacing: -0.02em; color: #ffffff; }

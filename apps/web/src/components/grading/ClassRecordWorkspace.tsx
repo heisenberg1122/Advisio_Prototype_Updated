@@ -13,7 +13,7 @@ import {
 import { apiClient } from "@/lib/api-client";
 import { formatReviewDateTime } from "@/lib/review-date";
 import { PageContainer } from "@/components/ui/PageContainer";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { RoleBand } from "@/components/dashboards/RoleScreenParts";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import {
@@ -363,33 +363,31 @@ export default function ClassRecordWorkspace({
           </div>
         </header>
       ) : (
-        <>
-        <PageHeader
-          variant="plain"
-          title={student ? "My Grades" : "Class Record"}
-          category={student ? "YOUR ACADEMIC RECORD" : "COURSE WORKSPACE"}
-          subtitle={
-            student
-              ? "Your released period grades, activities, and attendance."
-              : "Individual grades and attendance, with linked research milestones."
-          }
-          actions={
-            <Button
-              variant="outline"
-              icon={<RefreshCw size={16} />}
-              disabled={!!busy || loading || !workflowId}
-              onClick={() => {
+        <RoleBand
+          title="Class Record"
+          titleId="class-record-title"
+          eyebrow="Course workspace"
+          meta="Individual grades and attendance, with linked research milestones."
+          counts={[
+            { label: "Classes", value: classes.length },
+            { label: "Students", value: loading ? "—" : period?.rows.length ?? 0 },
+            { label: "Activities", value: loading ? "—" : period?.items.length ?? 0 },
+          ]}
+          countsLabel="Class record summary"
+          secondary={[
+            {
+              label: "Refresh",
+              icon: "ti-refresh",
+              disabled: !!busy || loading || !workflowId,
+              onClick: () => {
                 if (allowSwitch()) {
                   clearEdits();
                   void load();
                 }
-              }}
-            >
-              Refresh
-            </Button>
-          }
+              },
+            },
+          ]}
         />
-        </>
       )}
       {error && (
         <div role="alert" className="cr-alert cr-alert-error">
