@@ -499,7 +499,7 @@ export function AppTopbar({
                     setIsProfileOpen(false);
                     logout();
                   }}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-sm font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-rose-400/50 cursor-pointer"
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-sm font-bold text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-rose-400/50 cursor-pointer"
                 >
                   <LogOut className="h-4 w-4" />
                   <span>Sign Out</span>

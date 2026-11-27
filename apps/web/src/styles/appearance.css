@@ -65,7 +65,8 @@
 
 [data-color-tone="soft"] .au-band--home .au-band-seal { opacity: 0.08; }
 [data-color-tone="soft"] :is(header, aside) :is([class*="text-rose-"], [class*="text-red-"]) { color: var(--au-attention); }
-[data-color-tone="soft"] header :is([class*="bg-rose-"], [class*="bg-red-"]) { background-color: var(--color-danger); }
+/* Tint solid badges only; hover utilities must not become permanent backgrounds. */
+[data-color-tone="soft"] header :is(.bg-rose-500, .bg-red-500) { background-color: var(--color-danger); }
 
 /* ---------- Optional serif headings ---------- */
 [data-heading-font="serif"] .app-workspace :is(h1, h2, h3, .au-band-title),

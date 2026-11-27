@@ -195,7 +195,7 @@ export function AppSidebar({
               isVisuallyCollapsed
                 ? "w-11 justify-center p-0"
                 : "mx-1 gap-3.5 px-3.5 text-sm font-medium",
-              "text-rose-600 hover:bg-rose-500/10 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-500/15",
+              "text-rose-700 hover:bg-rose-500/10 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-500/15",
             )}
             aria-label="Sign Out"
           >
