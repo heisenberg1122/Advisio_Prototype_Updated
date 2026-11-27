@@ -7,6 +7,7 @@ import { AppWorkspaceFrame } from "@/components/layout/AppWorkspaceFrame";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import "./researcher-workspace-surfaces.css";
 import { WorkspaceMotion } from '@/components/dashboards/student/WorkspaceMotion';
+import { OfflineBanner } from '@/components/offline/OfflineBanner';
 
 function StudentLayoutInner({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebarCollapsed();
@@ -26,6 +27,7 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
           </Suspense>
         }
       >
+        <OfflineBanner />
         <ResearchWorkspaceNavigation />
         <WorkspaceMotion>{children}</WorkspaceMotion>
       </AppWorkspaceFrame>

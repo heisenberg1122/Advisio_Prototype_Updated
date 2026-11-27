@@ -5,6 +5,8 @@ let browserQueryClient: QueryClient | undefined = undefined;
 export function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
+      // Official actions must fail offline rather than replaying silently after reconnect.
+      mutations: { networkMode: "always" },
       queries: {
         staleTime: 30 * 1000, // 30 seconds
         gcTime: 5 * 60 * 1000, // 5 minutes

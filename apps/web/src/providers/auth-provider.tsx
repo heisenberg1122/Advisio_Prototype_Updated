@@ -2,6 +2,8 @@ import { evaluationIdentityGeneration, evaluationIdentityIsCurrent } from "@/lib
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { clearGoogleOnboardingSession, storeGoogleOnboardingSession, type GoogleOnboardingSession } from "@/lib/google-onboarding";
+import { clearOfflineStorage, loadOfflineSession } from "@/lib/offline/store";
+import { setOfflineOnly } from "@/lib/offline/access";
 
 export interface UserProfile {
   id: string;
@@ -34,6 +36,7 @@ export interface AuthContextType {
   register: (payload: any) => Promise<{ success: boolean; isPending?: boolean; message?: string; user?: any; onboardingToken?: string | null; error?: string }>;
   logout: () => void;
   isSwitchingCollege: boolean;
+  isOfflineSession?: boolean;
   switchCollege: (collegeId: string) => Promise<UserProfile>;
 }
 
@@ -46,6 +49,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSwitchingCollege, setIsSwitchingCollege] = useState(false);
+  const [offlineExpiresAt, setOfflineExpiresAt] = useState(0);
+  const isOfflineSession = offlineExpiresAt > 0;
+
+  const verifiedOnline = (profile?: UserProfile) => {
+    setOfflineOnly(false); setOfflineExpiresAt(0);
+    if (profile && !profile.roles.some((role) => ["RESEARCHER", "STUDENT"].includes(role.toUpperCase()))) {
+      void clearOfflineStorage().catch(() => {});
+    }
+  };
+  const forgetOffline = () => { void clearOfflineStorage().catch(() => {}); verifiedOnline(); };
+
+  useEffect(() => {
+    if (!offlineExpiresAt) return;
+    const timer = window.setTimeout(() => {
+      setUser(null); setSessionError("Offline access has expired. Reconnect and sign in to continue.");
+    }, Math.max(0, offlineExpiresAt - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [offlineExpiresAt]);
 
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [sessionAttempt, setSessionAttempt] = useState(0);
@@ -53,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
       if (event.key !== "advisio_token") return;
+      forgetOffline();
       hydratedToken.current = null;
       setUser(null);
       setSessionError(null);
@@ -70,11 +92,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await apiClient.get<{ user: UserProfile }>("/api/auth/me");
       if (localStorage.getItem("advisio_token") !== token || !evaluationIdentityIsCurrent(identityGeneration, token)) return null;
+      verifiedOnline(data.user);
+      setSessionError(null);
       setUser(data.user);
       return data.user;
     } catch (error) {
       if (localStorage.getItem("advisio_token") !== token || !evaluationIdentityIsCurrent(identityGeneration, token)) return null;
-      if (error instanceof ApiError && error.statusCode === 401) {
+      if (error instanceof ApiError && [401, 403].includes(error.statusCode)) {
+        forgetOffline();
         localStorage.removeItem("advisio_token");
         for (const key of ["advisio_theme:active", "advisio_color-theme:active", "advisio_college-theme:active"]) {
           localStorage.removeItem(key);
@@ -95,9 +120,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
     window.addEventListener("focus", handleFocus);
+    window.addEventListener("online", handleFocus);
     document.addEventListener("visibilitychange", handleFocus);
     return () => {
       window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("online", handleFocus);
       document.removeEventListener("visibilitychange", handleFocus);
     };
   }, [token]);
@@ -112,15 +139,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const data = await apiClient.get<{ user: UserProfile }>("/api/auth/me");
         if (cancelled || !evaluationIdentityIsCurrent(identityGeneration, token)) return;
+        verifiedOnline(data.user);
         hydratedToken.current = token; setUser(data.user);
       } catch (error) {
         if (cancelled || !evaluationIdentityIsCurrent(identityGeneration, token)) return;
-        if (error instanceof ApiError && error.statusCode === 401) {
+        if (error instanceof ApiError && [401, 403].includes(error.statusCode)) {
+          forgetOffline();
           localStorage.removeItem("advisio_token");
           for (const key of ["advisio_theme:active", "advisio_color-theme:active", "advisio_college-theme:active"]) localStorage.removeItem(key);
           setToken(null); setUser(null); hydratedToken.current = null;
           if (token === '__evaluation__' && !window.location.pathname.startsWith('/evaluate')) window.location.assign('/evaluate');
-        } else { setSessionError("We could not restore your session. Check your connection and try again."); }
+        } else {
+          const cached = !(error instanceof ApiError) && (error instanceof TypeError || navigator.onLine === false)
+            ? await loadOfflineSession(token).catch(() => null) : null;
+          if (cancelled || localStorage.getItem("advisio_token") !== token || !evaluationIdentityIsCurrent(identityGeneration, token)) return;
+          if (cached) {
+            setOfflineOnly(true); setOfflineExpiresAt(cached.expiresAt); setUser(cached.user);
+          } else { setSessionError("We could not restore your session. Check your connection and try again."); }
+        }
       } finally { if (!cancelled) setIsLoading(false); }
     }
     loadUser();
@@ -128,6 +164,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token, sessionAttempt]);
 
   async function hydrateSession(sessionToken: string): Promise<UserProfile | null> {
+    await clearOfflineStorage().catch(() => {});
+    verifiedOnline();
     setSessionError(null);
     localStorage.setItem("advisio_token", sessionToken);
     let resolvedUser: UserProfile | null = null;
@@ -236,6 +274,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.warn("Server sign-out acknowledgment unavailable; clearing local credentials.");
     }
     setShowLogoutModal(false);
+    await clearOfflineStorage().catch(() => {});
+    verifiedOnline();
     if (typeof window !== "undefined") {
       if (user?.id) {
         try {
@@ -260,6 +300,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const profile = await apiClient.get<{ user: UserProfile }>("/api/auth/me", { headers: { Authorization: `Bearer ${result.token}` } });
       if (localStorage.getItem("advisio_token") !== token) throw new Error("Your session changed. Please try again.");
       if (profile.user.college?.id !== collegeId) throw new Error("College access could not be verified.");
+      await clearOfflineStorage().catch(() => {});
+      verifiedOnline();
       localStorage.setItem("advisio_token", result.token);
       hydratedToken.current = result.token;
       setUser(profile.user); setToken(result.token); setSessionError(null);
@@ -285,6 +327,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         isSwitchingCollege,
+        isOfflineSession,
         switchCollege,
       }}
     >
@@ -310,6 +353,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 </h3>
                 <p className="mt-1 text-base text-slate-500 leading-relaxed">
                   You will be signed out of your session and returned to the login screen.
+                  {user?.roles.some((role) => ["RESEARCHER", "STUDENT"].includes(role)) && " Saved offline files and drafts will be removed from this browser. Export any drafts you want to keep before signing out."}
                 </p>
               </div>
             </div>

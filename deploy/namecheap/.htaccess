@@ -5,6 +5,13 @@ Header always set X-Frame-Options "DENY"
 Header always set Referrer-Policy "strict-origin-when-cross-origin"
 Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
 
+<Files "advisio-sw.js">
+  Header set Cache-Control "no-cache, no-store, must-revalidate"
+</Files>
+<Files "index.html">
+  Header set Cache-Control "no-cache, must-revalidate"
+</Files>
+
 RewriteEngine On
 RewriteRule ^\.well-known/ - [L]
 RewriteCond %{HTTPS} !=on [OR]

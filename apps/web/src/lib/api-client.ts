@@ -1,3 +1,5 @@
+import { requiresConnection } from "./offline/access";
+
 export class ApiError extends Error {
   public statusCode: number;
   public details?: any;
@@ -57,6 +59,9 @@ export function panelRequestHeaders(): Record<string, string> {
 }
 
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+  if (requiresConnection((options.method || "GET").toUpperCase(), endpoint)) {
+    throw new ApiError("Reconnect and verify your session before continuing. Your offline drafts have not been submitted.", 0);
+  }
   const { params, headers = {}, ...rest } = options;
 
   let url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
@@ -130,6 +135,7 @@ export const apiClient = {
   upload: <T>(url: string, body: FormData, options?: RequestOptions) =>
     request<T>(url, { method: "POST", body, ...options }),
   file: async (url: string, options: { expectedMimeType?: string } = {}) => {
+    if (requiresConnection("GET", url)) throw new ApiError("Reconnect to download this file. Previously saved files are in your Offline workspace.", 0);
     const token = typeof window !== "undefined" ? localStorage.getItem("advisio_token") : null;
     const response = await fetch(url.startsWith("http") ? url : `${API_BASE_URL}${url}`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...panelRequestHeaders() },

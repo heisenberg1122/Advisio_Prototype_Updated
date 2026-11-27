@@ -18,7 +18,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, isLoading, isAuthenticated, sessionError, retrySession, logout } = useAuth();
+  const { user, isLoading, isAuthenticated, sessionError, retrySession, logout, isOfflineSession } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -50,6 +50,13 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // A saved profile grants access only to the local workspace, never server-backed portals.
+  if (isOfflineSession) {
+    return location.pathname === "/student/offline"
+      ? <>{children}</>
+      : <Navigate to="/student/offline" replace />;
   }
 
   const eligibleWorkspaces = getEligibleWorkspaces(user.roles || []);

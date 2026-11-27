@@ -74,6 +74,7 @@ Advisio_Prototype_Updated/
 - ⚖️ **Live Defense & Rubric Scoring**: Panel defense scheduling, live scoring matrices, deliberation comments, and institutional grading.
 - 📝 **Class Record & Attendance**: Professor-managed Prelim, Midterm, and Finals sheets with individual activities, linked group milestone scores, configurable grading weights, dated attendance, private drafts, and individual or whole-period releases. Researchers see only their own released records. [Setup, grading rules, and verification](docs/class-record.md).
 - 📁 **Document Repository & Version Control**: Multi-version manuscript uploads, cloud sync with Google Drive, and revision history.
+- 📴 **Researcher Offline Workspace**: Opt-in saved requirements and feedback, selected manuscript/guide downloads, and private preparation drafts that survive disconnected reloads. Official actions remain online. [Usage, storage, and verification](docs/offline-mode.md).
 - ✍️ **Role-Scoped Electronic Signatures**: Advisers, professors, panelists, and deans can review and sign eligible PDFs using explicit signing confirmation, immutable signed versions, verification codes, file hashes, and audit logs.
 - 🗂️ **Research Group Files**: Folder-based collaborative storage with controlled promotion into the formal document and review lifecycle.
 - 🔔 **Real-Time Notification Popover & Alerts**: Instant updates on adviser acceptance, submission reviews, task deadlines, and defense schedules.

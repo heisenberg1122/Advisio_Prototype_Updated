@@ -12,6 +12,8 @@ import { AdviserTaskReview, needsAdviserApproval } from "@/components/workflow/A
 
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
 import { resolveStudentWorkflow } from "@/lib/student-workflow-context";
+import { OfflineDraftEditor } from "@/components/offline/OfflineDraftEditor";
+import { taskDraftKey } from "@/lib/offline/snapshot";
 
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -586,6 +588,13 @@ export default function ResearchTasksPage() {
       );
     }
     return (
+      <div className="space-y-4">
+      <OfflineDraftEditor
+        key={selectedTask.id}
+        draftKey={taskDraftKey(workflowProject?.id, workflowId, selectedTask.id)}
+        title={selectedTask.title}
+        onUse={setNote}
+      />
       <MilestoneDetailsWorkspace
         task={selectedTask}
         project={workflowProject}
@@ -605,6 +614,7 @@ export default function ResearchTasksPage() {
         onSubmitDocument={submitDocumentRequirement}
         onOpenSigned={openSubmissionVersion}
       />
+      </div>
     );
   }
 

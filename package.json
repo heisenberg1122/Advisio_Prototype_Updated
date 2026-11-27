@@ -39,6 +39,7 @@
     "type-check": "turbo run type-check",
     "test": "turbo run test",
     "test:integration": "npm --workspace=api run test:integration",
+    "test:offline:browser": "npm --workspace=web run build && node --test scripts/offline-workspace.browser.test.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "walkthrough:researcher:capture": "node scripts/walkthrough/capture-researcher.mjs",
     "walkthrough:researcher:voice": "node scripts/walkthrough/voice.mjs",

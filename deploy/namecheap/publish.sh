@@ -45,9 +45,11 @@ upload() {
 # Keep the previous index and its hashed assets usable until the upload completes.
 while IFS= read -r -d '' file; do
   upload "${file#"$dist/"}"
-done < <(find "$dist" -type f ! -path "$dist/index.html" ! -path "$dist/.htaccess" -print0)
+done < <(find "$dist" -type f ! -path "$dist/index.html" ! -path "$dist/.htaccess" ! -path "$dist/advisio-sw.js" -print0)
 upload .htaccess
 upload index.html
+# The offline worker validates the matching entry in index.html before installing.
+upload advisio-sw.js
 
 served_index=$(mktemp)
 trap 'rm -f "$served_index"' EXIT

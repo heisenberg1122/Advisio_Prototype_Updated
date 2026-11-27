@@ -66,6 +66,11 @@ jobs:
       - name: Build All Monorepo Packages
         run: npm run build
 
+      - name: Verify the production offline workspace in Chromium
+        run: |
+          npx playwright install --with-deps chromium
+          node --test scripts/offline-workspace.browser.test.mjs
+
   database-integration:
     name: Sequential Database Integration Tests
     runs-on: ubuntu-latest

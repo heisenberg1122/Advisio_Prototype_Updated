@@ -6,6 +6,7 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { LoginRoute } from "@/components/auth/LoginRoute";
 import { AppShellSkeleton } from "@/components/ui/Skeleton";
+import OfflineWorkspace from "./components/offline/OfflineWorkspace";
 import {
   legacyProfessorMilestonesDestination,
   legacyPortalDashboardDestination,
@@ -346,6 +347,10 @@ export function AppRoutes() {
               <StudentTasksPage />
             </StudentPortal>
           }
+        />
+        <Route
+          path="/student/offline"
+          element={<ProtectedRoute allowedRoles={["RESEARCHER", "STUDENT"]}><OfflineWorkspace /></ProtectedRoute>}
         />
         <Route
           path="/student/tasks/:taskId"

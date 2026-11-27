@@ -9,7 +9,7 @@ import {
 } from "@/lib/post-login-navigation";
 
 export function LoginRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, isAuthenticated } = useAuth();
+  const { user, isLoading, isAuthenticated, isOfflineSession } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -21,6 +21,7 @@ export function LoginRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated || !user) return <>{children}</>;
+  if (isOfflineSession) return <Navigate to="/student/offline" replace />;
 
   const action = resolvePostLoginAction({
     roles: user.roles,
