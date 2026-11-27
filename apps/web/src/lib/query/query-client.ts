@@ -8,6 +8,8 @@ export function makeQueryClient() {
       // Official actions must fail offline rather than replaying silently after reconnect.
       mutations: { networkMode: "always" },
       queries: {
+        // Allow saved reads to execute instead of waiting for the network to return.
+        networkMode: "always",
         staleTime: 30 * 1000, // 30 seconds
         gcTime: 5 * 60 * 1000, // 5 minutes
         retry: 1,

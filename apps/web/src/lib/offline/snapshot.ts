@@ -22,6 +22,8 @@ export type SavedRequirement = {
   feedback: string[];
 };
 export type SavedFileOption = {
+  projectId?: string;
+  workflowId?: string;
   id: string;
   title: string;
   group: string;
@@ -180,7 +182,7 @@ export async function refreshOfflineSnapshot(
         `/api/research/${project.id}/documents`,
       );
       files.push(
-        ...summarizeDocuments(documents.documents || [], project.title),
+        ...summarizeDocuments(documents.documents || [], project.title).map((file) => ({ ...file, projectId: project.id })),
       );
       if (membership && !project.workflowAccessRemoved) {
         const projection = await apiClient.get<{ milestones: any[] }>(
@@ -226,6 +228,7 @@ export async function refreshOfflineSnapshot(
         ...(resources.resources || []).map((resource) => ({
           // Resource IDs survive replacement; include version so an old blob is never labelled current.
           id: `resource:${resource.id}:${resource.version}`,
+          workflowId: enrollment.workflowId,
           title: resource.title,
           group: enrollment.workflow?.name || "Workflow guide",
           name: resource.fileName,
@@ -244,8 +247,14 @@ export async function refreshOfflineSnapshot(
   }
   const snapshot = { savedAt: Date.now(), requirements, files };
   const allowed = new Set(files.map((file) => `file:${file.id}`));
-  for (const saved of await listOffline(session, "file:")) {
+  for (const saved of await listOffline<any>(session, "file:")) {
     if (!allowed.has(saved.key)) await removeOffline(session, saved.key);
+    else {
+      const option = files.find((file) => `file:${file.id}` === saved.key)!;
+      if (!saved.value.url || (!saved.value.projectId && option.projectId) || (!saved.value.workflowId && option.workflowId)) {
+        await writeOffline(session, saved.key, { ...saved.value, url: option.url, projectId: option.projectId, workflowId: option.workflowId });
+      }
+    }
   }
   await writeOffline(session, "snapshot", snapshot);
   return snapshot;

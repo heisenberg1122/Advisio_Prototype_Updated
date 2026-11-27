@@ -52,6 +52,9 @@ upload index.html
 upload advisio-sw.js
 
 served_index=$(mktemp)
-trap 'rm -f "$served_index"' EXIT
+served_worker=$(mktemp)
+trap 'rm -f "$served_index" "$served_worker"' EXIT
 curl -fsS --retry 3 --max-time 20 "https://advisio-ua.com/?release=$RELEASE_SHA" -o "$served_index"
 cmp "$dist/index.html" "$served_index"
+curl -fsS --retry 3 --max-time 20 "https://advisio-ua.com/advisio-sw.js?release=$RELEASE_SHA" -o "$served_worker"
+cmp "$dist/advisio-sw.js" "$served_worker"

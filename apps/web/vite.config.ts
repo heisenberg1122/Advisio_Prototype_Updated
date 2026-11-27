@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
 export default defineConfig({
@@ -10,10 +10,13 @@ export default defineConfig({
     name: 'advisio-offline-shell',
     apply: 'build',
     generateBundle(_options, bundle) {
-      const shell = Object.keys(bundle).filter((name) => /\.(?:js|css|woff2?|ttf)$/.test(name)).map((name) => `/${name}`).sort();
+      const publicShell = ['/advisio-logo.png', '/school-logo.png', '/favicon.svg', ...readdirSync(new URL('./public/college-logos', import.meta.url)).filter((name) => /\.(png|svg)$/.test(name)).map((name) => `/college-logos/${name}`)];
+      const shell = [...Object.keys(bundle).filter((name) => /\.(?:m?js|css|woff2?|ttf)$/.test(name)).map((name) => `/${name}`), ...publicShell].sort();
       const entry = Object.values(bundle).find((item) => item.type === 'chunk' && item.isEntry);
       if (!entry) throw new Error('The offline shell needs the application entry point.');
-      const revision = createHash('sha256').update(shell.join('\n')).digest('hex').slice(0, 16);
+      const digest = createHash('sha256').update(shell.join('\n'));
+      for (const name of publicShell) digest.update(readFileSync(new URL(`./public${name}`, import.meta.url)));
+      const revision = digest.digest('hex').slice(0, 16);
       const source = readFileSync(new URL('./offline-worker.js', import.meta.url), 'utf8')
         .replace('__ADVISIO_OFFLINE_SHELL__', JSON.stringify(shell))
         .replace('__ADVISIO_OFFLINE_ENTRY__', JSON.stringify(entry.fileName))

@@ -2,6 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { AppTopbar } from "@/components/layout/AppTopbar";
+import { OfflineControls } from "@/components/offline/OfflineControls";
 
 const PAGE_TITLES: Record<string, string> = {
   "/student/groups": "My Group",
@@ -61,6 +62,7 @@ export function StudentTopbar() {
       settingsHref="/student/settings"
       searchPlaceholder="Search anything..."
       variant="workspace"
+      actions={<OfflineControls />}
     />
   );
 }

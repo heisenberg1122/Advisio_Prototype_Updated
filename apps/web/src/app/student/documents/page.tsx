@@ -32,6 +32,7 @@ import { ListRowsSkeleton } from "@/components/ui/Skeleton";
 import { Tabs } from "@/components/ui/Tabs";
 import { Tag } from "@/components/ui/Tag";
 import { apiClient } from "@/lib/api-client";
+import { useOfflineReadOnly } from "@/components/offline/use-offline";
 import { useActiveProject } from "@/providers/active-project-provider";
 import {
   DocumentSigningModal,
@@ -391,6 +392,7 @@ function milestoneVariant(
 }
 
 export default function DocumentWorkspacePage() {
+  const readOnly = useOfflineReadOnly();
   const navigate = useNavigate();
   const location = useLocation();
   const requestSequence = useRef(0);
@@ -426,9 +428,10 @@ export default function DocumentWorkspacePage() {
     MilestoneProgress[]
   >([]);
   const [activity, setActivity] = useState<ManuscriptActivity[]>([]);
-  const [permissions, setPermissions] = useState<DocumentPermissions | null>(
+  const [serverPermissions, setPermissions] = useState<DocumentPermissions | null>(
     null,
   );
+  const permissions = readOnly && serverPermissions ? { ...serverPermissions, canManageWorkingDocuments: false, canSubmitManuscript: false, canReview: false, canApproveOfficialDocuments: false } : serverPermissions;
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
   const requestedTab = searchParams.get("tab");
   const activeTab = ["workspace", "reviews", "milestones", "official"].includes(
@@ -765,6 +768,15 @@ export default function DocumentWorkspacePage() {
       return;
     }
     loadDocuments(activeProjectId);
+  }, [activeProjectId]);
+
+  useEffect(() => {
+    const refreshed = () => {
+      void apiClient.get<{ projects: ResearchProject[] }>("/api/research").then((result) => setProjects(result.projects || [])).catch(() => {});
+      if (activeProjectId) void loadDocuments(activeProjectId);
+    };
+    window.addEventListener("advisio:offline-refreshed", refreshed);
+    return () => window.removeEventListener("advisio:offline-refreshed", refreshed);
   }, [activeProjectId]);
 
   useEffect(() => {
@@ -1651,6 +1663,7 @@ export default function DocumentWorkspacePage() {
             {useDocumentLibrary && !loadingDocuments && (
               <div hidden={!researcherViewerOpen && activeTab !== "workspace"}>
                 <ResearcherDocumentsWorkspace
+                  projectId={activeProjectId}
                   documents={documents}
                   selectedDocumentId={
                     researcherViewerOpen ? documentParam! : ""

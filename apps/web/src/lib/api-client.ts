@@ -1,4 +1,6 @@
-import { requiresConnection } from "./offline/access";
+import { isOfflineReadMode, requiresConnection, setOfflineOnly } from "./offline/access";
+import { cachedFile, cachedResponse, currentOfflineSession, evictResponse, offlineResponsePath, OFFLINE_SAVE_ERROR, saveResponse, SESSION_REJECTED } from "./offline/cache";
+import { clearOfflineStorage, listOffline, removeOffline, type OfflineFile } from "./offline/store";
 
 export class ApiError extends Error {
   public statusCode: number;
@@ -59,9 +61,6 @@ export function panelRequestHeaders(): Record<string, string> {
 }
 
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  if (requiresConnection((options.method || "GET").toUpperCase(), endpoint)) {
-    throw new ApiError("Reconnect and verify your session before continuing. Your offline drafts have not been submitted.", 0);
-  }
   const { params, headers = {}, ...rest } = options;
 
   let url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
@@ -89,24 +88,53 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   };
 
   const method = (rest.method || "GET").toUpperCase();
+  const base = API_BASE_URL || (typeof window !== "undefined" ? window.location?.origin : undefined) || "http://localhost";
+  const cachePath = method === "GET" ? offlineResponsePath(url, base) : null;
+  const candidate = cachePath && requestHeaders.Authorization === `Bearer ${token}` ? await currentOfflineSession() : null;
+  const savedSession = candidate?.token === token ? candidate : null;
+  if (method === "GET" && endpoint !== "/api/auth/me" && isOfflineReadMode()) {
+    const saved = savedSession && cachePath ? await cachedResponse<T>(savedSession, cachePath) : undefined;
+    if (saved !== undefined) { setOfflineOnly(true); return saved; }
+    throw new ApiError("This information has not been saved on this device. Reconnect to load it.", 0);
+  }
+  if (requiresConnection(method, endpoint)) {
+    throw new ApiError("Reconnect and verify your session before continuing. Your draft has not been submitted.", 0);
+  }
   const requestKey = mutationRequestKey(method, url, rest.body, requestHeaders);
   const existingRequest = requestKey ? inFlightMutations.get(requestKey) : null;
   if (existingRequest) return existingRequest as Promise<T>;
 
   const pendingRequest = (async () => {
-    const response = await fetch(url, {
-      headers: requestHeaders,
-      ...rest,
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, { headers: requestHeaders, ...rest });
+    } catch (error) {
+      if (error instanceof TypeError && savedSession && cachePath && !rest.signal?.aborted) {
+        const saved = await cachedResponse<T>(savedSession, cachePath);
+        if (saved !== undefined) { setOfflineOnly(true); return saved; }
+      }
+      throw error;
+    }
 
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
+      if (savedSession && response.status === 401) {
+        await clearOfflineStorage();
+        window.dispatchEvent(new Event(SESSION_REJECTED));
+      } else if (savedSession && cachePath && [403, 404].includes(response.status)) {
+        await evictResponse(savedSession, cachePath);
+      }
       throw new ApiError(
         data.error || data.message || (response.status === 404 ? "Backend API service is unreachable (404). Please ensure the API server is running." : "An unexpected error occurred"),
         response.status,
         data.details
       );
+    }
+
+    if (savedSession && cachePath && localStorage.getItem("advisio_token") === token) {
+      try { await saveResponse(savedSession, cachePath, data); }
+      catch { window.dispatchEvent(new Event(OFFLINE_SAVE_ERROR)); }
     }
 
     return data as T;
@@ -135,12 +163,43 @@ export const apiClient = {
   upload: <T>(url: string, body: FormData, options?: RequestOptions) =>
     request<T>(url, { method: "POST", body, ...options }),
   file: async (url: string, options: { expectedMimeType?: string } = {}) => {
-    if (requiresConnection("GET", url)) throw new ApiError("Reconnect to download this file. Previously saved files are in your Offline workspace.", 0);
+    const savedSession = await currentOfflineSession();
+    const base = API_BASE_URL || (typeof window !== "undefined" ? window.location?.origin : undefined) || "http://localhost";
+    const readSaved = async () => {
+      const blob = savedSession ? await cachedFile(savedSession, url, base) : null;
+      if (blob && options.expectedMimeType && blob.type.split(";")[0].toLowerCase() !== options.expectedMimeType.split(";")[0].toLowerCase()) {
+        throw new ApiError("The saved file has an unexpected file type. Reconnect and save it again.", 0);
+      }
+      return blob;
+    };
+    if (isOfflineReadMode()) {
+      const blob = await readSaved();
+      if (blob) return blob;
+      throw new ApiError("This file is not available offline. Reconnect and choose Make available offline beside the file.", 0);
+    }
     const token = typeof window !== "undefined" ? localStorage.getItem("advisio_token") : null;
-    const response = await fetch(url.startsWith("http") ? url : `${API_BASE_URL}${url}`, {
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...panelRequestHeaders() },
-    });
+    let response: Response;
+    try {
+      response = await fetch(url.startsWith("http") ? url : `${API_BASE_URL}${url}`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...panelRequestHeaders() },
+      });
+    } catch (error) {
+      if (error instanceof TypeError) {
+        const blob = await readSaved();
+        if (blob) { setOfflineOnly(true); return blob; }
+      }
+      throw error;
+    }
     if (!response.ok) {
+      if (savedSession && [401, 403, 404].includes(response.status)) {
+        if (response.status === 401) { await clearOfflineStorage(); window.dispatchEvent(new Event(SESSION_REJECTED)); }
+        else {
+          const path = new URL(url, base).pathname;
+          for (const file of await listOffline<OfflineFile>(savedSession, "file:")) {
+            if (file.value.url && new URL(file.value.url, base).pathname === path) await removeOffline(savedSession, file.key);
+          }
+        }
+      }
       const data = await response.json().catch(() => ({}));
       throw new ApiError(data.error || data.message || "The file could not be opened.", response.status, data.details);
     }

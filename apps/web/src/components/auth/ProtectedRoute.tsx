@@ -52,11 +52,11 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // A saved profile grants access only to the local workspace, never server-backed portals.
+  // A cached researcher identity can read saved researcher pages, never faculty portals.
   if (isOfflineSession) {
-    return location.pathname === "/student/offline"
+    return location.pathname.startsWith("/student/") && (!allowedRoles || allowedRoles.some((role) => ["RESEARCHER", "STUDENT"].includes(role)))
       ? <>{children}</>
-      : <Navigate to="/student/offline" replace />;
+      : <Navigate to="/student/dashboard" replace />;
   }
 
   const eligibleWorkspaces = getEligibleWorkspaces(user.roles || []);

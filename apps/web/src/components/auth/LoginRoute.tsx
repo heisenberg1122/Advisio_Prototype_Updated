@@ -21,7 +21,7 @@ export function LoginRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated || !user) return <>{children}</>;
-  if (isOfflineSession) return <Navigate to="/student/offline" replace />;
+  if (isOfflineSession) return <Navigate to="/student/dashboard" replace />;
 
   const action = resolvePostLoginAction({
     roles: user.roles,

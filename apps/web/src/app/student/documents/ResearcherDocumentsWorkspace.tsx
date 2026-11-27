@@ -21,6 +21,8 @@ import {
   Upload,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { OfflineFileButton } from "@/components/offline/OfflineFileButton";
+import { useOfflineReadOnly } from "@/components/offline/use-offline";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
@@ -79,6 +81,7 @@ type ResearchFileManagerDocument = Omit<FileManagerDocument, "versions"> & {
 };
 
 type ResearcherDocumentsWorkspaceProps = {
+  projectId?: string;
   onBack: () => void;
   projectName: string;
   documents: ResearchFileManagerDocument[];
@@ -159,6 +162,7 @@ function DocumentFileIcon({ fileType }: { fileType: string }) {
 }
 
 export function ResearcherDocumentsWorkspace({
+  projectId,
   onBack,
   projectName,
   documents,
@@ -176,6 +180,7 @@ export function ResearcherDocumentsWorkspace({
   onCreateDocument,
   onUploadDocument,
 }: ResearcherDocumentsWorkspaceProps) {
+  const readOnly = useOfflineReadOnly();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<DocumentWorkspaceFilter>("ALL");
   const [sort, setSort] = useState<DocumentWorkspaceSort>("MODIFIED_DESC");
@@ -185,6 +190,11 @@ export function ResearcherDocumentsWorkspace({
   const [previewRetry, setPreviewRetry] = useState(0);
   const [detailTab, setDetailTab] = useState("file-preview");
   const [loadedPreviewKey, setLoadedPreviewKey] = useState("");
+  useEffect(() => {
+    const refreshed = () => setPreviewRetry((value) => value + 1);
+    window.addEventListener("advisio:offline-refreshed", refreshed);
+    return () => window.removeEventListener("advisio:offline-refreshed", refreshed);
+  }, []);
 
   const visibleDocuments = useMemo(
     () => filterAndSortDocuments(documents, { search, filter, sort }),
@@ -592,7 +602,8 @@ export function ResearcherDocumentsWorkspace({
                     </p>
                   </div>
                   <div className="rd-file-actions">
-                    {capabilities?.canOpenGoogle && (
+                    {selectedVersion?.webViewLink && <OfflineFileButton id={`document:${selectedVersion.id}`} name={selectedVersion.fileName} url={selectedVersion.webViewLink} projectId={projectId} />}
+                    {capabilities?.canOpenGoogle && !readOnly && (
                       <a
                         href={selectedDocument.liveDocumentUrl || "#"}
                         target="_blank"
@@ -823,6 +834,8 @@ export function ResearcherDocumentsWorkspace({
                       title="Preview access unavailable"
                       description="You do not have permission to view this file."
                     />
+                  ) : previewKind === "GOOGLE_DOC" && readOnly ? (
+                    <p role="status" className="p-6 text-base text-[var(--color-text-secondary)]">Live Google Docs need internet. Choose a saved manuscript version above to read it here offline.</p>
                   ) : previewKind === "GOOGLE_DOC" &&
                     selectedDocument.liveDocumentUrl ? (
                     <iframe

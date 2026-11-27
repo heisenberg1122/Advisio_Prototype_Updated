@@ -43,6 +43,10 @@ vi.mock("@/providers/active-project-provider", () => ({
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({ user: null }),
 }));
+vi.mock("@/components/offline/use-offline", () => ({
+  useOfflineReadOnly: () => false,
+  useOfflineSession: () => ({ session: null, loading: false }),
+}));
 vi.mock("@/lib/api-client", () => ({
   apiClient: { get: vi.fn(), post: vi.fn() },
 }));

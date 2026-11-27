@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import {
+  isOfflineReadMode,
+  OFFLINE_ACCESS_CHANGED,
+} from "@/lib/offline/access";
+import {
   loadOfflineSession,
   OFFLINE_CHANGED,
   type OfflineSession,
@@ -18,6 +22,24 @@ export function useConnectivity() {
     };
   }, []);
   return online;
+}
+
+export function useOfflineReadOnly() {
+  const online = useConnectivity();
+  const { isOfflineSession } = useAuth();
+  const [limited, setLimited] = useState(isOfflineReadMode);
+  useEffect(() => {
+    const update = () => setLimited(isOfflineReadMode());
+    window.addEventListener(OFFLINE_ACCESS_CHANGED, update);
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener(OFFLINE_ACCESS_CHANGED, update);
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+  return !online || Boolean(isOfflineSession) || limited;
 }
 
 export function useOfflineSession() {

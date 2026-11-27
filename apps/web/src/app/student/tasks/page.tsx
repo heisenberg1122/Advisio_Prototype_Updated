@@ -12,7 +12,8 @@ import { AdviserTaskReview, needsAdviserApproval } from "@/components/workflow/A
 
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
 import { resolveStudentWorkflow } from "@/lib/student-workflow-context";
-import { OfflineDraftEditor } from "@/components/offline/OfflineDraftEditor";
+import { requirementFingerprint, useTaskNoteDraft } from "@/components/offline/use-task-note-draft";
+import { useOfflineReadOnly } from "@/components/offline/use-offline";
 import { taskDraftKey } from "@/lib/offline/snapshot";
 
 import { useEffect, useRef, useState } from "react";
@@ -283,6 +284,12 @@ export default function ResearchTasksPage() {
       : projectedSelectedTask;
 
   const workflowId = data?.activeEnrollment?.workflowId;
+  const readOnly = useOfflineReadOnly();
+  const noteDraft = useTaskNoteDraft({
+    draftKey: selectedTask ? taskDraftKey(data?.workflowProject?.id, workflowId, selectedTask.id) : null,
+    title: selectedTask?.title || "Submission note", fingerprint: requirementFingerprint(selectedTask),
+    initialNote: selectedTask?.submission?.note || "", value: note, onChange: setNote,
+  });
   const { data: workflowResources } = useQuery({
     queryKey: ["workflow-resources", workflowId],
     queryFn: () =>
@@ -327,6 +334,8 @@ export default function ResearchTasksPage() {
   };
 
   const finishSubmission = async (successMessage: string) => {
+    let localDraftRemoved = true;
+    try { await noteDraft.clear(); } catch { localDraftRemoved = false; }
     await Promise.all([
       queryClient.invalidateQueries({
         queryKey: ["student", "workflow-tasks"],
@@ -341,10 +350,12 @@ export default function ResearchTasksPage() {
     ]);
     setFile(null);
     setNote("");
-    setMessage(successMessage);
+    setMessage(localDraftRemoved ? successMessage : `${successMessage} Your local draft could not be removed; remove it from Offline settings when storage is available.`);
   };
 
   const submitUploadedRequirement = async () => {
+    if (readOnly) throw new Error("Reconnect to submit. Your note remains saved on this device.");
+    if (noteDraft.needsReview || noteDraft.failed) throw new Error("Review and save your local draft before submitting.");
     if (!selectedTask || !data?.workflowProject || selectedTask.previewOnly || !file || selectedTask.milestoneOnly)
       throw new Error("Choose a file before submitting.");
     const allowed = String(selectedTask.allowedFileTypes || "PDF,DOCX")
@@ -391,6 +402,8 @@ export default function ResearchTasksPage() {
     option: TaskSubmissionOption,
     idempotencyKey: string,
   ) => {
+    if (readOnly) throw new Error("Reconnect to submit. Your note remains saved on this device.");
+    if (noteDraft.needsReview || noteDraft.failed) throw new Error("Review and save your local draft before submitting.");
     if (!selectedTask || !data?.workflowProject || selectedTask.previewOnly || selectedTask.milestoneOnly)
       throw new Error("The task submission context is unavailable.");
     if (submissionInFlightRef.current)
@@ -588,13 +601,6 @@ export default function ResearchTasksPage() {
       );
     }
     return (
-      <div className="space-y-4">
-      <OfflineDraftEditor
-        key={selectedTask.id}
-        draftKey={taskDraftKey(workflowProject?.id, workflowId, selectedTask.id)}
-        title={selectedTask.title}
-        onUse={setNote}
-      />
       <MilestoneDetailsWorkspace
         task={selectedTask}
         project={workflowProject}
@@ -608,13 +614,16 @@ export default function ResearchTasksPage() {
         submitting={submitting}
         starting={starting}
         onFile={selectSubmissionFile}
-        onNote={setNote}
+        onNote={noteDraft.change}
+        noteDisabled={!noteDraft.ready || submitting}
+        noteStatus={noteDraft.controls}
+        draftNeedsReview={noteDraft.needsReview || noteDraft.failed}
+        readOnly={readOnly}
         onStart={startMilestoneTask}
         onSubmitUpload={submitUploadedRequirement}
         onSubmitDocument={submitDocumentRequirement}
         onOpenSigned={openSubmissionVersion}
       />
-      </div>
     );
   }
 
@@ -1369,6 +1378,10 @@ export function MilestoneDetailsWorkspace({
   starting,
   onFile,
   onNote,
+  noteDisabled,
+  noteStatus,
+  draftNeedsReview,
+  readOnly = false,
   onStart,
   onSubmitUpload,
   onSubmitDocument,
@@ -1587,6 +1600,11 @@ export function MilestoneDetailsWorkspace({
               </p>
             )}
           </section>
+          {!task.milestoneOnly && <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+            <SubmissionNote value={note} onChange={onNote} disabled={noteDisabled} />
+            {noteStatus}
+            {readOnly && <p className="mt-3 text-sm text-[var(--color-text-secondary)]">You can prepare this note offline. Reconnect to review the current requirement and submit.</p>}
+          </section>}
           <div className="td-action-area" data-guide={task.previewOnly || task.isTitleProposal || task.locked || task.isAdviserMilestone || task.milestoneOnly || task.noDocumentRequired || !submissionOptionsQuery.isPending ? "task-action-info" : undefined}>
           {task.previewOnly ? (
             <WorkflowStartPanel workflowId={task.stage.workflowId} locked={task.locked} message={task.conditionMessage} />
@@ -1613,7 +1631,7 @@ export function MilestoneDetailsWorkspace({
               </p>
               <button
                 onClick={onStart}
-                disabled={starting}
+                disabled={readOnly || starting}
                 className="mt-4 w-full rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 py-3 text-sm font-extrabold text-white shadow-sm transition disabled:opacity-50 cursor-pointer"
               >
                 <i
@@ -1788,13 +1806,12 @@ export function MilestoneDetailsWorkspace({
                   );
                 })}
               </fieldset>
-              <SubmissionNote value={note} onChange={onNote} />
               {submissionError && <SubmissionError message={submissionError} />}
               <Button
                 className="submission-action task-submission-review mt-4 w-full"
                 size="lg"
                 onClick={() => setConfirmation("documents")}
-                disabled={!selectedOption || !canSubmit || submitting}
+                disabled={readOnly || draftNeedsReview || !selectedOption || !canSubmit || submitting}
               >
                 Review document submission
               </Button>
@@ -1831,13 +1848,12 @@ export function MilestoneDetailsWorkspace({
                   }}
                 />
               </label>
-              <SubmissionNote value={note} onChange={onNote} />
               {submissionError && <SubmissionError message={submissionError} />}
               <Button
                 className="submission-action task-submission-review mt-4 w-full"
                 size="lg"
                 onClick={openUploadConfirmation}
-                disabled={!file || submitting || !canUpload}
+                disabled={readOnly || draftNeedsReview || !file || submitting || !canUpload}
               >
                 Review file submission
               </Button>
@@ -2411,9 +2427,11 @@ function SubmissionBackButton({ onClick }: { onClick: () => void }) {
 function SubmissionNote({
   value,
   onChange,
+  disabled = false,
 }: {
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="mt-4">
@@ -2425,6 +2443,7 @@ function SubmissionNote({
       </label>
       <textarea
         id="task-submission-note"
+        disabled={disabled}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         rows={3}

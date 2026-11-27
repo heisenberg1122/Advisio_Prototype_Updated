@@ -4,6 +4,7 @@ import { apiClient, ApiError } from "@/lib/api-client";
 import { clearGoogleOnboardingSession, storeGoogleOnboardingSession, type GoogleOnboardingSession } from "@/lib/google-onboarding";
 import { clearOfflineStorage, loadOfflineSession } from "@/lib/offline/store";
 import { setOfflineOnly } from "@/lib/offline/access";
+import { SESSION_REJECTED } from "@/lib/offline/cache";
 
 export interface UserProfile {
   id: string;
@@ -71,6 +72,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [sessionAttempt, setSessionAttempt] = useState(0);
   const hydratedToken = useRef<string | null>(null);
+  useEffect(() => {
+    const rejected = () => {
+      localStorage.removeItem("advisio_token");
+      setToken(null); setUser(null); hydratedToken.current = null; setSessionError(null); verifiedOnline();
+    };
+    window.addEventListener(SESSION_REJECTED, rejected);
+    return () => window.removeEventListener(SESSION_REJECTED, rejected);
+  }, []);
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
       if (event.key !== "advisio_token") return;

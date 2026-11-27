@@ -135,7 +135,7 @@ export async function enableOfflineStorage(
   const session: StoredSession = {
     scope: `${user.universityId}:${user.id}:${user.college?.id || "unassigned"}`,
     tokenHash: hash,
-    // Cached identity opens only the offline researcher workspace, never faculty tools.
+    // Cached identity opens only researcher read-only pages, never faculty tools.
     user: {
       ...user,
       roles: ["RESEARCHER"],
@@ -274,8 +274,8 @@ export async function clearOfflineStorage() {
   changed();
 }
 
-export type OfflineDraft = { text: string; title: string; updatedAt: number };
-export type OfflineFile = { name: string; blob: Blob; savedAt: number };
+export type OfflineDraft = { text: string; title: string; updatedAt: number; requirementFingerprint?: string; needsReview?: boolean };
+export type OfflineFile = { name: string; blob: Blob; savedAt: number; url?: string; projectId?: string; workflowId?: string };
 
 export async function listOffline<T>(
   session: OfflineSession,

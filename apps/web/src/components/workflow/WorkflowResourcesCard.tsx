@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { OfflineFileButton } from "@/components/offline/OfflineFileButton";
+import { Modal } from "@/components/ui/Modal";
+const PdfDocumentPreview = lazy(() => import("@/components/documents/PdfDocumentPreview").then((module) => ({ default: module.PdfDocumentPreview })));
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 
@@ -39,6 +42,8 @@ export function WorkflowResourcesCard({ workflowId, canManage = false }: { workf
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview]);
 
   useEffect(() => {
     setDialog(null);
@@ -92,6 +97,7 @@ export function WorkflowResourcesCard({ workflowId, canManage = false }: { workf
     try {
       const blob = await apiClient.file(`/api/workflows/resources/${resource.id}/file${download ? "?download=1" : ""}`);
       const url = URL.createObjectURL(blob);
+      if (!download && blob.type.split(";")[0] === "application/pdf") { setPreview({ url, name: resource.fileName }); return; }
       const link = document.createElement("a");
       link.href = url; link.target = download ? "_self" : "_blank"; link.rel = "noreferrer";
       if (download) link.download = resource.fileName;
@@ -116,9 +122,10 @@ export function WorkflowResourcesCard({ workflowId, canManage = false }: { workf
         : <div className="mt-5 divide-y divide-slate-100 rounded-xl border border-slate-200 dark:divide-white/10 dark:border-white/10">{resources.map((resource) => <article key={resource.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-[#173f63]"><i className={`ti ${resource.mimeType === "application/pdf" ? "ti-file-type-pdf" : "ti-file-type-docx"} text-xl`} /></span>
             <div className="min-w-0 flex-1"><p className="truncate text-sm font-extrabold text-[#102f49] dark:text-white">{resource.title}</p>{resource.description && <p className="mt-0.5 text-base text-slate-500">{resource.description}</p>}<p className="mt-1 truncate text-sm font-semibold text-slate-400">{resource.fileName} · {formatBytes(resource.fileSize)} · Version {resource.version} · Updated {new Date(resource.updatedAt).toLocaleDateString()}</p></div>
-            <div className="flex flex-wrap gap-2"><button type="button" onClick={() => openFile(resource)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-[#173f63]">View</button><button type="button" onClick={() => openFile(resource, true)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-[#173f63]">Download</button>{allowedToManage && <><button type="button" onClick={() => openEdit(resource)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600">Edit</button><button type="button" onClick={() => openReplace(resource)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600">Replace</button><button type="button" disabled={busy} onClick={() => remove(resource)} className="rounded-lg border border-rose-200 px-3 py-2 text-sm font-bold text-rose-600">Remove</button></>}</div>
+            <div className="flex flex-wrap gap-2"><OfflineFileButton id={`resource:${resource.id}:${resource.version}`} name={resource.fileName} url={`/api/workflows/resources/${resource.id}/file`} workflowId={workflowId || undefined} /><button type="button" onClick={() => openFile(resource)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-[#173f63]">View</button><button type="button" onClick={() => openFile(resource, true)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-[#173f63]">Download</button>{allowedToManage && <><button type="button" onClick={() => openEdit(resource)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600">Edit</button><button type="button" onClick={() => openReplace(resource)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600">Replace</button><button type="button" disabled={busy} onClick={() => remove(resource)} className="rounded-lg border border-rose-200 px-3 py-2 text-sm font-bold text-rose-600">Remove</button></>}</div>
           </article>)}</div>}
 
+      {preview && <Modal isOpen onClose={() => setPreview(null)} title={preview.name} maxWidth="xl"><div className="h-[60vh]"><Suspense fallback={<p role="status">Loading PDF reader…</p>}><PdfDocumentPreview url={preview.url} compact /></Suspense></div></Modal>}
       {dialog && <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/60 p-4 backdrop-blur-sm" onClick={(event) => event.target === event.currentTarget && !busy && setDialog(null)}><section role="dialog" aria-modal="true" className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#101b2b]"><h2 className="text-lg font-black text-[#102f49] dark:text-white">{dialog === "upload" ? "Upload workflow resource" : dialog === "replace" ? `Replace ${selected?.title}` : "Edit resource details"}</h2><p className="mt-1 text-base text-slate-500">This resource applies to the entire selected workflow, not a particular milestone.</p><div className="mt-5 space-y-4">{dialog !== "replace" && <><label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-600">Title</span><input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={180} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-base outline-none focus:border-[#173f63] dark:bg-white/5 dark:text-white" placeholder="Official Manuscript Guide" /></label><label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-600">Description (optional)</span><textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={3} maxLength={2000} className="w-full rounded-xl border border-slate-200 p-3 text-base outline-none focus:border-[#173f63] dark:bg-white/5 dark:text-white" /></label></>}{dialog !== "edit" && <label className="block"><span className="mb-1.5 block text-xs font-bold text-slate-600">{dialog === "replace" ? "Replacement file" : "File"}</span><input ref={fileInput} type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(event) => setFile(event.target.files?.[0] || null)} className="block w-full rounded-xl border border-slate-200 p-3 text-base text-slate-600" /><span className="mt-1.5 block text-xs text-slate-400">PDF, DOC, or DOCX · maximum 10 MB</span></label>}{notice && <p className="rounded-xl bg-rose-50 px-3 py-2 text-base font-bold text-rose-700">{notice}</p>}</div><div className="mt-6 flex justify-end gap-2"><button type="button" disabled={busy} onClick={() => setDialog(null)} className="rounded-xl px-4 py-2.5 text-sm font-bold text-slate-500">Cancel</button><button type="button" disabled={busy} onClick={save} className="rounded-xl bg-[#173f63] px-5 py-2.5 text-sm font-extrabold text-white disabled:opacity-50">{busy ? "Saving…" : dialog === "replace" ? "Replace file" : "Save"}</button></div></section></div>}
     </section>
   );
